@@ -600,6 +600,21 @@ function initGoogleMaps() {
         <input class="fc" id="trip-maxdist" type="number" placeholder="例：5" min="0" step="0.5" oninput="renderTripList()">
       </div>
     </div>
+    <div class="search-row">
+      <div class="search-group sg-type"><span class="search-label">戶籍縣市</span>
+        <select class="fc" id="trip-hcity" onchange="tripUpdateHDist();renderTripList()">
+          <option value="">全部縣市</option>
+        </select>
+      </div>
+      <div class="search-group sg-type"><span class="search-label">戶籍行政區</span>
+        <select class="fc" id="trip-hdist" onchange="renderTripList()">
+          <option value="">全部行政區</option>
+        </select>
+      </div>
+      <div class="search-group sg-kw" style="align-self:flex-end">
+        <button class="btn-clear" onclick="tripClearHAddr()" style="width:100%">✕ 清除戶籍篩選</button>
+      </div>
+    </div>
   </div>
 
   <!-- 已選行程區 -->
@@ -974,7 +989,7 @@ function switchPage(p){
   document.getElementById('page-'+p).classList.add('active');
   document.getElementById('nav-'+p).classList.add('active');
   if(p==='stats'){initStatsYears();renderStats();}
-  else if(p==='trip'){renderTripList();renderTripSelected();updateMapsBtn();}
+  else if(p==='trip'){tripInitHCitySelect();renderTripList();renderTripSelected();updateMapsBtn();}
   else renderAll();
 }
 function switchSubTab(t){
@@ -2166,6 +2181,8 @@ function getTripItems() {
   const src = (document.getElementById('trip-source')||{value:'both'}).value;
   const kw = ((document.getElementById('trip-kw')||{value:''}).value).trim().toLowerCase();
   const pt = (document.getElementById('trip-proptype')||{value:''}).value;
+  const hcity = (document.getElementById('trip-hcity')||{value:''}).value;
+  const hdist = (document.getElementById('trip-hdist')||{value:''}).value;
   let items = [];
   if (src !== 'track') items = items.concat(db.recruit.map(r=>({...r,_pool:'recruit'})));
   if (src !== 'recruit') items = items.concat(db.track.map(r=>({...r,_pool:'track'})));
@@ -2174,6 +2191,21 @@ function getTripItems() {
     (r.bldg||'').toLowerCase().includes(kw)
   );
   if (pt) items = items.filter(r => r.propType === pt);
+  // 戶籍縣市篩選
+  if (hcity) items = items.filter(r => {
+    const addr = ownerHouseholdAddr(r) || '';
+    const owners = r.owners && r.owners.length
+      ? r.owners
+      : [{city: r.ownerCity||'', dist: r.ownerDist||'', addr: r.ownerAddr||''}];
+    return owners.some(o => (o.city||'') === hcity);
+  });
+  // 戶籍行政區篩選
+  if (hdist) items = items.filter(r => {
+    const owners = r.owners && r.owners.length
+      ? r.owners
+      : [{city: r.ownerCity||'', dist: r.ownerDist||'', addr: r.ownerAddr||''}];
+    return owners.some(o => (o.dist||'') === hdist);
+  });
   return items;
 }
 
@@ -2228,6 +2260,41 @@ function tripClearAll() {
   renderTripList();
   renderTripSelected();
   updateMapsBtn();
+}
+
+// ── 戶籍縣市選單初始化 ──
+function tripInitHCitySelect() {
+  const sel = document.getElementById('trip-hcity');
+  if (!sel || sel.options.length > 1) return; // 已初始化
+  Object.keys(CITIES).forEach(c => {
+    const o = document.createElement('option');
+    o.value = o.textContent = c;
+    sel.appendChild(o);
+  });
+}
+
+// ── 戶籍縣市變更 → 更新行政區選單 ──
+function tripUpdateHDist() {
+  const city = (document.getElementById('trip-hcity')||{value:''}).value;
+  const sel = document.getElementById('trip-hdist');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">全部行政區</option>';
+  if (city && CITIES[city]) {
+    CITIES[city].forEach(d => {
+      const o = document.createElement('option');
+      o.value = o.textContent = d;
+      sel.appendChild(o);
+    });
+  }
+}
+
+// ── 清除戶籍篩選 ──
+function tripClearHAddr() {
+  const hcity = document.getElementById('trip-hcity');
+  const hdist = document.getElementById('trip-hdist');
+  if (hcity) hcity.value = '';
+  if (hdist) { hdist.innerHTML = '<option value="">全部行政區</option>'; }
+  renderTripList();
 }
 
 function tripRemoveOne(id) {
