@@ -2009,18 +2009,44 @@ function tripLog(msg) {
   if (el.children.length > 20) el.lastChild.remove();
 }
 
-// ── Nominatim 地址定位（OpenStreetMap，需 https:// 環境）──
+// ── 地址簡化（備用，去掉樓層）──
+function simplifyAddr(addr) {
+  if (!addr) return addr;
+  return addr.replace(/\d+樓.*$/, '').replace(/之\d+$/, '').trim();
+}
+
+// ── Taiwan Geocoding API（twgeocoder，免費免 Key，支援完整門牌）──
 async function geocodeAddr(addr) {
   const q = encodeURIComponent(addr);
-  const url = `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1&countrycodes=tw&accept-language=zh-TW`;
+  const url = `https://twgeocoder.com/api/?address=${q}`;
   tripLog(`請求: ${addr}`);
   try {
-    const res = await fetch(url, { headers: { 'Accept-Language': 'zh-TW' } });
+    const res = await fetch(url);
     tripLog(`回應狀態: ${res.status}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    tripLog(`結果數: ${data.length}，第一筆: ${data[0] ? data[0].display_name : '無'}`);
-    if (data && data.length > 0) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+    tripLog(`結果: ${JSON.stringify(data).slice(0, 100)}`);
+    // twgeocoder 回傳格式：{ lat, lng } 或 { latitude, longitude }
+    if (data && (data.lat || data.latitude)) {
+      return {
+        lat: parseFloat(data.lat ?? data.latitude),
+        lng: parseFloat(data.lng ?? data.longitude)
+      };
+    }
+    // 若完整地址查無結果，嘗試簡化後再查一次
+    const simplified = simplifyAddr(addr);
+    if (simplified !== addr) {
+      tripLog(`簡化後再查: ${simplified}`);
+      const res2 = await fetch(`https://twgeocoder.com/api/?address=${encodeURIComponent(simplified)}`);
+      const data2 = await res2.json();
+      tripLog(`簡化結果: ${JSON.stringify(data2).slice(0, 100)}`);
+      if (data2 && (data2.lat || data2.latitude)) {
+        return {
+          lat: parseFloat(data2.lat ?? data2.latitude),
+          lng: parseFloat(data2.lng ?? data2.longitude)
+        };
+      }
+    }
     return null;
   } catch(e) {
     tripLog(`錯誤: ${e.message}`);
