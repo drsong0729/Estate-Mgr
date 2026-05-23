@@ -388,6 +388,8 @@ body.mobile-view .chart-card canvas{max-height:260px}
 <script>
 // Google Maps JS API 載入完成後的 callback
 let gmapsGeocoder = null;
+let tripMapInstance = null;
+let tripMapMarkers = [];
 function initGoogleMaps() {
   gmapsGeocoder = new google.maps.Geocoder();
 }
@@ -610,6 +612,13 @@ function initGoogleMaps() {
   <div id="trip-preview-area" style="display:none;margin-bottom:14px;background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r);padding:12px 16px;box-shadow:var(--sh)">
     <div style="font-size:13px;font-weight:700;color:var(--acc);margin-bottom:10px">🗓 行程預覽</div>
     <div id="trip-preview-list" style="display:flex;flex-direction:column;gap:6px"></div>
+    <!-- 地圖 -->
+    <div id="trip-map-wrap" style="display:none;margin-top:14px;border-radius:10px;overflow:hidden;border:1px solid var(--bdr)">
+      <div id="trip-map-container" style="width:100%;height:420px"></div>
+      <div id="trip-map-hint" style="font-size:11px;color:var(--tx3);padding:6px 10px;background:var(--surf2);text-align:center">
+        ⏳ 等待地址定位完成後顯示地圖…
+      </div>
+    </div>
   </div>
 
   <!-- 物件清單 -->
@@ -2300,7 +2309,11 @@ function renderTripPreview(ids) {
   const area = document.getElementById('trip-preview-area');
   const list = document.getElementById('trip-preview-list');
   if (!area || !list) return;
-  if (!ids || ids.length === 0) { area.style.display='none'; return; }
+  if (!ids || ids.length === 0) {
+    area.style.display = 'none';
+    clearTripMap();
+    return;
+  }
   area.style.display = 'block';
   list.innerHTML = ids.map((id, idx) => {
     const r = getTripItem(id);
@@ -2322,7 +2335,124 @@ function renderTripPreview(ids) {
       </div>
     </div>`;
   }).join('');
+
+  // 渲染地圖
+  renderTripMap(ids);
 }
+
+// ── 清除地圖 ──
+function clearTripMap() {
+  const wrap = document.getElementById('trip-map-wrap');
+  if (wrap) wrap.style.display = 'none';
+  tripMapMarkers.forEach(m => m.setMap(null));
+  tripMapMarkers = [];
+  tripMapInstance = null;
+}
+
+// ── 渲染地圖（在行程預覽下方）──
+function renderTripMap(ids) {
+  const wrap = document.getElementById('trip-map-wrap');
+  const hint = document.getElementById('trip-map-hint');
+  const container = document.getElementById('trip-map-container');
+  if (!wrap || !container) return;
+
+  // 收集已有座標的點
+  const points = ids.map((id, idx) => {
+    const coords = geoCache[id];
+    const r = getTripItem(id);
+    return (coords && typeof coords === 'object')
+      ? { id, idx, coords, r, isAnchor: id === tripAnchorId }
+      : null;
+  }).filter(Boolean);
+
+  // 若座標都還沒好，顯示等待提示
+  if (points.length === 0) {
+    wrap.style.display = 'block';
+    if (hint) hint.textContent = '⏳ 等待地址定位完成後顯示地圖…';
+    if (hint) hint.style.display = 'block';
+    return;
+  }
+
+  wrap.style.display = 'block';
+  if (hint) hint.style.display = 'none';
+
+  // 等 Google Maps API 就緒
+  if (!window.google || !window.google.maps) return;
+
+  // 初始化或沿用地圖實例
+  if (!tripMapInstance) {
+    tripMapInstance = new google.maps.Map(container, {
+      zoom: 12,
+      center: points[0].coords,
+      mapTypeControl: false,
+      streetViewControl: false,
+      fullscreenControl: true,
+    });
+  }
+
+  // 清掉舊 markers
+  tripMapMarkers.forEach(m => m.setMap(null));
+  tripMapMarkers = [];
+
+  const bounds = new google.maps.LatLngBounds();
+
+  points.forEach(({ id, idx, coords, r, isAnchor }) => {
+    const label = String(idx + 1);
+    const householdAddr = ownerHouseholdAddr(r);
+    const propAddr = fullAddr(r.propCity, r.propDist, r.propAddr);
+
+    const marker = new google.maps.Marker({
+      position: coords,
+      map: tripMapInstance,
+      label: {
+        text: label,
+        color: isAnchor ? '#1a2332' : '#ffffff',
+        fontWeight: 'bold',
+        fontSize: '12px',
+      },
+      icon: {
+        path: google.maps.SymbolPath.CIRCLE,
+        scale: 16,
+        fillColor: isAnchor ? '#fece26' : '#0f519b',
+        fillOpacity: 1,
+        strokeColor: isAnchor ? '#f5c400' : '#0d4589',
+        strokeWeight: 2,
+      },
+      title: `行程${idx+1}：${ownersLabel(r)}`,
+      zIndex: isAnchor ? 100 : idx,
+    });
+
+    const infoContent = `
+      <div style="font-family:'Noto Sans TC',sans-serif;font-size:13px;min-width:200px;max-width:280px">
+        <div style="font-weight:700;margin-bottom:4px;color:#0f519b">行程${idx+1}：${escH(ownersLabel(r))} ${isAnchor?'⚓':''}</div>
+        <div style="font-size:12px;color:#3d526b;margin-bottom:2px">🏠 ${escH(propAddr)}</div>
+        ${householdAddr ? `<div style="font-size:11px;color:#7a90aa">📋 戶籍：${escH(householdAddr)}</div>` : ''}
+        <div style="font-size:11px;margin-top:4px">
+          <span style="background:${r._pool==='recruit'?'#e8f1fb':'#e4f4ec'};color:${r._pool==='recruit'?'#0f519b':'#1a7a4a'};padding:1px 7px;border-radius:10px;font-weight:600">
+            ${r._pool==='recruit'?'募集線':'追蹤線'}
+          </span>
+        </div>
+      </div>`;
+
+    const infoWindow = new google.maps.InfoWindow({ content: infoContent });
+    marker.addListener('click', () => {
+      tripMapMarkers.forEach(m => m._iw && m._iw.close());
+      infoWindow.open(tripMapInstance, marker);
+    });
+    marker._iw = infoWindow;
+    tripMapMarkers.push(marker);
+    bounds.extend(coords);
+  });
+
+  // 自動調整視野
+  if (points.length === 1) {
+    tripMapInstance.setCenter(points[0].coords);
+    tripMapInstance.setZoom(15);
+  } else {
+    tripMapInstance.fitBounds(bounds, { top: 40, bottom: 40, left: 40, right: 40 });
+  }
+}
+
 
 // ── 開啟 Google Maps 多點導航 ──
 function openGoogleMaps() {
