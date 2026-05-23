@@ -385,6 +385,14 @@ body.mobile-view .chart-card canvas{max-height:260px}
 .trip-chip button:hover{opacity:1}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+// Google Maps JS API 載入完成後的 callback
+let gmapsGeocoder = null;
+function initGoogleMaps() {
+  gmapsGeocoder = new google.maps.Geocoder();
+}
+</script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBDX0LHYeD0bHQvzLezIir-ZYjOJUVHI3k&callback=initGoogleMaps&loading=async" async defer></script>
 </head>
 <body>
 <!-- NOTIF BAR -->
@@ -2009,29 +2017,36 @@ function tripLog(msg) {
   if (el.children.length > 20) el.lastChild.remove();
 }
 
-// ── Google Maps Geocoding API ──
+// ── Google Maps JS Geocoder（瀏覽器端，無 CORS 問題）──
 const GMAPS_KEY = 'AIzaSyBDX0LHYeD0bHQvzLezIir-ZYjOJUVHI3k';
 
-async function geocodeAddr(addr) {
-  const q = encodeURIComponent(addr);
-  const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${q}&key=${GMAPS_KEY}&language=zh-TW&region=TW`;
-  tripLog(`請求: ${addr}`);
-  try {
-    const res = await fetch(url);
-    tripLog(`回應狀態: ${res.status}`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    tripLog(`狀態: ${data.status}，結果數: ${data.results ? data.results.length : 0}`);
-    if (data.status === 'OK' && data.results.length > 0) {
-      const loc = data.results[0].geometry.location;
-      tripLog(`定位成功: ${loc.lat}, ${loc.lng}`);
-      return { lat: loc.lat, lng: loc.lng };
-    }
-    return null;
-  } catch(e) {
-    tripLog(`錯誤: ${e.message}`);
-    throw e;
-  }
+function geocodeAddr(addr) {
+  return new Promise((resolve, reject) => {
+    // 等待 gmapsGeocoder 初始化（最多等 10 秒）
+    let waited = 0;
+    const tryGeo = () => {
+      if (!gmapsGeocoder) {
+        if (waited >= 10000) { reject(new Error('Google Maps 載入逾時')); return; }
+        waited += 200;
+        setTimeout(tryGeo, 200);
+        return;
+      }
+      gmapsGeocoder.geocode(
+        { address: addr, region: 'TW', language: 'zh-TW' },
+        (results, status) => {
+          tripLog(`狀態: ${status}，結果數: ${results ? results.length : 0}`);
+          if (status === 'OK' && results.length > 0) {
+            const loc = results[0].geometry.location;
+            tripLog(`定位成功: ${loc.lat()}, ${loc.lng()}`);
+            resolve({ lat: loc.lat(), lng: loc.lng() });
+          } else {
+            resolve(null);
+          }
+        }
+      );
+    };
+    tryGeo();
+  });
 }
 
 // ── 排隊處理 geocode（非同步，每筆間隔 1.1 秒）──
