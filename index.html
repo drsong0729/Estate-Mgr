@@ -416,17 +416,17 @@ function initGoogleMaps() {
       <!-- Desktop: direct buttons -->
       <button class="btn btn-sm btn-excel-out" onclick="exportExcel()">⬇ 匯出</button>
       <button class="btn btn-sm btn-excel-in" onclick="document.getElementById('xlsxInput').click()">⬆ 匯入</button>
-      <input type="file" id="xlsxInput" class="hidden-input" accept=".xlsx,.xls,.csv" onchange="importExcel(event)">
+      <input type="file" id="xlsxInput" class="hidden-input" accept=".json,.xlsx,.xls,.csv" onchange="importExcel(event)">
       <button class="theme-btn" id="themeBtn" onclick="toggleTheme()">🌙</button>
       <!-- Mobile: collapsed into ⋯ menu -->
       <div class="more-menu-wrap">
         <button class="more-btn" onclick="toggleMoreMenu()" title="更多">⋯</button>
         <div class="more-dropdown" id="moreDropdown">
-          <button class="more-item" onclick="exportExcel();closeMoreMenu()">⬇ 匯出 Excel</button>
-          <button class="more-item" onclick="document.getElementById('xlsxInput2').click();closeMoreMenu()">⬆ 匯入 Excel</button>
+          <button class="more-item" onclick="exportExcel();closeMoreMenu()">⬇ 匯出備份</button>
+          <button class="more-item" onclick="document.getElementById('xlsxInput2').click();closeMoreMenu()">⬆ 匯入備份</button>
           <button class="more-item" onclick="toggleTheme();closeMoreMenu()" id="themeMenuItem">🌙 切換主題</button>
         </div>
-        <input type="file" id="xlsxInput2" class="hidden-input" accept=".xlsx,.xls,.csv" onchange="importExcel(event)">
+        <input type="file" id="xlsxInput2" class="hidden-input" accept=".json,.xlsx,.xls,.csv" onchange="importExcel(event)">
       </div>
     </div>
   </div>
@@ -1654,92 +1654,117 @@ function checkNotifs(){
   } else bar.classList.remove('show');
 }
 
-// ── 匯出 ──
+// ── 匯出（JSON 格式，完整保留進度）──
 function exportExcel(){
-  const pools=['recruit','track','commission'];
-  const names=['募集線','追蹤線','委託'];
-  let csv='';
-  pools.forEach((pool,pi)=>{
-    csv+=`\n===== ${names[pi]} =====\n`;
-    const rows=db[pool];
-    if(!rows.length){csv+='（無資料）\n';return;}
-    // 基本欄位（排除 progress，另外處理）
-    const keys=Object.keys(rows[0]).filter(k=>k!=='progress');
-    // 加上進度相關欄位
-    const allKeys=[...keys,'最新進度日期','最新進度內容','所有進度（JSON）'];
-    csv+=allKeys.join(',')+'\n';
-    rows.forEach(r=>{
-      const baseVals=keys.map(k=>`"${String(r[k]||'').replace(/"/g,'""')}"`);
-      const prog=r.progress||[];
-      const last=prog.length?prog[prog.length-1]:null;
-      const lastDate=last?`${last.date} ${last.time}`:'';
-      const lastText=last?String(last.text||'').replace(/"/g,'""'):'';
-      const allProg=JSON.stringify(prog).replace(/"/g,'""');
-      baseVals.push(`"${lastDate}"`,`"${lastText}"`,`"${allProg}"`);
-      csv+=baseVals.join(',')+'\n';
-    });
-  });
-  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`房仲管理_${nowDate()}.csv`;a.click();
+  // 用 JSON 格式匯出，完整保留 progress 陣列，不受 CSV 換行問題影響
+  const data = {
+    version: 2,
+    exportedAt: new Date().toISOString(),
+    recruit: db.recruit,
+    track: db.track,
+    commission: db.commission
+  };
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], {type: 'application/json;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `房仲管理_${nowDate()}.json`;
+  a.click();
 }
 
-// ── 匯入 ──
+// ── 匯入（同時支援新版 JSON 與舊版 CSV）──
 function importExcel(e){
-  const file=e.target.files[0];if(!file)return;
-  const reader=new FileReader();
-  reader.onload=function(ev){
+  const file = e.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev){
     try{
-      const text=ev.target.result.replace(/^\uFEFF/,'');
-      const lines=text.split('\n').map(l=>l.trim()).filter(Boolean);
-      let current=null,headers=[];
-      const imp={recruit:[],track:[],commission:[]};
-      const nameMap={'募集線':'recruit','追蹤線':'track','委託':'commission'};
-      lines.forEach(line=>{
-        if(line.startsWith('=====')){const m=line.match(/=====\s*(.+?)\s*=====/);if(m)current=nameMap[m[1]]||null;headers=[];return;}
-        if(line==='（無資料）')return;
-        // CSV 解析（正確處理欄位內含逗號的情況）
-        const vals=[];let cur='',inQ=false;
-        for(let i=0;i<line.length;i++){
-          const c=line[i];
-          if(c==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++;}else inQ=!inQ;}
-          else if(c===','&&!inQ){vals.push(cur);cur='';}
-          else cur+=c;
+      const raw = ev.target.result.replace(/^\uFEFF/, '');
+
+      // ── 新版 JSON 格式 ──
+      if(raw.trim().startsWith('{')){
+        const data = JSON.parse(raw);
+        ['recruit','track','commission'].forEach(pool => {
+          const incoming = data[pool] || [];
+          incoming.forEach(r => {
+            if(!r.id) return;
+            const existing = db[pool].find(x => x.id === r.id);
+            if(!existing){
+              if(!r.progress) r.progress = [];
+              db[pool].push(r);
+            } else {
+              // 合併進度（以 progress.id 去重）
+              const existProg = existing.progress || [];
+              const newProg = r.progress || [];
+              newProg.forEach(np => {
+                if(!existProg.find(ep => ep.id && ep.id === np.id))
+                  existProg.push(np);
+              });
+              existing.progress = existProg;
+            }
+          });
+        });
+        save(); renderAll(); checkNotifs();
+        alert('匯入成功！（JSON 格式）');
+        e.target.value = '';
+        return;
+      }
+
+      // ── 舊版 CSV 格式（向下相容）──
+      const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+      let current = null, headers = [];
+      const imp = {recruit:[], track:[], commission:[]};
+      const nameMap = {'募集線':'recruit','追蹤線':'track','委託':'commission'};
+      lines.forEach(line => {
+        if(line.startsWith('=====')){
+          const m = line.match(/=====\s*(.+?)\s*=====/);
+          if(m) current = nameMap[m[1]] || null;
+          headers = []; return;
+        }
+        if(line === '（無資料）') return;
+        // 逐字元 CSV 解析（支援欄位內含逗號）
+        const vals = []; let cur = '', inQ = false;
+        for(let i = 0; i < line.length; i++){
+          const c = line[i];
+          if(c === '"'){ if(inQ && line[i+1] === '"'){cur += '"'; i++;} else inQ = !inQ; }
+          else if(c === ',' && !inQ){ vals.push(cur); cur = ''; }
+          else cur += c;
         }
         vals.push(cur);
-        if(!headers.length){headers=vals;return;}
-        if(!current)return;
-        const obj={};headers.forEach((h,i)=>obj[h]=vals[i]||'');
-        if(!obj.id)return;
-        // 還原 progress
-        const progJson=obj['所有進度（JSON）']||'';
+        if(!headers.length){ headers = vals; return; }
+        if(!current) return;
+        const obj = {}; headers.forEach((h,i) => obj[h] = vals[i] || '');
+        if(!obj.id) return;
+        // 嘗試還原 JSON 進度欄
+        const progJson = obj['所有進度（JSON）'] || '';
         delete obj['所有進度（JSON）'];
         delete obj['最新進度日期'];
         delete obj['最新進度內容'];
-        try{obj.progress=progJson?JSON.parse(progJson):[];}catch{obj.progress=[];}
+        try{ obj.progress = progJson ? JSON.parse(progJson) : []; } catch{ obj.progress = []; }
         imp[current].push(obj);
       });
-      ['recruit','track','commission'].forEach(pool=>{
-        imp[pool].forEach(r=>{
-          const existing=db[pool].find(x=>x.id===r.id);
+      ['recruit','track','commission'].forEach(pool => {
+        imp[pool].forEach(r => {
+          const existing = db[pool].find(x => x.id === r.id);
           if(!existing){
             db[pool].push(r);
           } else {
-            // 合併進度（以 id 去重）
-            const existProg=existing.progress||[];
-            const newProg=r.progress||[];
-            newProg.forEach(np=>{
-              if(!existProg.find(ep=>ep.id&&ep.id===np.id))existProg.push(np);
+            const existProg = existing.progress || [];
+            const newProg = r.progress || [];
+            newProg.forEach(np => {
+              if(!existProg.find(ep => ep.id && ep.id === np.id)) existProg.push(np);
             });
-            existing.progress=existProg;
+            existing.progress = existProg;
           }
         });
       });
-      save();renderAll();checkNotifs();alert('匯入成功！');
-    }catch(err){alert('匯入失敗：'+err.message);}
-    e.target.value='';
+      save(); renderAll(); checkNotifs();
+      alert('匯入成功！（CSV 格式）');
+    } catch(err){ alert('匯入失敗：' + err.message); }
+    e.target.value = '';
   };
-  reader.readAsText(file,'UTF-8');
+  reader.readAsText(file, 'UTF-8');
 }
+
 
 
 // ── 主題 ──
