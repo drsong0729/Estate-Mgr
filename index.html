@@ -639,14 +639,6 @@ function initGoogleMaps() {
   <!-- 物件清單 -->
   <div id="trip-list"></div>
 
-  <!-- Debug 面板（排查用） -->
-  <div style="margin-top:20px">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-      <span style="font-size:11px;font-weight:700;color:var(--tx3);letter-spacing:.06em">🔧 定位記錄（排查用）</span>
-      <button onclick="document.getElementById('trip-debug-log').innerHTML=''" style="font-size:10px;padding:2px 8px;border:1px solid var(--bdr);background:var(--bg2);border-radius:4px;cursor:pointer;color:var(--tx3)">清除</button>
-    </div>
-    <div id="trip-debug-log" style="background:var(--surf2);border:1px solid var(--bdr);border-radius:var(--r);padding:10px;max-height:180px;overflow-y:auto;font-family:monospace"></div>
-  </div>
 </div>
 </main>
 
@@ -2094,16 +2086,7 @@ function haversine(lat1, lng1, lat2, lng2) {
 }
 
 // ── Debug 工具 ──
-function tripLog(msg) {
-  console.log('[Trip]', msg);
-  const el = document.getElementById('trip-debug-log');
-  if (!el) return;
-  const line = document.createElement('div');
-  line.style.cssText = 'font-size:11px;padding:2px 0;border-bottom:1px solid var(--bdr);color:var(--tx2)';
-  line.textContent = new Date().toLocaleTimeString() + ' ' + msg;
-  el.prepend(line);
-  if (el.children.length > 20) el.lastChild.remove();
-}
+
 
 // ── Google Maps JS Geocoder（瀏覽器端，無 CORS 問題）──
 const GMAPS_KEY = 'AIzaSyBDX0LHYeD0bHQvzLezIir-ZYjOJUVHI3k';
@@ -2122,10 +2105,8 @@ function geocodeAddr(addr) {
       gmapsGeocoder.geocode(
         { address: addr, region: 'TW', language: 'zh-TW' },
         (results, status) => {
-          tripLog(`狀態: ${status}，結果數: ${results ? results.length : 0}`);
           if (status === 'OK' && results.length > 0) {
             const loc = results[0].geometry.location;
-            tripLog(`定位成功: ${loc.lat()}, ${loc.lng()}`);
             resolve({ lat: loc.lat(), lng: loc.lng() });
           } else {
             resolve(null);
@@ -2141,28 +2122,23 @@ function geocodeAddr(addr) {
 async function processGeoQueue() {
   if (geoRunning) return;
   geoRunning = true;
-  tripLog(`開始處理，隊列長度: ${geoQueue.length}`);
   while (geoQueue.length > 0) {
     const id = geoQueue.shift();
     if (geoCache[id]) { renderTripList(); continue; }
     const r = getTripItem(id);
     if (!r) continue;
     const addr = ownerHouseholdAddr(r);
-    tripLog(`處理: ${ownersLabel(r)} → 地址: "${addr}"`);
     if (!addr) { geoCache[id] = 'no-addr'; renderTripList(); continue; }
     try {
       const coords = await geocodeAddr(addr);
       geoCache[id] = coords || 'error';
-      tripLog(`定位結果: ${coords ? `${coords.lat},${coords.lng}` : '找不到'}`);
     } catch(e) {
       geoCache[id] = 'error';
-      tripLog(`定位失敗: ${e.message}`);
     }
     renderTripList();
     if (geoQueue.length > 0) await new Promise(res => setTimeout(res, 100));
   }
   geoRunning = false;
-  tripLog('全部完成');
   renderTripList();
 }
 
