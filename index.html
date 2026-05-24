@@ -71,63 +71,197 @@
   --shlg:0 8px 32px rgba(0,0,0,.6)
 }
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Noto Sans TC',system-ui,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;transition:background .2s,color .2s}
-/* HEADER */
-header{background:var(--acc);border-bottom:none;padding:0 16px;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100;box-shadow:var(--shlg);gap:8px;overflow:hidden}
+body{font-family:'Noto Sans TC',system-ui,sans-serif;background:var(--bg);color:var(--tx);height:100vh;overflow:hidden;display:flex;transition:background .2s,color .2s}
+
+/* ════════════════════════════════
+   SIDEBAR — 左側垂直導覽
+════════════════════════════════ */
+#sidebar{
+  width:200px;min-width:200px;
+  background:var(--acc);
+  display:flex;flex-direction:column;
+  min-height:100vh;
+  position:sticky;top:0;height:100vh;
+  z-index:100;
+  box-shadow:4px 0 20px rgba(15,81,155,.25);
+  transition:width .22s ease;
+  overflow:hidden;
+}
 .header-row1,.header-row2{display:contents}
-/* MORE MENU */
-.more-menu-wrap{position:relative}
-.more-btn{width:34px;height:34px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.15);border-radius:50%;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;transition:.2s;flex-shrink:0;color:#fff}
-.more-btn:hover{background:rgba(255,255,255,.25)}
-.more-dropdown{display:none;position:absolute;top:40px;right:0;background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r);box-shadow:var(--shlg);min-width:140px;z-index:300;overflow:hidden}
-.more-dropdown.open{display:block}
-.more-item{display:flex;align-items:center;gap:8px;padding:11px 16px;font-size:13px;cursor:pointer;color:var(--tx);border-bottom:1px solid var(--bdr);transition:.15s;white-space:nowrap;font-family:inherit;background:none;border-left:none;border-right:none;border-top:none;width:100%;text-align:left}
-.more-item:last-child{border-bottom:none}
-.more-item:hover{background:var(--bg2)}
-.logo{font-size:16px;font-weight:700;color:#fff;white-space:nowrap;flex-shrink:0}
-.logo small{font-size:10px;font-weight:400;color:rgba(255,255,255,.65);margin-left:6px}
-nav{display:flex;gap:3px;flex-shrink:0}
-.nav-btn{padding:6px 12px;border:none;background:transparent;color:rgba(255,255,255,.8);font-size:13px;font-weight:500;border-radius:8px;cursor:pointer;transition:.2s;position:relative;font-family:inherit;white-space:nowrap}
-.nav-btn:hover{background:rgba(255,255,255,.15);color:#fff}
-.nav-btn.active{background:var(--yel);color:#1a2332;font-weight:700}
-.nbadge{position:absolute;top:2px;right:4px;background:#d42020;color:#fff;font-size:9px;padding:1px 4px;border-radius:8px;font-weight:700}
-.hright{display:flex;align-items:center;gap:6px;flex-shrink:0}
-.theme-btn{width:34px;height:34px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.15);border-radius:50%;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;transition:.2s;flex-shrink:0;color:#fff}
+
+/* Logo 區 */
+.sidebar-logo{
+  padding:20px 18px 16px;
+  border-bottom:1px solid rgba(255,255,255,.12);
+  display:flex;align-items:center;gap:10px;
+}
+.logo{
+  font-size:13px;font-weight:700;color:#fff;
+  line-height:1.3;letter-spacing:.01em;
+  white-space:normal;
+}
+.logo-icon{
+  width:34px;height:34px;background:var(--yel);border-radius:10px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:17px;flex-shrink:0;
+}
+
+/* Nav */
+nav{
+  display:flex;flex-direction:column;gap:2px;
+  padding:14px 10px;flex:1;
+}
+.nav-btn{
+  padding:10px 14px;border:none;background:transparent;
+  color:rgba(255,255,255,.7);font-size:13px;font-weight:500;
+  border-radius:10px;cursor:pointer;transition:.18s;
+  position:relative;font-family:inherit;white-space:nowrap;
+  display:flex;align-items:center;gap:10px;text-align:left;
+  width:100%;
+}
+.nav-btn:hover{background:rgba(255,255,255,.12);color:#fff}
+.nav-btn.active{background:rgba(255,255,255,.18);color:#fff;font-weight:700}
+.nav-btn.active::before{
+  content:'';position:absolute;left:0;top:20%;height:60%;
+  width:3px;background:var(--yel);border-radius:0 3px 3px 0;
+}
+.nav-icon{font-size:16px;flex-shrink:0;width:20px;text-align:center}
+.nbadge{
+  margin-left:auto;background:var(--yel);color:#1a2332;
+  font-size:10px;padding:1px 6px;border-radius:20px;font-weight:700;
+}
+
+/* Sidebar footer */
+.sidebar-footer{
+  padding:12px 10px 16px;
+  border-top:1px solid rgba(255,255,255,.12);
+  display:flex;flex-direction:column;gap:4px;
+}
+.sidebar-action{
+  padding:9px 14px;border:none;background:rgba(255,255,255,.1);
+  color:rgba(255,255,255,.8);font-size:12px;font-weight:500;
+  border-radius:8px;cursor:pointer;transition:.18s;
+  font-family:inherit;display:flex;align-items:center;gap:8px;
+  width:100%;border:1px solid rgba(255,255,255,.15);
+}
+.sidebar-action:hover{background:rgba(255,255,255,.2);color:#fff}
+
+/* Theme btn */
+.theme-btn{
+  padding:9px 14px;border:none;background:rgba(255,255,255,.1);
+  color:rgba(255,255,255,.8);font-size:12px;
+  border-radius:8px;cursor:pointer;transition:.18s;
+  font-family:inherit;display:flex;align-items:center;gap:8px;
+  width:100%;border:1px solid rgba(255,255,255,.15);
+  font-weight:500;
+}
+.theme-btn:hover{background:rgba(255,255,255,.2);color:#fff}
+
+/* 隱藏舊 header 元素 */
+header{display:none!important}
+.hright{display:none}
+.more-menu-wrap{display:none}
+.more-btn,.more-dropdown{display:none}
+.view-toggle{display:none}
+.vt-btn{display:none}
+
+/* ════════════════════════════════
+   CONTENT AREA — 右側主內容
+════════════════════════════════ */
+#app-content{
+  flex:1;min-width:0;
+  overflow-y:auto;
+  overflow-x:hidden;
+}
+
+/* 頂部工具列 */
+.topbar{
+  background:var(--surf);
+  border-bottom:1px solid var(--bdr);
+  padding:0 24px;
+  height:52px;
+  display:flex;align-items:center;justify-content:space-between;
+  gap:12px;
+  position:sticky;top:0;z-index:90;
+  box-shadow:0 1px 4px rgba(15,81,155,.06);
+}
+.topbar-title{font-size:18px;font-weight:700;color:var(--tx)}
+.topbar-right{display:flex;align-items:center;gap:8px}
+.storage-badge{font-size:11px;color:var(--tx3);background:var(--bg2);padding:3px 9px;border-radius:20px}
+
 /* NOTIF */
-.notif-bar{background:var(--redl);border-bottom:2px solid var(--red);padding:8px 16px;display:none;align-items:center;gap:8px;font-size:12px;color:var(--red);flex-wrap:wrap}
+.notif-bar{background:var(--redl);border-bottom:2px solid var(--red);padding:7px 24px;display:none;align-items:center;gap:8px;font-size:12px;color:var(--red);flex-wrap:wrap}
 .notif-bar.show{display:flex}
 .ntag{background:var(--red);color:#fff;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
-/* MAIN */
-main{padding:16px;max-width:1400px;margin:0 auto}
+
+/* ════════════════════════════════
+   MAIN
+════════════════════════════════ */
+main{padding:20px 24px;flex:1}
 .page{display:none}.page.active{display:block}
+
+/* 頁面標題 */
 .ph{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:8px;flex-wrap:wrap}
-.pt{font-size:22px;font-weight:700;color:var(--tx);white-space:nowrap}
-.pt small{font-size:11px;font-weight:400;color:var(--tx3);margin-left:6px}
-/* STATS */
-.stats{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap}
-.sc{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r);padding:12px 16px;flex:1;min-width:90px;box-shadow:var(--sh)}
-.sc .sn{font-size:24px;font-weight:700;color:var(--acc);line-height:1}
-.sc .sl{font-size:11px;color:var(--tx3);margin-top:3px}
-/* SEARCH BAR */
-.search-bar{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+.pt{font-size:20px;font-weight:700;color:var(--tx);white-space:nowrap}
+.pt small{display:none}
+
+/* ════════════════════════════════
+   STATS CARDS
+════════════════════════════════ */
+.stats{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.sc{
+  background:var(--surf);border:1px solid var(--bdr);
+  border-radius:var(--rlg);padding:14px 18px;
+  flex:1;min-width:100px;box-shadow:var(--sh);
+  border-left:3px solid var(--acc);
+  transition:.18s;
+}
+.sc:hover{box-shadow:var(--shlg);transform:translateY(-1px)}
+.sc .sn{font-size:28px;font-weight:700;color:var(--acc);line-height:1}
+.sc .sl{font-size:11px;color:var(--tx3);margin-top:5px;letter-spacing:.02em}
+
+/* ════════════════════════════════
+   SEARCH BAR — 可折疊設計
+════════════════════════════════ */
+.search-bar{margin-bottom:16px}
+.search-quick{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.search-quick .fc{flex:1;min-width:180px}
+.btn-filter-toggle{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:8px 13px;border-radius:var(--r);
+  border:1px solid var(--bdr);background:var(--surf);
+  color:var(--tx2);font-size:12px;font-family:inherit;
+  cursor:pointer;transition:.18s;white-space:nowrap;font-weight:500;
+}
+.btn-filter-toggle:hover{background:var(--accl);border-color:var(--acc);color:var(--acc)}
+.btn-filter-toggle.active{background:var(--accl);border-color:var(--acc);color:var(--acc);font-weight:600}
+.search-advanced{overflow:hidden;max-height:0;transition:max-height .28s ease,opacity .2s;opacity:0;}
+.search-advanced.open{max-height:320px;opacity:1}
+.search-advanced-inner{
+  padding:12px;background:var(--surf2);border:1px solid var(--bdr);
+  border-radius:var(--r);margin-top:8px;display:flex;flex-direction:column;gap:8px;
+}
 .search-row{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}
 .search-bar .fc{width:100%}
 .search-bar .fc-sm{width:100%}
-.search-label{font-size:11px;color:var(--acc);margin-bottom:4px;display:block;font-weight:600;letter-spacing:.03em}
+.search-label{font-size:11px;color:var(--acc);margin-bottom:3px;display:block;font-weight:600;letter-spacing:.03em}
 .search-group{display:flex;flex-direction:column;flex:1;min-width:0}
-.search-group.sg-kw{flex:2;min-width:140px}
-.search-group.sg-addr{flex:2;min-width:140px}
-.search-group.sg-price{flex:1;min-width:90px;max-width:160px}
-.search-group.sg-type{flex:1;min-width:110px}
-.search-group.sg-date{flex:1;min-width:130px}
+.search-group.sg-kw{flex:2;min-width:130px}
+.search-group.sg-addr{flex:2;min-width:130px}
+.search-group.sg-price{flex:1;min-width:85px;max-width:150px}
+.search-group.sg-type{flex:1;min-width:105px}
+.search-group.sg-date{flex:1;min-width:125px}
 .fc-date{width:100%}
 .btn-search{background:var(--acc);color:#fff;border:none;padding:9px 16px;border-radius:var(--r);cursor:pointer;font-size:13px;font-family:inherit;white-space:nowrap}
-.btn-clear{background:var(--surf2);color:var(--tx2);border:1px solid var(--bdr);padding:9px 12px;border-radius:var(--r);cursor:pointer;font-size:13px;font-family:inherit;transition:.2s}.btn-clear:hover{background:var(--redl);color:var(--red);border-color:var(--red)}
+.btn-clear{background:var(--surf2);color:var(--tx2);border:1px solid var(--bdr);padding:8px 12px;border-radius:var(--r);cursor:pointer;font-size:12px;font-family:inherit;transition:.18s;white-space:nowrap}
+.btn-clear:hover{background:var(--redl);color:var(--red);border-color:var(--red)}
+
 /* SUBTABS */
-.subtabs{display:flex;gap:6px;margin-bottom:14px}
+.subtabs{display:flex;gap:6px;margin-bottom:16px}
 .stab{padding:7px 18px;border:1px solid var(--bdr);background:var(--surf);border-radius:var(--r);font-size:13px;font-weight:500;color:var(--tx2);cursor:pointer;transition:.2s;font-family:inherit}
 .stab:hover{background:var(--accl);color:var(--acc)}
 .stab.active{background:var(--acc);color:#fff;border-color:var(--acc);font-weight:600}
+
 /* TABLE */
 .tw{background:var(--surf);border-radius:var(--rlg);box-shadow:var(--sh);overflow:auto;border:1px solid var(--bdr)}
 table{width:100%;border-collapse:collapse;min-width:700px}
@@ -135,8 +269,9 @@ thead th{background:var(--accl);padding:10px 12px;text-align:left;font-size:11px
 tbody tr{border-bottom:1px solid var(--bdr);transition:.15s;cursor:pointer}
 tbody tr:last-child{border-bottom:none}
 tbody tr:hover{background:var(--accl)}
-tbody td{padding:11px 12px;font-size:13px;vertical-align:middle}
+tbody td{padding:13px 12px;font-size:13px;vertical-align:middle}
 .empty-td{text-align:center;padding:40px;color:var(--tx3);font-size:14px;cursor:default!important}
+
 /* BUTTONS */
 .btn{padding:8px 16px;border-radius:var(--r);border:none;font-size:13px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:.2s;font-family:inherit;white-space:nowrap}
 .btn-p{background:var(--acc);color:#fff;font-weight:600}.btn-p:hover{background:var(--acc2);transform:translateY(-1px);box-shadow:0 4px 12px rgba(15,81,155,.35)}
@@ -149,14 +284,12 @@ tbody td{padding:11px 12px;font-size:13px;vertical-align:middle}
 .btn-excel-out{background:var(--yel);color:#1a2332;border:none;font-weight:600}.btn-excel-out:hover{background:var(--yel2);transform:translateY(-1px)}
 .btn-excel-in{background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.35)}.btn-excel-in:hover{background:rgba(255,255,255,.3)}
 .hidden-input{display:none}
+
 /* TAGS */
 .tag{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
 .tag-g{background:var(--grnl);color:var(--grn)}
 .tag-exp{background:var(--redl);color:var(--red)}
-/* VIEW TOGGLE */
-.view-toggle{display:flex;gap:3px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:3px;flex-shrink:0}
-.vt-btn{padding:4px 10px;border:none;background:transparent;border-radius:6px;cursor:pointer;font-size:12px;font-weight:500;color:rgba(255,255,255,.75);transition:.2s;font-family:inherit}
-.vt-btn.active{background:#fff;color:var(--acc);box-shadow:var(--sh)}
+
 /* CARD VIEW */
 .card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px}
 .card{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--rlg);padding:14px;box-shadow:var(--sh);cursor:pointer;transition:.2s}
@@ -173,6 +306,7 @@ tbody td{padding:11px 12px;font-size:13px;vertical-align:middle}
 .card-progress{background:var(--accl);border-radius:6px;padding:6px 8px;font-size:11px;color:var(--acc);margin-bottom:8px;border-left:3px solid var(--yel)}
 .card-progress .cp-time{color:var(--tx3);font-size:10px;margin-bottom:2px}
 .card-actions{display:flex;gap:5px;flex-wrap:wrap;border-top:1px solid var(--bdr);padding-top:8px}
+
 /* MODAL */
 .ov{position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);z-index:200;display:none;align-items:center;justify-content:center;padding:12px;overflow-y:auto}
 .ov.show{display:flex}
@@ -186,6 +320,7 @@ tbody td{padding:11px 12px;font-size:13px;vertical-align:middle}
 .mc:hover{background:var(--bdr)}
 .mb{padding:18px 20px}
 .mf{padding:10px 20px 18px;display:flex;justify-content:flex-end;gap:8px;border-top:1px solid var(--bdr)}
+
 /* FORM */
 .fg{display:grid;gap:12px}
 .fg2{grid-template-columns:1fr 1fr}
@@ -206,18 +341,21 @@ textarea.fc{resize:vertical;min-height:60px}
 .addr-row .fc{flex:1}
 .btn-sameaddr{padding:7px 10px;font-size:11px;background:var(--accl);color:var(--acc);border:1px solid var(--acc);border-radius:var(--r);cursor:pointer;white-space:nowrap;font-family:inherit;height:36px;align-self:flex-end}
 .btn-sameaddr:hover{background:var(--acc);color:#fff}
+
 /* RADIO */
 .rrow{display:flex;align-items:center;gap:7px;padding:8px 11px;background:var(--surf2);border:1px solid var(--bdr);border-radius:var(--r);cursor:pointer;flex:1;transition:.2s}
 .rrow:hover{border-color:var(--acc);background:var(--accl);color:var(--acc)}
 .rrow input{accent-color:var(--acc)}
 .rrow span{font-size:13px;font-weight:500}
 .rrow-wrap{display:flex;gap:8px}
+
 /* TBOX */
 .tbox{background:var(--surf2);border:1px solid var(--bdr);border-radius:var(--r);padding:12px;margin-bottom:12px}
 .tbox .row{display:flex;justify-content:space-between;font-size:13px;padding:3px 0;border-bottom:1px solid var(--bdr)}
 .tbox .row:last-child{border:none}
 .tbox .row .k{color:var(--tx3)}
 .tbox .row .v{font-weight:500;text-align:right;max-width:70%}
+
 /* DETAIL PANEL */
 .detail-panel{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--rlg);box-shadow:var(--shlg);overflow:hidden;animation:mi .2s ease}
 .dp-header{background:var(--acc);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:none;flex-wrap:wrap;gap:8px}
@@ -240,6 +378,7 @@ textarea.fc{resize:vertical;min-height:60px}
 .dp-field{background:var(--surf2);border:1px solid var(--bdr);border-radius:8px;padding:8px 12px}
 .dp-field .k{font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
 .dp-field .v{font-size:13px;font-weight:500;word-break:break-all}
+
 /* PROGRESS */
 .progress-section{border-top:1px solid var(--bdr);padding-top:14px}
 .prog-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px}
@@ -261,71 +400,56 @@ textarea.fc{resize:vertical;min-height:60px}
 .prog-page-btn:hover{background:var(--acc);color:#fff}
 .prog-page-btn:disabled{opacity:.4;cursor:default}
 .prog-page-info{font-size:12px;color:var(--tx3)}
+
 /* WARN BANNER */
 .warn-banner{background:#fff3cd;border:1px solid #f0ad00;color:#7a5000;padding:8px 12px;border-radius:var(--r);font-size:12px;font-weight:600;margin-top:8px}
+
 /* LINK */
 a.plink{color:var(--blu);font-size:12px;text-decoration:none}
 a.plink:hover{text-decoration:underline}
-/* MORE MENU (desktop) */
-.more-menu-wrap{position:relative;display:none}
-.more-btn{width:34px;height:34px;border:1px solid var(--bdr);background:var(--surf2);border-radius:50%;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;color:var(--tx2);transition:.2s;flex-shrink:0}
-.more-btn:hover{background:var(--bg2)}
-.more-dropdown{display:none;position:absolute;top:40px;right:0;background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r);box-shadow:var(--shlg);min-width:150px;z-index:300;overflow:hidden}
-.more-dropdown.open{display:block}
-.more-item{display:flex;align-items:center;gap:8px;padding:12px 16px;font-size:14px;cursor:pointer;color:var(--tx);border:none;border-bottom:1px solid var(--bdr);background:none;width:100%;text-align:left;font-family:inherit;transition:.15s}
-.more-item:last-child{border-bottom:none}
-.more-item:hover{background:var(--bg2)}
-/* MOBILE overrides */
-body.mobile-view{overflow-x:hidden}
-body.mobile-view main{padding:10px;max-width:100vw;overflow-x:hidden}
-body.mobile-view .card-grid{grid-template-columns:1fr}
-/* two-row header */
-body.mobile-view header{height:auto;padding:0;flex-direction:column;align-items:stretch;gap:0;overflow:visible}
-.header-row1,.header-row2{display:contents}
-body.mobile-view .header-row1{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;gap:6px;border-bottom:1px solid var(--bdr);width:100%;min-height:48px}
-body.mobile-view .header-row2{display:flex;align-items:center;padding:4px 8px;gap:2px;width:100%;background:rgba(0,0,0,.2)}
-/* nav in row2 */
-body.mobile-view nav{display:flex;gap:2px;flex:1}
-body.mobile-view nav .nav-btn{padding:7px 0;font-size:13px;flex:1;text-align:center}
-/* logo */
-body.mobile-view .logo{flex-shrink:0}
-body.mobile-view .logo small{display:none}
-/* hright: view-toggle + more-btn + theme in row1 */
-body.mobile-view .hright{display:flex;align-items:center;gap:5px;flex-shrink:0}
-body.mobile-view .hright .btn-excel-out,body.mobile-view .hright .btn-excel-in{display:none}
-body.mobile-view .more-menu-wrap{display:block}
-body.mobile-view .view-toggle{gap:2px;padding:2px}
-body.mobile-view .view-toggle .vt-btn{font-size:11px;padding:4px 8px}
-body.mobile-view .vt-btn span{display:none}
-body.mobile-view .theme-btn{width:30px;height:30px;font-size:14px}
-/* stats */
-body.mobile-view .stats{gap:8px}
-body.mobile-view .sc{min-width:0;flex:1;padding:10px}
-body.mobile-view .sc .sn{font-size:20px}
-/* search - stack vertically */
-body.mobile-view .search-bar{gap:6px}
-body.mobile-view .search-row{flex-direction:column;gap:6px}
-body.mobile-view .search-bar .search-group,
-body.mobile-view .search-bar .search-group.sg-kw,
-body.mobile-view .search-bar .search-group.sg-addr,
-body.mobile-view .search-bar .search-group.sg-price,
-body.mobile-view .search-bar .search-group.sg-type{width:100%;flex:none;max-width:none}
-body.mobile-view .search-bar .search-group.sg-date{width:100%;flex:none}
-body.mobile-view .search-bar .fc,body.mobile-view .search-bar .fc-sm{width:100%;min-width:0;font-size:14px}
-body.mobile-view .search-bar .btn-clear{width:100%;justify-content:center;padding:10px}
-/* detail */
-body.mobile-view .dp-grid{grid-template-columns:1fr 1fr}
-body.mobile-view .dp-actions{flex-wrap:wrap;gap:4px}
-body.mobile-view .dp-actions .btn{font-size:11px;padding:5px 8px}
-/* form */
-body.mobile-view .fg2,body.mobile-view .fg3{grid-template-columns:1fr}
-body.mobile-view .modal{border-radius:12px;max-height:96vh}
-body.mobile-view .mb{padding:14px}
-body.mobile-view .mh{padding:14px 14px 12px}
-body.mobile-view .mf{padding:8px 14px 14px}
-body.mobile-view .rrow-wrap{flex-direction:column}
-body.mobile-view .tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
-body.mobile-view table{min-width:600px}
+
+/* MOBILE — sidebar 變成底部列 */
+@media(max-width:768px){
+  body{flex-direction:column}
+  #sidebar{
+    width:100%;min-width:0;height:auto;min-height:0;
+    position:sticky;bottom:0;top:auto;
+    flex-direction:row;
+    box-shadow:0 -2px 12px rgba(15,81,155,.2);
+    order:2;
+  }
+  .sidebar-logo{display:none}
+  nav{flex-direction:row;padding:4px 6px;gap:0;overflow-x:auto}
+  .nav-btn{
+    flex-direction:column;gap:2px;padding:6px 8px;
+    font-size:10px;align-items:center;flex:1;
+    min-width:52px;
+  }
+  .nav-btn.active::before{
+    top:auto;bottom:0;left:20%;width:60%;height:2px;border-radius:2px 2px 0 0;
+  }
+  .nav-icon{width:auto;font-size:18px}
+  .nbadge{margin-left:0;margin-top:2px}
+  .sidebar-footer{display:none}
+  #app-content{order:1;min-height:0}
+  .topbar{padding:0 12px}
+  main{padding:12px}
+  .card-grid{grid-template-columns:1fr}
+  .fg2,.fg3{grid-template-columns:1fr}
+  .modal{border-radius:12px;max-height:96vh}
+  .mb{padding:14px}
+  .mh{padding:14px 14px 12px}
+  .mf{padding:8px 14px 14px}
+  .rrow-wrap{flex-direction:column}
+  .tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table{min-width:600px}
+  .dp-grid{grid-template-columns:1fr 1fr}
+  .dp-actions{flex-wrap:wrap;gap:4px}
+  .dp-actions .btn{font-size:11px;padding:5px 8px}
+  .search-row{flex-direction:column;gap:6px}
+  .search-bar .search-group{width:100%;flex:none;max-width:none}
+  .search-bar .btn-clear{width:100%;justify-content:center;padding:10px}
+}
 
 /* STATS PAGE */
 .stats-filter{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:flex-end}
@@ -334,26 +458,71 @@ body.mobile-view table{min-width:600px}
 .sf-group .fc{min-width:120px}
 .chart-area{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:4px}
 .chart-card{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--rlg);padding:20px 24px;box-shadow:var(--sh)}
-.chart-title{font-size:14px;font-weight:700;color:var(--tx2);margin-bottom:16px;text-align:center;letter-spacing:.03em}
-.chart-card canvas{max-height:320px}
-body.mobile-view .chart-area{grid-template-columns:1fr}
-body.mobile-view .chart-card{padding:14px 12px}
-body.mobile-view .chart-card canvas{max-height:260px}
-@media(max-width:600px){.chart-area{grid-template-columns:1fr}}
+.chart-title{font-size:14px;font-weight:700;color:var(--tx2);margin-bottom:16px;letter-spacing:.03em}
+.chart-card canvas{max-height:300px}
+@media(max-width:600px){.chart-area{grid-template-columns:1fr}.chart-card{padding:14px 12px}.chart-card canvas{max-height:240px}}
+
+/* 首頁按鈕特殊樣式 */
+.nav-btn-home{
+  background:rgba(254,206,38,.18)!important;
+  color:var(--yel)!important;
+  border:1px solid rgba(254,206,38,.35);
+  margin-bottom:6px;
+}
+.nav-btn-home:hover{background:rgba(254,206,38,.28)!important;color:#fff!important}
+.nav-btn-home.active{
+  background:var(--yel)!important;
+  color:#1a2332!important;
+  border-color:var(--yel)!important;
+}
+.nav-btn-home.active::before{background:#1a2332!important}
+
+/* 手機版底部 nav — 首頁置中，委託在行程左邊 */
+@media(max-width:768px){
+  /* 順序：募集線(1) 追蹤線(2) 首頁(3,中間) 委託(4) 行程(5) */
+  #nav-recruit{order:1}
+  #nav-track{order:2}
+  #nav-stats{order:3}
+  #nav-commission{order:4}
+  #nav-trip{order:5}
+  .nav-btn-home{
+    background:rgba(254,206,38,.25)!important;
+    border-radius:10px;
+    border:1px solid rgba(254,206,38,.5);
+  }
+}
+.goal-section{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+.goal-card{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--rlg);padding:18px 20px;box-shadow:var(--sh)}
+.goal-card-title{font-size:14px;font-weight:700;color:var(--tx);margin-bottom:14px;border-bottom:2px solid var(--accl);padding-bottom:10px}
+.goal-inputs{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.goal-input-group{display:flex;flex-direction:column;gap:4px}
+.goal-lbl{font-size:11px;font-weight:600;color:var(--tx2);letter-spacing:.03em}
+.goal-fc{padding:7px 10px!important;font-size:13px!important}
+@media(max-width:768px){.goal-section{grid-template-columns:1fr}.goal-inputs{grid-template-columns:1fr 1fr}}
 
 /* OWNER ROWS */
 .btn-addowner{padding:5px 12px;font-size:11px;font-weight:600;background:var(--yell);color:#7a5500;border:1px solid var(--yel2);border-radius:8px;cursor:pointer;font-family:inherit;transition:.2s}
 .btn-addowner:hover{background:var(--yel);color:#1a2332;border-color:var(--yel)}
 .owner-row{background:var(--accl);border:1px solid var(--bdr);border-radius:var(--r);padding:12px 14px;margin-bottom:10px;position:relative}
 .owner-row-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
-.owner-row-label{font-size:11px;font-weight:700;color:var(--acc);letter-spacing:.06em;text-transform:uppercase;background:var(--acc);color:#fff;padding:2px 8px;border-radius:4px}
+.owner-row-label{font-size:11px;font-weight:700;background:var(--acc);color:#fff;padding:2px 8px;border-radius:4px;letter-spacing:.06em;text-transform:uppercase}
 .owner-row-del{width:22px;height:22px;border:none;background:var(--redl);color:var(--red);border-radius:50%;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;transition:.2s;flex-shrink:0}
 .owner-row-del:hover{background:var(--red);color:#fff}
 .owner-household-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;margin-top:10px}
 .owner-household-label{font-size:10px;font-weight:700;color:var(--tx3);letter-spacing:.08em;text-transform:uppercase}
 .btn-sameaddr-sm{padding:3px 8px;font-size:10px;font-weight:600;background:var(--accl);color:var(--acc);border:1px solid var(--acc);border-radius:6px;cursor:pointer;font-family:inherit;transition:.2s}
 .btn-sameaddr-sm:hover{background:var(--acc);color:#fff}
+
 ::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:3px}
+
+/* 可排序表頭 */
+th.sortable{cursor:pointer;user-select:none;white-space:nowrap}
+th.sortable:hover{background:var(--bg2);color:var(--acc)}
+th.sortable .sort-icon{display:inline-block;margin-left:4px;opacity:.35;font-size:10px;transition:.15s}
+th.sortable.asc .sort-icon,th.sortable.desc .sort-icon{opacity:1;color:var(--acc)}
+th.sortable.asc .sort-icon::after{content:'▲'}
+th.sortable.desc .sort-icon::after{content:'▼'}
+th.sortable:not(.asc):not(.desc) .sort-icon::after{content:'⇅'}
 
 /* TRIP PLANNER */
 .trip-card{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r);padding:12px 14px;display:flex;align-items:flex-start;gap:12px;transition:.15s;cursor:pointer;position:relative}
@@ -397,74 +566,83 @@ function initGoogleMaps() {
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBDX0LHYeD0bHQvzLezIir-ZYjOJUVHI3k&callback=initGoogleMaps&loading=async" async defer></script>
 </head>
 <body>
-<!-- NOTIF BAR -->
-<div class="notif-bar" id="notifBar">
-  <span>⚠️</span><strong>委託即將到期（7天內）：</strong>
-  <span id="notifItems"></span>
-</div>
-<!-- HEADER -->
-<header>
-  <!-- Row1: logo + tools -->
-  <div class="header-row1">
-    <div class="logo">不動產管理 <small>Estate Mgr</small></div>
-      <span id="storage-usage" style="font-size:10px;color:rgba(255,255,255,.55);white-space:nowrap;display:none"></span>
-    <div class="hright">
-      <div class="view-toggle">
-        <button class="vt-btn active" id="vt-desktop" onclick="setView('desktop')">🖥 <span>電腦</span></button>
-        <button class="vt-btn" id="vt-mobile" onclick="setView('mobile')">📱 <span>手機</span></button>
-      </div>
-      <!-- Desktop: direct buttons -->
-      <button class="btn btn-sm btn-excel-out" onclick="exportExcel()">⬇ 匯出</button>
-      <button class="btn btn-sm btn-excel-in" onclick="document.getElementById('xlsxInput').click()">⬆ 匯入</button>
-      <input type="file" id="xlsxInput" class="hidden-input" accept=".json,.xlsx,.xls,.csv" onchange="importExcel(event)">
-      <button class="theme-btn" id="themeBtn" onclick="toggleTheme()">🌙</button>
-      <!-- Mobile: collapsed into ⋯ menu -->
-      <div class="more-menu-wrap">
-        <button class="more-btn" onclick="toggleMoreMenu()" title="更多">⋯</button>
-        <div class="more-dropdown" id="moreDropdown">
-          <button class="more-item" onclick="exportExcel();closeMoreMenu()">⬇ 匯出備份</button>
-          <button class="more-item" onclick="document.getElementById('xlsxInput2').click();closeMoreMenu()">⬆ 匯入備份</button>
-          <button class="more-item" onclick="toggleTheme();closeMoreMenu()" id="themeMenuItem">🌙 切換主題</button>
-        </div>
-        <input type="file" id="xlsxInput2" class="hidden-input" accept=".json,.xlsx,.xls,.csv" onchange="importExcel(event)">
-      </div>
+<!-- SIDEBAR -->
+<aside id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">🏠</div>
+    <div class="logo">房仲屋主管理系統</div>
+  </div>
+  <nav>
+    <button class="nav-btn nav-btn-home" id="nav-stats" onclick="switchPage('stats')">
+      <span class="nav-icon">🏠</span>首頁
+    </button>
+    <button class="nav-btn" id="nav-recruit" onclick="switchPage('recruit')">
+      <span class="nav-icon">📋</span>募集線<span class="nbadge" id="b-recruit">0</span>
+    </button>
+    <button class="nav-btn" id="nav-track" onclick="switchPage('track')">
+      <span class="nav-icon">🔍</span>追蹤線<span class="nbadge" id="b-track">0</span>
+    </button>
+    <button class="nav-btn" id="nav-commission" onclick="switchPage('commission')">
+      <span class="nav-icon">📝</span>委託<span class="nbadge" id="b-commission">0</span>
+    </button>
+    <button class="nav-btn" id="nav-trip" onclick="switchPage('trip')">
+      <span class="nav-icon">📍</span>行程規劃
+    </button>
+  </nav>
+  <div class="sidebar-footer">
+    <button class="sidebar-action" onclick="exportExcel()">⬇ 匯出備份</button>
+    <button class="sidebar-action" onclick="document.getElementById('xlsxInput').click()">⬆ 匯入資料</button>
+    <input type="file" id="xlsxInput" class="hidden-input" accept=".json,.xlsx,.xls,.csv" onchange="importExcel(event)">
+    <input type="file" id="xlsxInput2" class="hidden-input" accept=".json,.xlsx,.xls,.csv" onchange="importExcel(event)">
+    <button class="theme-btn" id="themeBtn" onclick="toggleTheme()">🌙 切換主題</button>
+  </div>
+</aside>
+
+<!-- CONTENT -->
+<div id="app-content">
+  <!-- 頂部通知列 -->
+  <div class="notif-bar" id="notifBar">
+    <span>⚠️</span><strong>委託即將到期（7天內）：</strong>
+    <span id="notifItems"></span>
+  </div>
+  <!-- 頂部工具列 -->
+  <div class="topbar">
+    <div class="topbar-title" id="topbar-title">募集線</div>
+    <div class="topbar-right">
+      <span id="storage-usage" class="storage-badge" style="display:none"></span>
     </div>
   </div>
-  <!-- Row2: nav tabs -->
-  <div class="header-row2">
-    <nav>
-      <button class="nav-btn active" id="nav-recruit" onclick="switchPage('recruit')">募集線<span class="nbadge" id="b-recruit">0</span></button>
-      <button class="nav-btn" id="nav-track" onclick="switchPage('track')">追蹤線<span class="nbadge" id="b-track">0</span></button>
-      <button class="nav-btn" id="nav-commission" onclick="switchPage('commission')">委託<span class="nbadge" id="b-commission">0</span></button>
-      <button class="nav-btn" id="nav-stats" onclick="switchPage('stats')">📊 統計</button>
-      <button class="nav-btn" id="nav-trip" onclick="switchPage('trip')">📍 行程規劃</button>
-    </nav>
-  </div>
-</header>
-<main>
+  <main>
 <!-- PAGE: 募集線 -->
 <div class="page active" id="page-recruit">
   <div class="ph">
-    <div class="pt">募集線 <small>Recruitment</small></div>
+    <div class="pt">募集線</div>
     <button class="btn btn-p" onclick="openRecruitModal(null)">＋ 新增募集線</button>
   </div>
   <div class="stats" id="stats-recruit"></div>
   <div class="search-bar" id="search-recruit">
-    <div class="search-row">
-      <div class="search-group sg-kw"><span class="search-label">屋主姓氏 / 建案</span><input class="fc" id="sq-recruit-name" placeholder="姓氏或建案名稱..." oninput="renderRecruit()"></div>
-      <div class="search-group sg-addr"><span class="search-label">物件地址</span><input class="fc" id="sq-recruit-propaddr" placeholder="縣市、路段、門號..." oninput="renderRecruit()"></div>
-      <div class="search-group sg-addr"><span class="search-label">屋主戶籍地</span><input class="fc" id="sq-recruit-haddr" placeholder="戶籍縣市、路段..." oninput="renderRecruit()"></div>
-      <div class="search-group sg-type"><span class="search-label">物件類型</span>
-        <select class="fc" id="sq-recruit-proptype" onchange="renderRecruit()">
-          <option value="">全部</option><option value="大樓">大樓</option><option value="透天住家">透天住家</option><option value="店面">店面</option><option value="土地">土地</option><option value="商辦">商辦</option>
-        </select></div>
-    </div>
-    <div class="search-row">
-      <div class="search-group sg-date"><span class="search-label">新增日期起</span><input class="fc fc-date" type="date" id="sq-recruit-datefrom" onchange="renderRecruit()"></div>
-      <div class="search-group sg-date"><span class="search-label">新增日期迄</span><input class="fc fc-date" type="date" id="sq-recruit-dateto" onchange="renderRecruit()"></div>
-      <div class="search-group sg-price"><span class="search-label">總價下限（萬）</span><input class="fc fc-sm" type="number" id="sq-recruit-min" placeholder="0" oninput="renderRecruit()"></div>
-      <div class="search-group sg-price"><span class="search-label">總價上限（萬）</span><input class="fc fc-sm" type="number" id="sq-recruit-max" placeholder="不限" oninput="renderRecruit()"></div>
+    <div class="search-quick">
+      <input class="fc" id="sq-recruit-name" placeholder="🔍 搜尋屋主姓氏 / 建案名稱..." oninput="renderRecruit()">
+      <button class="btn-filter-toggle" id="filter-toggle-recruit" onclick="toggleFilter('recruit')">⚙ 進階篩選</button>
       <button class="btn-clear" onclick="clearSearch('recruit')">✕ 清除</button>
+    </div>
+    <div class="search-advanced" id="search-advanced-recruit">
+      <div class="search-advanced-inner">
+        <div class="search-row">
+          <div class="search-group sg-addr"><span class="search-label">物件地址</span><input class="fc" id="sq-recruit-propaddr" placeholder="縣市、路段、門號..." oninput="renderRecruit()"></div>
+          <div class="search-group sg-addr"><span class="search-label">屋主戶籍地</span><input class="fc" id="sq-recruit-haddr" placeholder="戶籍縣市、路段..." oninput="renderRecruit()"></div>
+          <div class="search-group sg-type"><span class="search-label">物件類型</span>
+            <select class="fc" id="sq-recruit-proptype" onchange="renderRecruit()">
+              <option value="">全部</option><option value="大樓">大樓</option><option value="透天住家">透天住家</option><option value="店面">店面</option><option value="土地">土地</option><option value="商辦">商辦</option>
+            </select></div>
+        </div>
+        <div class="search-row">
+          <div class="search-group sg-date"><span class="search-label">新增日期起</span><input class="fc fc-date" type="date" id="sq-recruit-datefrom" onchange="renderRecruit()"></div>
+          <div class="search-group sg-date"><span class="search-label">新增日期迄</span><input class="fc fc-date" type="date" id="sq-recruit-dateto" onchange="renderRecruit()"></div>
+          <div class="search-group sg-price"><span class="search-label">總價下限（萬）</span><input class="fc fc-sm" type="number" id="sq-recruit-min" placeholder="0" oninput="renderRecruit()"></div>
+          <div class="search-group sg-price"><span class="search-label">總價上限（萬）</span><input class="fc fc-sm" type="number" id="sq-recruit-max" placeholder="不限" oninput="renderRecruit()"></div>
+        </div>
+      </div>
     </div>
   </div>
   <div id="recruit-detail"></div>
@@ -472,24 +650,31 @@ function initGoogleMaps() {
 </div>
 <!-- PAGE: 追蹤線 -->
 <div class="page" id="page-track">
-  <div class="ph"><div class="pt">追蹤線 <small>Tracking</small></div></div>
+  <div class="ph"><div class="pt">追蹤線</div></div>
   <div class="stats" id="stats-track"></div>
   <div class="search-bar" id="search-track">
-    <div class="search-row">
-      <div class="search-group sg-kw"><span class="search-label">屋主姓氏 / 建案</span><input class="fc" id="sq-track-name" placeholder="姓氏或建案名稱..." oninput="renderTrack()"></div>
-      <div class="search-group sg-addr"><span class="search-label">物件地址</span><input class="fc" id="sq-track-propaddr" placeholder="縣市、路段、門號..." oninput="renderTrack()"></div>
-      <div class="search-group sg-addr"><span class="search-label">屋主戶籍地</span><input class="fc" id="sq-track-haddr" placeholder="戶籍縣市、路段..." oninput="renderTrack()"></div>
-      <div class="search-group sg-type"><span class="search-label">物件類型</span>
-        <select class="fc" id="sq-track-proptype" onchange="renderTrack()">
-          <option value="">全部</option><option value="大樓">大樓</option><option value="透天住家">透天住家</option><option value="店面">店面</option><option value="土地">土地</option><option value="商辦">商辦</option>
-        </select></div>
-    </div>
-    <div class="search-row">
-      <div class="search-group sg-date"><span class="search-label">轉入日期起</span><input class="fc fc-date" type="date" id="sq-track-datefrom" onchange="renderTrack()"></div>
-      <div class="search-group sg-date"><span class="search-label">轉入日期迄</span><input class="fc fc-date" type="date" id="sq-track-dateto" onchange="renderTrack()"></div>
-      <div class="search-group sg-price"><span class="search-label">總價下限（萬）</span><input class="fc fc-sm" type="number" id="sq-track-min" placeholder="0" oninput="renderTrack()"></div>
-      <div class="search-group sg-price"><span class="search-label">總價上限（萬）</span><input class="fc fc-sm" type="number" id="sq-track-max" placeholder="不限" oninput="renderTrack()"></div>
+    <div class="search-quick">
+      <input class="fc" id="sq-track-name" placeholder="🔍 搜尋屋主姓氏 / 建案名稱..." oninput="renderTrack()">
+      <button class="btn-filter-toggle" id="filter-toggle-track" onclick="toggleFilter('track')">⚙ 進階篩選</button>
       <button class="btn-clear" onclick="clearSearch('track')">✕ 清除</button>
+    </div>
+    <div class="search-advanced" id="search-advanced-track">
+      <div class="search-advanced-inner">
+        <div class="search-row">
+          <div class="search-group sg-addr"><span class="search-label">物件地址</span><input class="fc" id="sq-track-propaddr" placeholder="縣市、路段、門號..." oninput="renderTrack()"></div>
+          <div class="search-group sg-addr"><span class="search-label">屋主戶籍地</span><input class="fc" id="sq-track-haddr" placeholder="戶籍縣市、路段..." oninput="renderTrack()"></div>
+          <div class="search-group sg-type"><span class="search-label">物件類型</span>
+            <select class="fc" id="sq-track-proptype" onchange="renderTrack()">
+              <option value="">全部</option><option value="大樓">大樓</option><option value="透天住家">透天住家</option><option value="店面">店面</option><option value="土地">土地</option><option value="商辦">商辦</option>
+            </select></div>
+        </div>
+        <div class="search-row">
+          <div class="search-group sg-date"><span class="search-label">轉入日期起</span><input class="fc fc-date" type="date" id="sq-track-datefrom" onchange="renderTrack()"></div>
+          <div class="search-group sg-date"><span class="search-label">轉入日期迄</span><input class="fc fc-date" type="date" id="sq-track-dateto" onchange="renderTrack()"></div>
+          <div class="search-group sg-price"><span class="search-label">總價下限（萬）</span><input class="fc fc-sm" type="number" id="sq-track-min" placeholder="0" oninput="renderTrack()"></div>
+          <div class="search-group sg-price"><span class="search-label">總價上限（萬）</span><input class="fc fc-sm" type="number" id="sq-track-max" placeholder="不限" oninput="renderTrack()"></div>
+        </div>
+      </div>
     </div>
   </div>
   <div id="track-detail"></div>
@@ -497,39 +682,81 @@ function initGoogleMaps() {
 </div>
 <!-- PAGE: 委託 -->
 <div class="page" id="page-commission">
-  <div class="ph"><div class="pt">委託管理 <small>Commission</small></div></div>
+  <div class="ph"><div class="pt">委託管理</div></div>
   <div class="subtabs">
     <button class="stab active" id="stab-general" onclick="switchSubTab('general')">一般委託</button>
     <button class="stab" id="stab-exclusive" onclick="switchSubTab('exclusive')">專任委託</button>
   </div>
   <div class="stats" id="stats-commission"></div>
   <div class="search-bar" id="search-commission">
-    <div class="search-row">
-      <div class="search-group sg-kw"><span class="search-label">屋主姓氏 / 建案</span><input class="fc" id="sq-commission-name" placeholder="姓氏或建案名稱..." oninput="renderCommission()"></div>
-      <div class="search-group sg-addr"><span class="search-label">物件地址</span><input class="fc" id="sq-commission-propaddr" placeholder="縣市、路段、門號..." oninput="renderCommission()"></div>
-      <div class="search-group sg-addr"><span class="search-label">屋主戶籍地</span><input class="fc" id="sq-commission-haddr" placeholder="戶籍縣市、路段..." oninput="renderCommission()"></div>
-      <div class="search-group sg-type"><span class="search-label">物件類型</span>
-        <select class="fc" id="sq-commission-proptype" onchange="renderCommission()">
-          <option value="">全部</option><option value="大樓">大樓</option><option value="透天住家">透天住家</option><option value="店面">店面</option><option value="土地">土地</option><option value="商辦">商辦</option>
-        </select></div>
-    </div>
-    <div class="search-row">
-      <div class="search-group sg-date"><span class="search-label">委託日期起</span><input class="fc fc-date" type="date" id="sq-commission-datefrom" onchange="renderCommission()"></div>
-      <div class="search-group sg-date"><span class="search-label">委託日期迄</span><input class="fc fc-date" type="date" id="sq-commission-dateto" onchange="renderCommission()"></div>
-      <div class="search-group sg-price"><span class="search-label">總價下限（萬）</span><input class="fc fc-sm" type="number" id="sq-commission-min" placeholder="0" oninput="renderCommission()"></div>
-      <div class="search-group sg-price"><span class="search-label">總價上限（萬）</span><input class="fc fc-sm" type="number" id="sq-commission-max" placeholder="不限" oninput="renderCommission()"></div>
+    <div class="search-quick">
+      <input class="fc" id="sq-commission-name" placeholder="🔍 搜尋屋主姓氏 / 建案名稱..." oninput="renderCommission()">
+      <button class="btn-filter-toggle" id="filter-toggle-commission" onclick="toggleFilter('commission')">⚙ 進階篩選</button>
       <button class="btn-clear" onclick="clearSearch('commission')">✕ 清除</button>
+    </div>
+    <div class="search-advanced" id="search-advanced-commission">
+      <div class="search-advanced-inner">
+        <div class="search-row">
+          <div class="search-group sg-addr"><span class="search-label">物件地址</span><input class="fc" id="sq-commission-propaddr" placeholder="縣市、路段、門號..." oninput="renderCommission()"></div>
+          <div class="search-group sg-addr"><span class="search-label">屋主戶籍地</span><input class="fc" id="sq-commission-haddr" placeholder="戶籍縣市、路段..." oninput="renderCommission()"></div>
+          <div class="search-group sg-type"><span class="search-label">物件類型</span>
+            <select class="fc" id="sq-commission-proptype" onchange="renderCommission()">
+              <option value="">全部</option><option value="大樓">大樓</option><option value="透天住家">透天住家</option><option value="店面">店面</option><option value="土地">土地</option><option value="商辦">商辦</option>
+            </select></div>
+        </div>
+        <div class="search-row">
+          <div class="search-group sg-date"><span class="search-label">委託日期起</span><input class="fc fc-date" type="date" id="sq-commission-datefrom" onchange="renderCommission()"></div>
+          <div class="search-group sg-date"><span class="search-label">委託日期迄</span><input class="fc fc-date" type="date" id="sq-commission-dateto" onchange="renderCommission()"></div>
+          <div class="search-group sg-price"><span class="search-label">總價下限（萬）</span><input class="fc fc-sm" type="number" id="sq-commission-min" placeholder="0" oninput="renderCommission()"></div>
+          <div class="search-group sg-price"><span class="search-label">總價上限（萬）</span><input class="fc fc-sm" type="number" id="sq-commission-max" placeholder="不限" oninput="renderCommission()"></div>
+        </div>
+      </div>
     </div>
   </div>
   <div id="commission-detail" style="margin-bottom:16px"></div>
   <div id="stab-general-c"></div>
   <div id="stab-exclusive-c" style="display:none"></div>
 </div>
-<!-- PAGE: 統計數據 -->
+<!-- PAGE: 首頁 -->
 <div class="page" id="page-stats">
-  <div class="ph">
-    <div class="pt">統計數據 <small>Analytics</small></div>
+  <!-- 業績目標設定區 -->
+  <div class="goal-section">
+    <div class="goal-card">
+      <div class="goal-card-title">📅 年度目標設定（<span id="goal-year-label"></span>）</div>
+      <div class="goal-inputs">
+        <div class="goal-input-group">
+          <label class="goal-lbl">年委託目標（件）</label>
+          <input class="fc goal-fc" type="number" id="goal-year-comm" placeholder="0" min="0" oninput="saveGoals();renderStats()">
+        </div>
+        <div class="goal-input-group">
+          <label class="goal-lbl">└ 專任委託目標</label>
+          <input class="fc goal-fc" type="number" id="goal-year-excl" placeholder="0" min="0" oninput="saveGoals();renderStats()">
+        </div>
+        <div class="goal-input-group">
+          <label class="goal-lbl">└ 一般委託目標</label>
+          <input class="fc goal-fc" type="number" id="goal-year-gen" placeholder="0" min="0" oninput="saveGoals();renderStats()">
+        </div>
+      </div>
+    </div>
+    <div class="goal-card">
+      <div class="goal-card-title">📆 本月目標設定（<span id="goal-month-label"></span>）</div>
+      <div class="goal-inputs">
+        <div class="goal-input-group">
+          <label class="goal-lbl">月委託目標（件）</label>
+          <input class="fc goal-fc" type="number" id="goal-month-comm" placeholder="0" min="0" oninput="saveGoals();renderStats()">
+        </div>
+        <div class="goal-input-group">
+          <label class="goal-lbl">└ 專任委託目標</label>
+          <input class="fc goal-fc" type="number" id="goal-month-excl" placeholder="0" min="0" oninput="saveGoals();renderStats()">
+        </div>
+        <div class="goal-input-group">
+          <label class="goal-lbl">└ 一般委託目標</label>
+          <input class="fc goal-fc" type="number" id="goal-month-gen" placeholder="0" min="0" oninput="saveGoals();renderStats()">
+        </div>
+      </div>
+    </div>
   </div>
+
   <!-- 篩選列 -->
   <div class="stats-filter">
     <div class="sf-group">
@@ -560,59 +787,70 @@ function initGoogleMaps() {
       <canvas id="barChart"></canvas>
     </div>
   </div>
-</div>
+  <!-- 目標達成圖表區 -->
+  <div class="chart-area" style="margin-top:16px">
+    <div class="chart-card">
+      <div class="chart-title">📅 年度委託目標達成</div>
+      <canvas id="goalYearChart"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">📆 本月委託目標達成</div>
+      <canvas id="goalMonthChart"></canvas>
+    </div>
+  </div>
 </div>
 <!-- PAGE: 行程規劃 -->
 <div class="page" id="page-trip">
   <div class="ph">
-    <div class="pt">行程規劃 <small>Trip Planner</small></div>
+    <div class="pt">行程規劃</div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <button class="btn btn-g btn-sm" onclick="tripSelectAll()">全選</button>
       <button class="btn btn-g btn-sm" onclick="tripClearAll()">清除選取</button>
-      <button class="btn btn-p" id="btn-open-maps" onclick="openGoogleMaps()" disabled>🗺 開啟導航</button>
+      <button class="btn btn-p btn-sm" id="btn-open-maps" onclick="openGoogleMaps()" disabled>🗺 開啟導航</button>
     </div>
   </div>
 
-  <!-- 說明提示 -->
-  <div id="trip-hint" style="background:var(--accl);border:1px solid var(--bdr);border-radius:var(--r);padding:10px 14px;font-size:12px;color:var(--acc);margin-bottom:14px;line-height:1.7">
-    💡 <strong>使用方式：</strong>勾選第一個地點後，系統會自動計算其他物件屋主戶籍地距離該地的直線距離，協助你評估行程。確認選取後點「開啟導航」，即可在 Google Maps 規劃多點路線。
+  <!-- 說明提示 — 精簡為 inline 文字 -->
+  <div id="trip-hint" style="font-size:12px;color:var(--tx3);margin-bottom:12px;line-height:1.6">
+    💡 勾選第一個地點後，系統自動計算其他物件距離；確認選取後點「開啟導航」。
   </div>
 
   <!-- 篩選列 -->
   <div class="search-bar" style="margin-bottom:14px">
-    <div class="search-row">
-      <div class="search-group sg-kw"><span class="search-label">來源</span>
-        <select class="fc" id="trip-source" onchange="renderTripList()">
-          <option value="both">募集線 ＋ 追蹤線</option>
-          <option value="recruit" selected>僅募集線</option>
-          <option value="track">僅追蹤線</option>
-        </select>
-      </div>
-      <div class="search-group sg-kw"><span class="search-label">屋主姓氏 / 建案</span>
-        <input class="fc" id="trip-kw" placeholder="篩選..." oninput="renderTripList()">
-      </div>
-      <div class="search-group sg-type"><span class="search-label">物件類型</span>
-        <select class="fc" id="trip-proptype" onchange="renderTripList()">
-          <option value="">全部</option><option value="大樓">大樓</option><option value="透天住家">透天住家</option><option value="店面">店面</option><option value="土地">土地</option><option value="商辦">商辦</option>
-        </select>
-      </div>
-      <div class="search-group sg-kw"><span class="search-label">距離上限（km，空白=不限）</span>
-        <input class="fc" id="trip-maxdist" type="number" placeholder="例：5" min="0" step="0.5" oninput="renderTripList()">
-      </div>
+    <div class="search-quick">
+      <select class="fc" id="trip-source" onchange="renderTripList()" style="flex:0 0 160px">
+        <option value="both">募集線 ＋ 追蹤線</option>
+        <option value="recruit" selected>僅募集線</option>
+        <option value="track">僅追蹤線</option>
+      </select>
+      <input class="fc" id="trip-kw" placeholder="🔍 篩選屋主姓氏 / 建案..." oninput="renderTripList()">
+      <button class="btn-filter-toggle" id="filter-toggle-trip" onclick="toggleFilter('trip')">⚙ 進階篩選</button>
     </div>
-    <div class="search-row">
-      <div class="search-group sg-type"><span class="search-label">戶籍縣市</span>
-        <select class="fc" id="trip-hcity" onchange="tripUpdateHDist();renderTripList()">
-          <option value="">全部縣市</option>
-        </select>
-      </div>
-      <div class="search-group sg-type"><span class="search-label">戶籍行政區</span>
-        <select class="fc" id="trip-hdist" onchange="renderTripList()">
-          <option value="">全部行政區</option>
-        </select>
-      </div>
-      <div class="search-group sg-kw" style="align-self:flex-end">
-        <button class="btn-clear" onclick="tripClearHAddr()" style="width:100%">✕ 清除戶籍篩選</button>
+    <div class="search-advanced" id="search-advanced-trip">
+      <div class="search-advanced-inner">
+        <div class="search-row">
+          <div class="search-group sg-type"><span class="search-label">物件類型</span>
+            <select class="fc" id="trip-proptype" onchange="renderTripList()">
+              <option value="">全部</option><option value="大樓">大樓</option><option value="透天住家">透天住家</option><option value="店面">店面</option><option value="土地">土地</option><option value="商辦">商辦</option>
+            </select>
+          </div>
+          <div class="search-group sg-price"><span class="search-label">距離上限（km）</span>
+            <input class="fc" id="trip-maxdist" type="number" placeholder="空白=不限" min="0" step="0.5" oninput="renderTripList()">
+          </div>
+          <div class="search-group sg-type"><span class="search-label">戶籍縣市</span>
+            <select class="fc" id="trip-hcity" onchange="tripUpdateHDist();renderTripList()">
+              <option value="">全部縣市</option>
+            </select>
+          </div>
+          <div class="search-group sg-type"><span class="search-label">戶籍行政區</span>
+            <select class="fc" id="trip-hdist" onchange="renderTripList()">
+              <option value="">全部行政區</option>
+            </select>
+          </div>
+          <div class="search-group" style="align-self:flex-end">
+            <button class="btn-clear" onclick="tripClearHAddr()">✕ 清除戶籍篩選</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -641,6 +879,7 @@ function initGoogleMaps() {
 
 </div>
 </main>
+</div><!-- /app-content -->
 
 <!-- MODAL: 新增/編輯 募集線 / 追蹤線 -->
 <div class="ov" id="ov-recruit">
@@ -857,25 +1096,62 @@ let currentPage='recruit',currentSubTab='general',currentView='desktop';
 let openDetailId={recruit:null,track:null,commission:null};
 let progPages={};  // id -> page number
 
+// ── 排序狀態 ──
+let sortState={
+  recruit:{col:null,dir:'asc'},
+  track:{col:null,dir:'asc'},
+  commission:{col:null,dir:'asc'}
+};
+
+function sortItems(pool,items){
+  const {col,dir}=sortState[pool];
+  if(!col)return items;
+  const mult=dir==='asc'?1:-1;
+  const dbList=pool==='recruit'?db.recruit:pool==='track'?db.track:db.commission;
+  return [...items].sort((a,b)=>{
+    let va,vb;
+    if(col==='date')      {va=(pool==='track'?(a.trackDate||a.date):pool==='commission'?(a.commDate||a.date):a.date)||'';vb=(pool==='track'?(b.trackDate||b.date):pool==='commission'?(b.commDate||b.date):b.date)||'';const ta=(a.time||'');const tb=(b.time||'');const sva=va+(pool==='recruit'||pool==='track'?ta:'');const svb=vb+(pool==='recruit'||pool==='track'?tb:'');return sva<svb?-mult:sva>svb?mult:0;}
+    else if(col==='idx')  {return (dbList.indexOf(a)-dbList.indexOf(b))*mult;}
+    else if(col==='owner'){va=ownersLabel(a);vb=ownersLabel(b);}
+    else if(col==='bldg') {va=a.bldg||'';vb=b.bldg||'';}
+    else if(col==='notes'){va=(a.progress&&a.progress[0]?a.progress[0].text:'')||'';vb=(b.progress&&b.progress[0]?b.progress[0].text:'')||'';}
+    else if(col==='total'){va=parseFloat(a.total)||0;vb=parseFloat(b.total)||0;return (va-vb)*mult;}
+    else if(col==='unit') {va=parseFloat(a.unit)||0;vb=parseFloat(b.unit)||0;return (va-vb)*mult;}
+    else if(col==='area') {va=parseFloat(a.area)||0;vb=parseFloat(b.area)||0;return (va-vb)*mult;}
+    else return 0;
+    return va.localeCompare(vb,'zh-TW')*mult;
+  });
+}
+function setSort(pool,col){
+  const s=sortState[pool];
+  if(s.col===col){s.dir=s.dir==='asc'?'desc':'asc';}
+  else{s.col=col;s.dir='asc';}
+  renderAll();
+}
+function thSort(pool,col,label){
+  const s=sortState[pool];
+  const cls=s.col===col?(s.dir==='asc'?'asc':'desc'):'';
+  return `<th class="sortable ${cls}" onclick="setSort('${pool}','${col}')">${label}<span class="sort-icon"></span></th>`;
+}
+
 // ── 初始化 ──
 function init(){
   loadFromStorage();
+  loadGoals();
   Object.keys(CITIES).forEach(c=>{
     const o=document.createElement('option');
     o.value=o.textContent=c;
     document.getElementById('p-city').appendChild(o);
   });
-  const sv=localStorage.getItem('viewMode')||'desktop';
-  setView(sv,true);
-  renderAll();
+  currentView='desktop';
+  switchPage('stats');
   checkNotifs();
-  // 初始顯示儲存量
   const su=document.getElementById('storage-usage');
   if(su){
     try{
       const str=localStorage.getItem('estate_db2')||'';
       const kb=Math.round(str.length/1024);
-      if(kb>0){su.textContent=`💾 ${kb} KB`;su.style.display='inline';}
+      if(kb>0){su.textContent=`💾 ${kb} KB`;su.style.display='inline-block';}
     }catch(e){}
   }
 }
@@ -973,13 +1249,26 @@ function clearSearch(pool){
   renderAll();
 }
 
+// ── 可折疊篩選面板 ──
+function toggleFilter(pool){
+  const panel=document.getElementById('search-advanced-'+pool);
+  const btn=document.getElementById('filter-toggle-'+pool);
+  if(!panel||!btn)return;
+  const open=panel.classList.toggle('open');
+  btn.classList.toggle('active',open);
+  btn.textContent=open?'⚙ 收起篩選':'⚙ 進階篩選';
+}
+
 // ── 頁面切換 ──
+const PAGE_TITLES={'recruit':'募集線','track':'追蹤線','commission':'委託管理','stats':'首頁','trip':'行程規劃'};
 function switchPage(p){
   currentPage=p;
   document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(e=>e.classList.remove('active'));
   document.getElementById('page-'+p).classList.add('active');
   document.getElementById('nav-'+p).classList.add('active');
+  const tb=document.getElementById('topbar-title');
+  if(tb)tb.textContent=PAGE_TITLES[p]||'';
   if(p==='stats'){initStatsYears();renderStats();}
   else if(p==='trip'){tripInitHCitySelect();renderTripList();renderTripSelected();updateMapsBtn();}
   else renderAll();
@@ -1001,7 +1290,7 @@ function closeOv(id){document.getElementById('ov-'+id).classList.remove('show');
 function setView(v,silent){
   currentView=v;
   document.body.classList.toggle('mobile-view',v==='mobile');
-  ['desktop','mobile'].forEach(m=>document.getElementById('vt-'+m).classList.toggle('active',m===v));
+  // vt- 按鈕已移除，跳過 DOM 操作
   if(!silent)localStorage.setItem('viewMode',v);
   renderAll();
 }
@@ -1463,7 +1752,8 @@ function renderRecruit(){
   document.getElementById('stats-recruit').innerHTML=`<div class="sc"><div class="sn">${db.recruit.length}</div><div class="sl">募集線總件數</div></div>
     <div class="sc"><div class="sn">${todayCount}</div><div class="sl">今日新增件數</div></div>`;
   document.getElementById('b-recruit').textContent=db.recruit.length;
-  const items=filterItems('recruit');
+  const filtered=filterItems('recruit');
+  const items=sortItems('recruit',filtered);
   const wrap=document.getElementById('recruit-view');
   if(currentView==='mobile'){
     wrap.innerHTML=items.length?`<div class="card-grid">${items.map((r,i)=>`
@@ -1478,7 +1768,8 @@ function renderRecruit(){
       </div>`).join('')}</div>`:'<div style="text-align:center;padding:40px;color:var(--tx3)">📭 尚無符合資料</div>';
   } else {
     wrap.innerHTML=`<div class="tw"><table><thead><tr>
-      <th>編號</th><th>日期</th><th>屋主</th><th>建案</th><th>物件地址</th><th>屋主戶籍地</th><th>格局</th><th>坪數</th><th>總價</th><th>單價</th><th>最新進度</th>
+      ${thSort('recruit','idx','編號')}${thSort('recruit','date','日期')}${thSort('recruit','owner','屋主')}${thSort('recruit','bldg','建案')}
+      <th>物件地址</th><th>屋主戶籍地</th><th>格局</th>${thSort('recruit','area','坪數')}${thSort('recruit','total','總價')}${thSort('recruit','unit','單價')}${thSort('recruit','notes','最新進度')}
     </tr></thead><tbody>${items.length?items.map((r,i)=>`<tr onclick="toggleDetail('recruit','${r.id}')" style="${openDetailId.recruit===r.id?'background:var(--accl)':''}">
       <td style="color:var(--tx3);font-size:11px">R${String(db.recruit.indexOf(r)+1).padStart(3,'0')}</td>
       <td><div style="font-size:12px">${r.date}</div><div style="font-size:10px;color:var(--tx3)">${r.time}</div></td>
@@ -1507,7 +1798,8 @@ function renderTrack(){
   document.getElementById('stats-track').innerHTML=`<div class="sc"><div class="sn">${db.track.length}</div><div class="sl">追蹤線總件數</div></div>
     <div class="sc"><div class="sn">${todayCount}</div><div class="sl">今日新增件數</div></div>`;
   document.getElementById('b-track').textContent=db.track.length;
-  const items=filterItems('track');
+  const filtered=filterItems('track');
+  const items=sortItems('track',filtered);
   const wrap=document.getElementById('track-view');
   if(currentView==='mobile'){
     wrap.innerHTML=items.length?`<div class="card-grid">${items.map((r,i)=>`
@@ -1522,7 +1814,8 @@ function renderTrack(){
       </div>`).join('')}</div>`:'<div style="text-align:center;padding:40px;color:var(--tx3)">📭 尚無符合資料</div>';
   } else {
     wrap.innerHTML=`<div class="tw"><table><thead><tr>
-      <th>編號</th><th>轉入日期</th><th>屋主</th><th>建案</th><th>物件地址</th><th>屋主戶籍地</th><th>格局</th><th>坪數</th><th>總價</th><th>單價</th><th>最新進度</th>
+      ${thSort('track','idx','編號')}${thSort('track','date','轉入日期')}${thSort('track','owner','屋主')}${thSort('track','bldg','建案')}
+      <th>物件地址</th><th>屋主戶籍地</th><th>格局</th>${thSort('track','area','坪數')}${thSort('track','total','總價')}${thSort('track','unit','單價')}${thSort('track','notes','最新進度')}
     </tr></thead><tbody>${items.length?items.map((r,i)=>`<tr onclick="toggleDetail('track','${r.id}')" style="${openDetailId.track===r.id?'background:var(--accl)':''}">
       <td style="color:var(--tx3);font-size:11px">T${String(db.track.indexOf(r)+1).padStart(3,'0')}</td>
       <td>${r.trackDate||r.date}</td>
@@ -1546,9 +1839,10 @@ function renderTrack(){
 
 // ── 渲染委託 ──
 function renderCommission(){
-  const general=filterItems('commission').filter(r=>r.commType==='general');
-  const exclusive=filterItems('commission').filter(r=>r.commType==='exclusive');
-  const theadHtml=`<thead><tr><th>編號</th><th>委託日期</th><th>屋主</th><th>建案</th><th>物件地址</th><th>屋主戶籍地</th><th>格局</th><th>坪數</th><th>總價</th><th>服務費</th><th>委託期間</th><th>狀態</th><th>操作</th></tr></thead>`;
+  const allFiltered=filterItems('commission');
+  const general=sortItems('commission',allFiltered.filter(r=>r.commType==='general'));
+  const exclusive=sortItems('commission',allFiltered.filter(r=>r.commType==='exclusive'));
+  const theadHtml=`<thead><tr>${thSort('commission','idx','編號')}${thSort('commission','date','委託日期')}${thSort('commission','owner','屋主')}${thSort('commission','bldg','建案')}<th>物件地址</th><th>屋主戶籍地</th><th>格局</th>${thSort('commission','area','坪數')}${thSort('commission','total','總價')}<th>服務費</th><th>委託期間</th><th>狀態</th><th>操作</th></tr></thead>`;
   function commTableRows(list,prefix){
     if(!list.length)return emptyRow(12);
     return list.map((r,i)=>`<tr onclick="toggleDetail('commission','${r.id}')" style="cursor:pointer;${openDetailId.commission===r.id?'background:var(--accl)':''}">
@@ -1779,9 +2073,8 @@ function toggleTheme(){
   const isDark=document.documentElement.dataset.theme==='dark';
   document.documentElement.dataset.theme=isDark?'':'dark';
   const icon=isDark?'🌙':'☀️';
-  document.getElementById('themeBtn').textContent=icon;
-  const mi=document.getElementById('themeMenuItem');
-  if(mi)mi.textContent=icon+' 切換主題';
+  const label=isDark?'🌙 切換主題':'☀️ 切換主題';
+  document.getElementById('themeBtn').textContent=label;
   localStorage.setItem('theme',isDark?'light':'dark');
 }
 // ── More menu ──
@@ -1804,7 +2097,30 @@ document.addEventListener('click',function(e){
 document.querySelectorAll('.ov').forEach(ov=>{ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('show');});});
 
 // ── 統計頁面 ──
-let pieChartInst=null, barChartInst=null;
+// ── 業績目標 ──
+function saveGoals(){
+  const g={
+    yearComm:document.getElementById('goal-year-comm').value,
+    yearExcl:document.getElementById('goal-year-excl').value,
+    yearGen:document.getElementById('goal-year-gen').value,
+    monthComm:document.getElementById('goal-month-comm').value,
+    monthExcl:document.getElementById('goal-month-excl').value,
+    monthGen:document.getElementById('goal-month-gen').value,
+  };
+  try{localStorage.setItem('estate_goals',JSON.stringify(g));}catch(e){}
+}
+function loadGoals(){
+  try{
+    const g=JSON.parse(localStorage.getItem('estate_goals')||'{}');
+    const map={
+      'goal-year-comm':'yearComm','goal-year-excl':'yearExcl','goal-year-gen':'yearGen',
+      'goal-month-comm':'monthComm','goal-month-excl':'monthExcl','goal-month-gen':'monthGen'
+    };
+    Object.entries(map).forEach(([id,key])=>{const el=document.getElementById(id);if(el&&g[key])el.value=g[key];});
+  }catch(e){}
+}
+
+let pieChartInst=null, barChartInst=null, goalYearChartInst=null, goalMonthChartInst=null;
 
 function initStatsYears(){
   const sel=document.getElementById('stats-year');
@@ -1834,6 +2150,15 @@ function renderStats(){
   const year=document.getElementById('stats-year').value;
   const monthVal=document.getElementById('stats-month').value;
   const month=monthVal?parseInt(monthVal):null;
+  const now=new Date();
+  const curYear=now.getFullYear().toString();
+  const curMonth=now.getMonth()+1;
+
+  // 更新目標標籤
+  const yl=document.getElementById('goal-year-label');
+  const ml=document.getElementById('goal-month-label');
+  if(yl)yl.textContent=`${curYear}年`;
+  if(ml)ml.textContent=`${curYear}年${curMonth}月`;
 
   // count helper
   function countPool(pool){
@@ -2052,6 +2377,73 @@ function renderStats(){
       }
     });
   }
+
+  // ── 目標達成直方圖（委託） ──
+  const gYearComm=parseInt(document.getElementById('goal-year-comm').value)||0;
+  const gYearExcl=parseInt(document.getElementById('goal-year-excl').value)||0;
+  const gYearGen=parseInt(document.getElementById('goal-year-gen').value)||0;
+  const gMonthComm=parseInt(document.getElementById('goal-month-comm').value)||0;
+  const gMonthExcl=parseInt(document.getElementById('goal-month-excl').value)||0;
+  const gMonthGen=parseInt(document.getElementById('goal-month-gen').value)||0;
+
+  // 年度實際委託（以 curYear 計）
+  const ayComm=db.commission.filter(r=>{const d=getDateField('commission',r);return d&&d.slice(0,4)===curYear;}).length;
+  const ayExcl=db.commission.filter(r=>{const d=getDateField('commission',r);return d&&d.slice(0,4)===curYear&&r.commType==='exclusive';}).length;
+  const ayGen=db.commission.filter(r=>{const d=getDateField('commission',r);return d&&d.slice(0,4)===curYear&&r.commType==='general';}).length;
+
+  // 本月實際委託
+  const amComm=db.commission.filter(r=>{const d=getDateField('commission',r);return d&&d.slice(0,4)===curYear&&parseInt(d.slice(5,7))===curMonth;}).length;
+  const amExcl=db.commission.filter(r=>{const d=getDateField('commission',r);return d&&d.slice(0,4)===curYear&&parseInt(d.slice(5,7))===curMonth&&r.commType==='exclusive';}).length;
+  const amGen=db.commission.filter(r=>{const d=getDateField('commission',r);return d&&d.slice(0,4)===curYear&&parseInt(d.slice(5,7))===curMonth&&r.commType==='general';}).length;
+
+  function makeGoalChart(canvasId, instRef, labels, actual, goals){
+    if(instRef){instRef.destroy();}
+    const ctx=document.getElementById(canvasId).getContext('2d');
+    const colors=['rgba(15,81,155,.8)','rgba(74,144,217,.8)','rgba(26,122,74,.8)'];
+    const borderColors=['#0f519b','#4a90d9','#1a7a4a'];
+    return new Chart(ctx,{
+      type:'bar',
+      data:{
+        labels,
+        datasets:[
+          {label:'實際',data:actual,backgroundColor:colors,borderColor:borderColors,borderWidth:1.5,borderRadius:6},
+          {label:'目標',data:goals,backgroundColor:'rgba(0,0,0,0)',borderColor:borderColors,borderWidth:2.5,borderRadius:6,borderDash:[]}
+        ]
+      },
+      options:{
+        responsive:true,
+        plugins:{
+          legend:{position:'top',labels:{padding:12,font:{size:12}}},
+          tooltip:{
+            callbacks:{
+              afterLabel:(ctx)=>{
+                if(ctx.datasetIndex===0){
+                  const g=goals[ctx.dataIndex];
+                  if(g>0)return `達成率：${Math.round(ctx.raw/g*100)}%`;
+                }
+                return '';
+              }
+            }
+          }
+        },
+        scales:{
+          x:{grid:{color:gridColor},ticks:{font:{size:12}}},
+          y:{beginAtZero:true,grid:{color:gridColor},ticks:{stepSize:1,precision:0}}
+        }
+      }
+    });
+  }
+
+  goalYearChartInst=makeGoalChart('goalYearChart',goalYearChartInst,
+    ['委託（總）','專任委託','一般委託'],
+    [ayComm,ayExcl,ayGen],
+    [gYearComm,gYearExcl,gYearGen]
+  );
+  goalMonthChartInst=makeGoalChart('goalMonthChart',goalMonthChartInst,
+    ['委託（總）','專任委託','一般委託'],
+    [amComm,amExcl,amGen],
+    [gMonthComm,gMonthExcl,gMonthGen]
+  );
 }
 
 // ══════════════════════════════════════════
