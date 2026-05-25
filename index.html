@@ -405,12 +405,13 @@ a.plink:hover{text-decoration:underline}
 ════════════════════════════════ */
 /* 登入畫面改為左右分割版型 */
 #login-screen{
-  display:flex!important;
+  display:none;
   flex-direction:row;
   align-items:stretch;
   position:fixed;inset:0;z-index:9999;
   background:#0a3d78;overflow:hidden;
 }
+#login-screen.lp-show{display:flex}
 #lp-content{
   flex:1;overflow-y:auto;
   scroll-behavior:smooth;
@@ -455,7 +456,7 @@ a.plink:hover{text-decoration:underline}
 }
 /* Google 登入按鈕：半透明白底，保持可辨識 */
 #google-signin-btn{
-  display:flex!important;align-items:center;justify-content:center;gap:11px;
+  display:flex;align-items:center;justify-content:center;gap:11px;
   width:100%;padding:13px 18px;
   border-radius:12px;
   border:1.5px solid rgba(255,255,255,.25)!important;
@@ -703,12 +704,12 @@ th.sortable:not(.asc):not(.desc) .sort-icon::after{content:'⇅'}
       onAuthStateChanged(auth, user => {
         if (user) {
           window._currentUser = user;
-          document.getElementById('login-screen').style.display = 'none';
+          document.getElementById('login-screen').classList.remove('lp-show');
           document.getElementById('app-content').style.display = 'block';
           if (typeof window.onFirebaseLogin === 'function') window.onFirebaseLogin(user);
         } else {
           window._currentUser = null;
-          document.getElementById('login-screen').style.display = 'flex';
+          document.getElementById('login-screen').classList.add('lp-show');
           document.getElementById('app-content').style.display = 'none';
         }
       });
@@ -728,7 +729,7 @@ function initGoogleMaps() {
 </head>
 <body>
 <!-- 登入畫面 + 介紹頁 -->
-<div id="login-screen">
+<div id="login-screen" class="lp-show">
 
   <!-- ══ 左側：系統介紹內容（可捲動） ══ -->
   <div id="lp-content">
@@ -3966,7 +3967,7 @@ init();
   if(ls){
     new MutationObserver(() => {
       if(ls.style.display !== 'none'){ mountLpObs(); }
-    }).observe(ls, { attributes:true, attributeFilter:['style'] });
+    }).observe(ls, { attributes:true, attributeFilter:['class'] });
   }
   document.addEventListener('DOMContentLoaded', mountLpObs);
   setTimeout(mountLpObs, 150);
