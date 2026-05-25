@@ -557,7 +557,7 @@ th.sortable:not(.asc):not(.desc) .sort-icon::after{content:'⇅'}
 <!-- Firebase SDK -->
 <script type="module">
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-  import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
+  import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, browserSessionPersistence, setPersistence }
     from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
   import { getFirestore, doc, getDoc, setDoc }
     from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
@@ -580,27 +580,20 @@ th.sortable:not(.asc):not(.desc) .sort-icon::after{content:'⇅'}
   window._firebaseAuth = auth;
   window._firebaseDb = db_fs;
   window._firebaseProvider = provider;
-  window._firebaseSignIn = () => signInWithPopup(auth, provider);
   window._firebaseSignOut = () => signOut(auth);
   window._firebaseDocRef = (uid) => doc(db_fs, 'users', uid, 'data', 'main');
   window._firebaseGoalsRef = (uid) => doc(db_fs, 'users', uid, 'data', 'goals');
   window._firebaseGetDoc = getDoc;
   window._firebaseSetDoc = setDoc;
 
-  // 每次開啟網站強制登出一次（用 sessionStorage 確保只登出一次，登入後不會再被登出）
-  const SESSION_KEY = 'fb_session_cleared';
-  if (!sessionStorage.getItem(SESSION_KEY)) {
-    sessionStorage.setItem(SESSION_KEY, '1');
-    signOut(auth).finally(() => {
-      // 登出完成後再開始監聽
-      startAuthListener();
-    });
-  } else {
-    // 本次 session 已清除過（使用者已登入中），直接監聽
-    startAuthListener();
-  }
+  // 設定為 Session 層級：關閉分頁或重新開啟網站就需重新登入
+  // 登入時也用同樣的 persistence
+  window._firebaseSignIn = () =>
+    setPersistence(auth, browserSessionPersistence)
+      .then(() => signInWithPopup(auth, provider));
 
-  function startAuthListener() {
+  // 先設好 persistence，再監聽狀態
+  setPersistence(auth, browserSessionPersistence).then(() => {
     onAuthStateChanged(auth, user => {
       if (user) {
         window._currentUser = user;
@@ -615,7 +608,7 @@ th.sortable:not(.asc):not(.desc) .sort-icon::after{content:'⇅'}
         document.getElementById('app-content').style.display = 'none';
       }
     });
-  }
+  });
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
@@ -3141,7 +3134,6 @@ async function handleSignIn(){
 async function handleSignOut(){
   if(!confirm('確定要登出嗎？')) return;
   clearTimeout(window._idleTimer);
-  sessionStorage.removeItem('fb_session_cleared');
   await window._firebaseSignOut();
   db = {recruit:[], track:[], commission:[]};
   location.reload();
@@ -3186,7 +3178,6 @@ function resetIdleTimer(){
   clearTimeout(_idleTimer);
   _idleTimer = setTimeout(async ()=>{
     alert('⏰ 您已閒置超過 10 分鐘，系統將自動登出。');
-    sessionStorage.removeItem('fb_session_cleared');
     await window._firebaseSignOut();
     db = {recruit:[], track:[], commission:[]};
     location.reload();
