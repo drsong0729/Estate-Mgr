@@ -427,11 +427,12 @@ a.plink:hover{text-decoration:underline}
     flex-direction:column;gap:2px;
     padding:9px 2px 7px;
     font-size:9px;font-weight:600;letter-spacing:.02em;
-    align-items:center;flex:1;min-width:0;
+    align-items:center;justify-content:center;flex:1;min-width:0;
     border-radius:0;
     color:rgba(255,255,255,.6);
     transition:color .15s,background .15s;
     position:relative;
+    text-align:center;
   }
   .nav-btn:active{background:rgba(255,255,255,.1)}
   .nav-btn.active{color:#fff}
@@ -454,10 +455,10 @@ a.plink:hover{text-decoration:underline}
   #app-content{
     order:1;flex:1;min-height:0;
     overflow-y:auto;
-    padding-bottom:calc(60px + env(safe-area-inset-bottom,0px) + 8px);
+    padding-bottom:calc(104px + env(safe-area-inset-bottom,0px) + 16px);
   }
   .topbar{padding:0 14px}
-  main{padding:14px}
+  main{padding:14px;padding-bottom:24px}
   .card-grid{grid-template-columns:1fr}
   .fg2,.fg3{grid-template-columns:1fr}
   .modal{border-radius:16px 16px 0 0;max-height:92vh;position:fixed;bottom:0;left:0;right:0;margin:0}
@@ -887,33 +888,44 @@ function initGoogleMaps() {
       <div class="goal-card-title">📅 年度目標設定（<span id="goal-year-label"></span>）</div>
       <div class="goal-inputs">
         <div class="goal-input-group">
-          <label class="goal-lbl">年委託目標（件）</label>
-          <input class="fc goal-fc" type="number" id="goal-year-comm" placeholder="0" min="0" oninput="saveGoals();renderStats()">
-        </div>
-        <div class="goal-input-group">
           <label class="goal-lbl">└ 專任委託目標</label>
-          <input class="fc goal-fc" type="number" id="goal-year-excl" placeholder="0" min="0" oninput="saveGoals();renderStats()">
+          <input class="fc goal-fc" type="number" id="goal-year-excl" placeholder="0" min="0" oninput="syncGoalTotal('year');saveGoals();renderStats()">
         </div>
         <div class="goal-input-group">
           <label class="goal-lbl">└ 一般委託目標</label>
-          <input class="fc goal-fc" type="number" id="goal-year-gen" placeholder="0" min="0" oninput="saveGoals();renderStats()">
+          <input class="fc goal-fc" type="number" id="goal-year-gen" placeholder="0" min="0" oninput="syncGoalTotal('year');saveGoals();renderStats()">
+        </div>
+        <div class="goal-input-group" style="grid-column:1/-1">
+          <label class="goal-lbl" style="color:var(--acc)">年委託目標合計（件）</label>
+          <input class="fc goal-fc" type="number" id="goal-year-comm" placeholder="0" min="0" readonly style="background:var(--accl);color:var(--acc);font-weight:700;cursor:default">
         </div>
       </div>
     </div>
     <div class="goal-card">
-      <div class="goal-card-title">📆 本月目標設定（<span id="goal-month-label"></span>）</div>
-      <div class="goal-inputs">
-        <div class="goal-input-group">
-          <label class="goal-lbl">月委託目標（件）</label>
-          <input class="fc goal-fc" type="number" id="goal-month-comm" placeholder="0" min="0" oninput="saveGoals();renderStats()">
+      <div class="goal-card-title" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <span>📆 月目標設定</span>
+        <div style="display:flex;align-items:center;gap:6px">
+          <select class="fc goal-fc" id="goal-month-year" style="width:90px;padding:4px 8px!important;font-size:12px!important" onchange="loadMonthGoal()"></select>
+          <select class="fc goal-fc" id="goal-month-month" style="width:72px;padding:4px 8px!important;font-size:12px!important" onchange="loadMonthGoal()">
+            <option value="1">1月</option><option value="2">2月</option><option value="3">3月</option>
+            <option value="4">4月</option><option value="5">5月</option><option value="6">6月</option>
+            <option value="7">7月</option><option value="8">8月</option><option value="9">9月</option>
+            <option value="10">10月</option><option value="11">11月</option><option value="12">12月</option>
+          </select>
         </div>
+      </div>
+      <div class="goal-inputs" style="margin-top:12px">
         <div class="goal-input-group">
           <label class="goal-lbl">└ 專任委託目標</label>
-          <input class="fc goal-fc" type="number" id="goal-month-excl" placeholder="0" min="0" oninput="saveGoals();renderStats()">
+          <input class="fc goal-fc" type="number" id="goal-month-excl" placeholder="0" min="0" oninput="syncGoalTotal('month');saveMonthGoal()">
         </div>
         <div class="goal-input-group">
           <label class="goal-lbl">└ 一般委託目標</label>
-          <input class="fc goal-fc" type="number" id="goal-month-gen" placeholder="0" min="0" oninput="saveGoals();renderStats()">
+          <input class="fc goal-fc" type="number" id="goal-month-gen" placeholder="0" min="0" oninput="syncGoalTotal('month');saveMonthGoal()">
+        </div>
+        <div class="goal-input-group" style="grid-column:1/-1">
+          <label class="goal-lbl" style="color:var(--acc)">月委託目標合計（件）</label>
+          <input class="fc goal-fc" type="number" id="goal-month-comm" placeholder="0" min="0" readonly style="background:var(--accl);color:var(--acc);font-weight:700;cursor:default">
         </div>
       </div>
     </div>
@@ -958,6 +970,16 @@ function initGoogleMaps() {
     <div class="chart-card">
       <div class="chart-title">📆 本月委託目標達成</div>
       <canvas id="goalMonthChart"></canvas>
+    </div>
+  </div>
+  <!-- 全年曲線圖 -->
+  <div class="chart-area" style="margin-top:16px;grid-template-columns:1fr">
+    <div class="chart-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+        <div class="chart-title" style="margin-bottom:0">📈 全年每月目標 vs 實際</div>
+        <select class="fc" id="trend-year" style="width:100px;font-size:13px" onchange="renderStats()"></select>
+      </div>
+      <canvas id="trendChart"></canvas>
     </div>
   </div>
 </div>
@@ -2242,26 +2264,88 @@ document.addEventListener('click',function(e){
 document.querySelectorAll('.ov').forEach(ov=>{ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('show');});});
 
 // ── 統計頁面 ──
-// ── 業績目標 (Firebase) ──
+// ── 目標合計自動同步 ──
+function syncGoalTotal(type){
+  const excl = parseInt(document.getElementById(`goal-${type}-excl`).value)||0;
+  const gen  = parseInt(document.getElementById(`goal-${type}-gen`).value)||0;
+  document.getElementById(`goal-${type}-comm`).value = excl + gen || '';
+}
+
+// ── 月目標選單初始化 ──
+function initMonthGoalSelector(){
+  const now = new Date();
+  const curYear = now.getFullYear();
+  const yearSel = document.getElementById('goal-month-year');
+  if(!yearSel) return;
+  yearSel.innerHTML = '';
+  // 顯示前後3年
+  for(let y = curYear - 2; y <= curYear + 1; y++){
+    const o = document.createElement('option');
+    o.value = y; o.textContent = y + '年';
+    if(y === curYear) o.selected = true;
+    yearSel.appendChild(o);
+  }
+  document.getElementById('goal-month-month').value = now.getMonth() + 1;
+}
+
+// ── 取得月目標的 Firestore key ──
+function monthGoalKey(year, month){
+  return `m_${year}_${String(month).padStart(2,'0')}`;
+}
+
+// ── 儲存月目標 ──
+async function saveMonthGoal(){
+  const user = window._currentUser;
+  if(!user) return;
+  const year  = document.getElementById('goal-month-year').value;
+  const month = document.getElementById('goal-month-month').value;
+  const key   = monthGoalKey(year, month);
+  const g = {
+    excl: document.getElementById('goal-month-excl').value,
+    gen:  document.getElementById('goal-month-gen').value,
+    comm: document.getElementById('goal-month-comm').value,
+  };
+  const ref = window._firebaseGoalsRef(user.uid);
+  window._firebaseSetDoc(ref, {[key]: g}, {merge: true}).catch(e=>console.error(e));
+  renderStats();
+}
+
+// ── 載入月目標 ──
+async function loadMonthGoal(){
+  const user = window._currentUser;
+  if(!user) return;
+  const year  = document.getElementById('goal-month-year').value;
+  const month = document.getElementById('goal-month-month').value;
+  const key   = monthGoalKey(year, month);
+  try{
+    const snap = await window._firebaseGetDoc(window._firebaseGoalsRef(user.uid));
+    const g = snap.exists() ? (snap.data()[key] || {}) : {};
+    document.getElementById('goal-month-excl').value = g.excl || '';
+    document.getElementById('goal-month-gen').value  = g.gen  || '';
+    document.getElementById('goal-month-comm').value = g.comm || '';
+    syncGoalTotal('month');
+  }catch(e){ console.error(e); }
+  renderStats();
+}
+
+// ── 年度目標存取 ──
 function saveGoals(){
   const user = window._currentUser;
   if(!user) return;
-  const g={
-    yearComm:document.getElementById('goal-year-comm').value,
-    yearExcl:document.getElementById('goal-year-excl').value,
-    yearGen:document.getElementById('goal-year-gen').value,
-    monthComm:document.getElementById('goal-month-comm').value,
-    monthExcl:document.getElementById('goal-month-excl').value,
-    monthGen:document.getElementById('goal-month-gen').value,
+  const g = {
+    yearComm: document.getElementById('goal-year-comm').value,
+    yearExcl: document.getElementById('goal-year-excl').value,
+    yearGen:  document.getElementById('goal-year-gen').value,
   };
-  window._firebaseSetDoc(window._firebaseGoalsRef(user.uid), g).catch(e=>console.error(e));
+  window._firebaseSetDoc(window._firebaseGoalsRef(user.uid), g, {merge: true}).catch(e=>console.error(e));
 }
 function loadGoals(){ /* 由 loadFromFirestore 處理 */ }
 
-let pieChartInst=null, barChartInst=null, goalYearChartInst=null, goalMonthChartInst=null;
+let pieChartInst=null, barChartInst=null, goalYearChartInst=null, goalMonthChartInst=null, trendChartInst=null;
 
 function initStatsYears(){
   const sel=document.getElementById('stats-year');
+  const trendSel=document.getElementById('trend-year');
   if(!sel)return;
   const allDates=[
     ...db.recruit.map(r=>r.date),
@@ -2272,9 +2356,15 @@ function initStatsYears(){
   const curYear=new Date().getFullYear().toString();
   if(!years.includes(curYear))years.unshift(curYear);
   const curVal=sel.value;
+  const trendVal=trendSel?trendSel.value:'';
   sel.innerHTML=years.map(y=>`<option value="${y}">${y}年</option>`).join('');
+  if(trendSel) trendSel.innerHTML=years.map(y=>`<option value="${y}">${y}年</option>`).join('');
   if(curVal&&years.includes(curVal))sel.value=curVal;
   else sel.value=curYear;
+  if(trendSel){
+    if(trendVal&&years.includes(trendVal))trendSel.value=trendVal;
+    else trendSel.value=curYear;
+  }
 }
 
 function getDateField(pool, r){
@@ -2529,10 +2619,16 @@ function renderStats(){
   const ayExcl=db.commission.filter(r=>{const d=getDateField('commission',r);return d&&d.slice(0,4)===curYear&&r.commType==='exclusive';}).length;
   const ayGen=db.commission.filter(r=>{const d=getDateField('commission',r);return d&&d.slice(0,4)===curYear&&r.commType==='general';}).length;
 
-  // 本月實際委託
-  const amComm=db.commission.filter(r=>{const d=getDateField('commission',r);return d&&d.slice(0,4)===curYear&&parseInt(d.slice(5,7))===curMonth;}).length;
-  const amExcl=db.commission.filter(r=>{const d=getDateField('commission',r);return d&&d.slice(0,4)===curYear&&parseInt(d.slice(5,7))===curMonth&&r.commType==='exclusive';}).length;
-  const amGen=db.commission.filter(r=>{const d=getDateField('commission',r);return d&&d.slice(0,4)===curYear&&parseInt(d.slice(5,7))===curMonth&&r.commType==='general';}).length;
+  // 月目標達成：用選單選擇的年月
+  const selGoalYear  = parseInt((document.getElementById('goal-month-year')||{}).value)||parseInt(curYear);
+  const selGoalMonth = parseInt((document.getElementById('goal-month-month')||{}).value)||curMonth;
+  const amComm=db.commission.filter(r=>{const d=getDateField('commission',r);return d&&parseInt(d.slice(0,4))===selGoalYear&&parseInt(d.slice(5,7))===selGoalMonth;}).length;
+  const amExcl=db.commission.filter(r=>{const d=getDateField('commission',r);return d&&parseInt(d.slice(0,4))===selGoalYear&&parseInt(d.slice(5,7))===selGoalMonth&&r.commType==='exclusive';}).length;
+  const amGen=db.commission.filter(r=>{const d=getDateField('commission',r);return d&&parseInt(d.slice(0,4))===selGoalYear&&parseInt(d.slice(5,7))===selGoalMonth&&r.commType==='general';}).length;
+
+  // 更新月目標圖表標題
+  const mgTitle = document.querySelector('#goalMonthChart')?.closest('.chart-card')?.querySelector('.chart-title');
+  if(mgTitle) mgTitle.textContent = `📆 ${selGoalYear}年${selGoalMonth}月 委託目標達成`;
 
   function makeGoalChart(canvasId, instRef, labels, actual, goals){
     if(instRef){instRef.destroy();}
@@ -2582,6 +2678,101 @@ function renderStats(){
     [amComm,amExcl,amGen],
     [gMonthComm,gMonthExcl,gMonthGen]
   );
+
+  // ── 全年曲線圖 ──
+  renderTrendChart();
+}
+
+async function renderTrendChart(){
+  const trendYearSel = document.getElementById('trend-year');
+  if(!trendYearSel) return;
+  const trendYear = trendYearSel.value;
+  const user = window._currentUser;
+
+  // 每月實際委託數
+  const actualData = Array.from({length:12},(_,i)=>{
+    const m = i+1;
+    return db.commission.filter(r=>{
+      const d=getDateField('commission',r);
+      return d && d.slice(0,4)===trendYear && parseInt(d.slice(5,7))===m;
+    }).length;
+  });
+
+  // 每月目標（從 Firestore 讀取）
+  let goalData = Array(12).fill(0);
+  if(user){
+    try{
+      const snap = await window._firebaseGetDoc(window._firebaseGoalsRef(user.uid));
+      if(snap.exists()){
+        const g = snap.data();
+        goalData = Array.from({length:12},(_,i)=>{
+          const key = monthGoalKey(trendYear, i+1);
+          const mg = g[key] || {};
+          return parseInt(mg.comm)||0;
+        });
+      }
+    }catch(e){}
+  }
+
+  const labels=['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+  const isDark = document.documentElement.dataset.theme==='dark';
+  const gridColor = isDark?'rgba(255,255,255,.08)':'rgba(0,0,0,.07)';
+
+  if(trendChartInst) trendChartInst.destroy();
+  const ctx = document.getElementById('trendChart');
+  if(!ctx) return;
+  trendChartInst = new Chart(ctx.getContext('2d'),{
+    type:'line',
+    data:{
+      labels,
+      datasets:[
+        {
+          label:'實際委託',
+          data:actualData,
+          borderColor:'#0f519b',
+          backgroundColor:'rgba(15,81,155,.12)',
+          borderWidth:2.5,
+          pointRadius:5,
+          pointBackgroundColor:'#0f519b',
+          fill:true,
+          tension:0.35,
+        },
+        {
+          label:'目標',
+          data:goalData,
+          borderColor:'#fece26',
+          backgroundColor:'rgba(254,206,38,.08)',
+          borderWidth:2.5,
+          borderDash:[6,4],
+          pointRadius:4,
+          pointBackgroundColor:'#fece26',
+          fill:false,
+          tension:0.35,
+        }
+      ]
+    },
+    options:{
+      responsive:true,
+      plugins:{
+        legend:{position:'top',labels:{padding:14,font:{size:12}}},
+        tooltip:{
+          callbacks:{
+            afterLabel:(ctx)=>{
+              if(ctx.datasetIndex===0){
+                const g=goalData[ctx.dataIndex];
+                if(g>0) return `達成率：${Math.round(ctx.raw/g*100)}%`;
+              }
+              return '';
+            }
+          }
+        }
+      },
+      scales:{
+        x:{grid:{color:gridColor},ticks:{font:{size:12}}},
+        y:{beginAtZero:true,grid:{color:gridColor},ticks:{stepSize:1,precision:0}}
+      }
+    }
+  });
 }
 
 // ══════════════════════════════════════════
@@ -3133,14 +3324,17 @@ async function loadFromFirestore(uid){
     const gsnap = await window._firebaseGetDoc(window._firebaseGoalsRef(uid));
     if(gsnap.exists()){
       const g = gsnap.data();
-      const map = {
-        'goal-year-comm':'yearComm','goal-year-excl':'yearExcl','goal-year-gen':'yearGen',
-        'goal-month-comm':'monthComm','goal-month-excl':'monthExcl','goal-month-gen':'monthGen'
-      };
-      Object.entries(map).forEach(([id,key])=>{
-        const el=document.getElementById(id);
-        if(el && g[key]) el.value = g[key];
-      });
+      // 年度目標
+      if(g.yearExcl) document.getElementById('goal-year-excl').value = g.yearExcl;
+      if(g.yearGen)  document.getElementById('goal-year-gen').value  = g.yearGen;
+      syncGoalTotal('year');
+      // 本月目標
+      const now = new Date();
+      const key = monthGoalKey(now.getFullYear(), now.getMonth()+1);
+      const mg  = g[key] || {};
+      if(mg.excl) document.getElementById('goal-month-excl').value = mg.excl;
+      if(mg.gen)  document.getElementById('goal-month-gen').value  = mg.gen;
+      syncGoalTotal('month');
     }
     setSyncStatus('☁ 已同步','var(--grn)');
     setTimeout(()=>setSyncStatus(''),3000);
@@ -3197,6 +3391,7 @@ window.onFirebaseLogin = async function(user){
     document.getElementById('p-city').appendChild(o);
   });
   currentView='desktop';
+  initMonthGoalSelector();
   switchPage('stats');
   renderAll();
   checkNotifs();
