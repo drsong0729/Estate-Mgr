@@ -73,103 +73,37 @@
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Noto Sans TC',system-ui,sans-serif;background:var(--bg);color:var(--tx);height:100vh;overflow:hidden;display:flex;transition:background .2s,color .2s}
 
+
 /* ════════════════════════════════
-   SIDEBAR — 左側垂直導覽
+   DRAWER NAV 抽屜導覽按鈕
 ════════════════════════════════ */
-#sidebar{
-  width:200px;min-width:200px;
-  background:var(--acc);
-  display:flex;flex-direction:column;
-  min-height:100vh;
-  position:sticky;top:0;height:100vh;
-  z-index:100;
-  box-shadow:4px 0 20px rgba(15,81,155,.25);
-  transition:width .22s ease;
-  overflow:hidden;
+.drawer-nav{
+  width:100%;padding:11px 12px;border:none;
+  background:transparent;
+  color:rgba(255,255,255,.8);font-size:13px;font-weight:500;
+  border-radius:10px;cursor:pointer;transition:.15s;
+  font-family:inherit;display:flex;align-items:center;gap:10px;
+  text-align:left;margin-bottom:2px;
 }
-.header-row1,.header-row2{display:contents}
-
-/* Logo 區 */
-.sidebar-logo{
-  padding:20px 18px 16px;
-  border-bottom:1px solid rgba(255,255,255,.12);
-  display:flex;align-items:center;gap:10px;
-}
-.logo{
-  font-size:13px;font-weight:700;color:#fff;
-  line-height:1.3;letter-spacing:.01em;
-  white-space:normal;
-}
-.logo-icon{
-  width:34px;height:34px;background:var(--yel);border-radius:10px;
-  display:flex;align-items:center;justify-content:center;
-  font-size:17px;flex-shrink:0;
-}
-
-/* Nav */
-nav{
-  display:flex;flex-direction:column;gap:2px;
-  padding:14px 10px;flex:1;
-}
-.nav-btn{
-  padding:10px 14px;border:none;background:transparent;
-  color:rgba(255,255,255,.7);font-size:13px;font-weight:500;
-  border-radius:10px;cursor:pointer;transition:.18s;
-  position:relative;font-family:inherit;white-space:nowrap;
-  display:flex;align-items:center;gap:10px;text-align:left;
-  width:100%;
-}
-.nav-btn:hover{background:rgba(255,255,255,.12);color:#fff}
-.nav-btn.active{background:rgba(255,255,255,.18);color:#fff;font-weight:700}
-.nav-btn.active::before{
-  content:'';position:absolute;left:0;top:20%;height:60%;
-  width:3px;background:var(--yel);border-radius:0 3px 3px 0;
-}
-.nav-icon{font-size:16px;flex-shrink:0;width:20px;text-align:center}
-.nbadge{
+.drawer-nav:hover{background:rgba(255,255,255,.12);color:#fff}
+.drawer-nav.active{background:rgba(255,255,255,.18);color:#fff;font-weight:700}
+.drawer-nav span:first-child{font-size:18px;flex-shrink:0;width:24px;text-align:center}
+.dnbadge{
   margin-left:auto;background:var(--yel);color:#1a2332;
-  font-size:10px;padding:1px 6px;border-radius:20px;font-weight:700;
+  font-size:10px;padding:1px 7px;border-radius:20px;font-weight:700;
 }
 
-/* Sidebar footer */
-.sidebar-footer{
-  padding:12px 10px 16px;
-  border-top:1px solid rgba(255,255,255,.12);
-  display:flex;flex-direction:column;gap:4px;
-}
-.sidebar-action{
-  padding:9px 14px;border:none;background:rgba(255,255,255,.1);
-  color:rgba(255,255,255,.8);font-size:12px;font-weight:500;
-  border-radius:8px;cursor:pointer;transition:.18s;
-  font-family:inherit;display:flex;align-items:center;gap:8px;
-  width:100%;border:1px solid rgba(255,255,255,.15);
-}
-.sidebar-action:hover{background:rgba(255,255,255,.2);color:#fff}
-
-/* Theme btn */
-.theme-btn{
-  padding:9px 14px;border:none;background:rgba(255,255,255,.1);
-  color:rgba(255,255,255,.8);font-size:12px;
-  border-radius:8px;cursor:pointer;transition:.18s;
-  font-family:inherit;display:flex;align-items:center;gap:8px;
-  width:100%;border:1px solid rgba(255,255,255,.15);
-  font-weight:500;
-}
-.theme-btn:hover{background:rgba(255,255,255,.2);color:#fff}
-
-/* 隱藏舊 header 元素 */
+/* 隱藏舊 sidebar 相關 */
+#sidebar,nav,.nav-btn,.nbadge,.sidebar-footer,.sidebar-logo,
+.sidebar-action,.theme-btn{display:none!important}
 header{display:none!important}
-.hright{display:none}
-.more-menu-wrap{display:none}
-.more-btn,.more-dropdown{display:none}
-.view-toggle{display:none}
-.vt-btn{display:none}
+.hright,.more-menu-wrap,.more-btn,.more-dropdown,.view-toggle,.vt-btn{display:none}
 
 /* ════════════════════════════════
-   CONTENT AREA — 右側主內容
+   CONTENT AREA
 ════════════════════════════════ */
 #app-content{
-  flex:1;min-width:0;
+  flex:1;min-width:0;width:100%;
   overflow-y:auto;
   overflow-x:hidden;
 }
@@ -408,58 +342,8 @@ textarea.fc{resize:vertical;min-height:60px}
 a.plink{color:var(--blu);font-size:12px;text-decoration:none}
 a.plink:hover{text-decoration:underline}
 
-/* MOBILE — sidebar 變成底部列 */
+/* MOBILE */
 @media(max-width:768px){
-  body{flex-direction:column}
-  #sidebar{
-    width:100%;min-width:0;height:auto;min-height:0;
-    position:fixed;bottom:0;left:0;right:0;top:auto;
-    flex-direction:column;
-    box-shadow:0 -1px 0 rgba(255,255,255,.1),0 -6px 20px rgba(0,0,0,.2);
-    order:2;z-index:200;
-  }
-  .sidebar-logo{display:none}
-  .sidebar-footer{display:none}
-  /* 手機版隱藏 topbar 登出按鈕（改用抽屜） */
-  #topbar-signout{display:none!important}
-  /* 手機版顯示 nav 選單按鈕 */
-  #nav-menu-btn{display:flex!important}
-  /* nav */
-  nav{flex-direction:row;padding:0;gap:0;overflow:visible;height:60px}
-  .nav-btn{
-    flex-direction:column;gap:2px;
-    padding:9px 2px 7px;
-    font-size:9px;font-weight:600;letter-spacing:.02em;
-    align-items:center;justify-content:center;flex:1;min-width:0;
-    border-radius:0;
-    color:rgba(255,255,255,.6);
-    transition:color .15s,background .15s;
-    position:relative;
-    text-align:center;
-    display:flex;
-  }
-  .nav-btn:active{background:rgba(255,255,255,.1)}
-  .nav-btn.active{color:#fff}
-  .nav-btn.active::before{
-    content:'';position:absolute;
-    top:0;left:20%;width:60%;height:3px;
-    background:#fff;border-radius:0 0 4px 4px;
-  }
-  .nav-icon{font-size:22px;line-height:1;display:block}
-  .nbadge{
-    position:absolute;top:6px;
-    left:calc(50% + 4px);
-    margin:0;min-width:15px;height:15px;
-    font-size:9px;padding:0 3px;
-    line-height:15px;border-radius:8px;
-    background:#ff4757;color:#fff;
-    font-weight:700;
-  }
-  #app-content{
-    order:1;flex:1;min-height:0;
-    overflow-y:auto;
-    padding-bottom:var(--bottom-bar-h, 80px);
-  }
   .topbar{padding:0 14px}
   main{padding:14px}
   .card-grid{grid-template-columns:1fr}
@@ -477,42 +361,6 @@ a.plink:hover{text-decoration:underline}
   .search-row{flex-direction:column;gap:8px}
   .search-bar .search-group{width:100%;flex:none;max-width:none}
   .search-bar .btn-clear{width:100%;justify-content:center;padding:10px}
-}
-
-/* 首頁按鈕特殊樣式（桌機） */
-.nav-btn-home{
-  background:rgba(254,206,38,.18)!important;
-  color:var(--yel)!important;
-  border:1px solid rgba(254,206,38,.35);
-  margin-bottom:6px;
-}
-.nav-btn-home:hover{background:rgba(254,206,38,.28)!important;color:#fff!important}
-.nav-btn-home.active{
-  background:var(--yel)!important;
-  color:#1a2332!important;
-  border-color:var(--yel)!important;
-}
-.nav-btn-home.active::before{background:#1a2332!important}
-
-/* 手機版底部 nav 順序 + 首頁特殊樣式 */
-@media(max-width:768px){
-  #nav-recruit{order:1}
-  #nav-track{order:2}
-  #nav-stats{order:3}
-  #nav-commission{order:4}
-  #nav-trip{order:5}
-  #nav-menu-btn{order:6}
-  .nav-btn-home{
-    background:none!important;
-    border:none!important;
-    margin-bottom:0!important;
-    color:var(--yel)!important;
-  }
-  .nav-btn-home.active{
-    background:rgba(254,206,38,.15)!important;
-    color:var(--yel)!important;
-  }
-  .nav-btn-home.active::before{background:var(--yel)!important}
 }
 .stats-filter{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:flex-end}
 .sf-group{display:flex;flex-direction:column;gap:4px;min-width:120px}
@@ -628,13 +476,11 @@ th.sortable:not(.asc):not(.desc) .sort-icon::after{content:'⇅'}
         if (user) {
           window._currentUser = user;
           document.getElementById('login-screen').style.display = 'none';
-          document.getElementById('sidebar').style.display = '';
-          document.getElementById('app-content').style.display = '';
+          document.getElementById('app-content').style.display = 'block';
           if (typeof window.onFirebaseLogin === 'function') window.onFirebaseLogin(user);
         } else {
           window._currentUser = null;
           document.getElementById('login-screen').style.display = 'flex';
-          document.getElementById('sidebar').style.display = 'none';
           document.getElementById('app-content').style.display = 'none';
         }
       });
@@ -715,85 +561,60 @@ function initGoogleMaps() {
   </div>
 </div>
 
-<!-- SIDEBAR -->
-<aside id="sidebar" style="display:none">
-  <div class="sidebar-logo">
-    <div class="logo-icon">🏠</div>
-    <div class="logo">房仲屋主管理系統</div>
-  </div>
-  <nav>
-    <button class="nav-btn nav-btn-home" id="nav-stats" onclick="switchPage('stats')">
-      <span class="nav-icon">🏠</span>首頁
-    </button>
-    <button class="nav-btn" id="nav-recruit" onclick="switchPage('recruit')">
-      <span class="nav-icon">📋</span>募集線<span class="nbadge" id="b-recruit">0</span>
-    </button>
-    <button class="nav-btn" id="nav-track" onclick="switchPage('track')">
-      <span class="nav-icon">🔍</span>追蹤線<span class="nbadge" id="b-track">0</span>
-    </button>
-    <button class="nav-btn" id="nav-commission" onclick="switchPage('commission')">
-      <span class="nav-icon">📝</span>委託<span class="nbadge" id="b-commission">0</span>
-    </button>
-    <button class="nav-btn" id="nav-trip" onclick="switchPage('trip')">
-      <span class="nav-icon">📍</span>行程規劃
-    </button>
-    <!-- 手機版：選單按鈕 -->
-    <button class="nav-btn" id="nav-menu-btn" onclick="toggleMobileDrawer()" style="display:none">
-      <span class="nav-icon">☰</span>選單
-    </button>
-  </nav>
-  <div class="sidebar-footer">
-    <div id="user-info" style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(255,255,255,.08);border-radius:8px;margin-bottom:8px">
-      <img id="user-avatar" src="" alt="" style="width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,.3);display:none">
-      <div style="flex:1;min-width:0">
-        <div id="user-name" style="font-size:11px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
-        <div id="user-email" style="font-size:10px;color:rgba(255,255,255,.55);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
-      </div>
-    </div>
-    <button class="sidebar-action" onclick="exportExcel()">⬇ 匯出備份</button>
-    <button class="sidebar-action" onclick="document.getElementById('xlsxInput').click()">⬆ 匯入資料</button>
-    <input type="file" id="xlsxInput" class="hidden-input" accept=".json,.xlsx,.xls,.csv" onchange="importExcel(event)">
-    <input type="file" id="xlsxInput2" class="hidden-input" accept=".json,.xlsx,.xls,.csv" onchange="importExcel(event)">
-    <button class="theme-btn" id="themeBtn" onclick="toggleTheme()">🌙 切換主題</button>
-    <button class="sidebar-action" onclick="handleSignOut()" style="background:rgba(192,24,42,.25);color:#ff8899;border:1px solid rgba(192,24,42,.4);margin-top:4px">🚪 登出</button>
-  </div>
-</aside>
+<!-- SIDEBAR 已移除，由 topbar 選單取代 -->
+<input type="file" id="xlsxInput" class="hidden-input" accept=".json,.xlsx,.xls,.csv" onchange="importExcel(event)">
+<input type="file" id="xlsxInput2" class="hidden-input" accept=".json,.xlsx,.xls,.csv" onchange="importExcel(event)">
 
-<!-- 手機版右側抽屜 -->
-<div id="mobile-drawer-overlay" onclick="toggleMobileDrawer()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000"></div>
-<div id="mobile-drawer" style="
-  position:fixed;top:0;right:0;bottom:0;width:260px;
+<!-- 全域選單抽屜遮罩 -->
+<div id="drawer-overlay" onclick="toggleDrawer()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000"></div>
+
+<!-- 全域選單抽屜 -->
+<div id="main-drawer" style="
+  position:fixed;top:0;right:0;bottom:0;width:280px;
   background:var(--acc);z-index:1001;
   transform:translateX(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);
-  display:flex;flex-direction:column;padding:0;
+  display:flex;flex-direction:column;
   box-shadow:-4px 0 24px rgba(0,0,0,.3);
 ">
-  <!-- 抽屜 header -->
-  <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 16px 12px;border-bottom:1px solid rgba(255,255,255,.12)">
+  <!-- 使用者資訊 -->
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 16px 14px;border-bottom:1px solid rgba(255,255,255,.12);flex-shrink:0">
     <div style="display:flex;align-items:center;gap:10px">
-      <img id="drawer-avatar" src="" alt="" style="width:36px;height:36px;border-radius:50%;border:2px solid rgba(255,255,255,.4);display:none">
-      <div>
-        <div id="drawer-name" style="font-size:13px;font-weight:700;color:#fff"></div>
-        <div id="drawer-email" style="font-size:10px;color:rgba(255,255,255,.55)"></div>
+      <img id="drawer-avatar" src="" alt="" style="width:38px;height:38px;border-radius:50%;border:2px solid rgba(255,255,255,.35);display:none;flex-shrink:0">
+      <div style="min-width:0">
+        <div id="drawer-name" style="font-size:13px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px"></div>
+        <div id="drawer-email" style="font-size:10px;color:rgba(255,255,255,.55);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px"></div>
       </div>
     </div>
-    <button onclick="toggleMobileDrawer()" style="width:30px;height:30px;background:rgba(255,255,255,.12);border:none;border-radius:50%;color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
+    <button onclick="toggleDrawer()" style="width:30px;height:30px;background:rgba(255,255,255,.12);border:none;border-radius:50%;color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">✕</button>
   </div>
-  <!-- 抽屜選項 -->
-  <div style="flex:1;overflow-y:auto;padding:12px">
-    <button onclick="exportExcel();toggleMobileDrawer()" style="width:100%;padding:12px 14px;background:rgba(255,255,255,.1);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;margin-bottom:8px;display:flex;align-items:center;gap:10px">
-      <span style="font-size:18px">⬇</span> 匯出備份
+  <!-- 頁面導覽 -->
+  <div style="padding:10px 10px 0;flex-shrink:0">
+    <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);letter-spacing:.1em;padding:6px 8px 4px">頁面</div>
+    <button class="drawer-nav active" id="dnav-stats" onclick="switchPage('stats');toggleDrawer()">
+      <span>🏠</span> 首頁
     </button>
-    <button onclick="document.getElementById('xlsxInput').click();toggleMobileDrawer()" style="width:100%;padding:12px 14px;background:rgba(255,255,255,.1);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;margin-bottom:8px;display:flex;align-items:center;gap:10px">
-      <span style="font-size:18px">⬆</span> 匯入資料
+    <button class="drawer-nav" id="dnav-recruit" onclick="switchPage('recruit');toggleDrawer()">
+      <span>📋</span> 募集線 <span class="dnbadge" id="db-recruit">0</span>
     </button>
-    <button onclick="toggleTheme();updateDrawerThemeBtn()" style="width:100%;padding:12px 14px;background:rgba(255,255,255,.1);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;margin-bottom:8px;display:flex;align-items:center;gap:10px" id="drawer-theme-btn">
-      <span style="font-size:18px">🌙</span> 切換主題
+    <button class="drawer-nav" id="dnav-track" onclick="switchPage('track');toggleDrawer()">
+      <span>🔍</span> 追蹤線 <span class="dnbadge" id="db-track">0</span>
     </button>
-    <div style="height:1px;background:rgba(255,255,255,.12);margin:12px 0"></div>
-    <button onclick="handleSignOut()" style="width:100%;padding:12px 14px;background:rgba(192,24,42,.25);color:#ff9999;border:1px solid rgba(192,24,42,.4);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;display:flex;align-items:center;gap:10px">
-      <span style="font-size:18px">🚪</span> 登出
+    <button class="drawer-nav" id="dnav-commission" onclick="switchPage('commission');toggleDrawer()">
+      <span>📝</span> 委託 <span class="dnbadge" id="db-commission">0</span>
     </button>
+    <button class="drawer-nav" id="dnav-trip" onclick="switchPage('trip');toggleDrawer()">
+      <span>📍</span> 行程規劃
+    </button>
+  </div>
+  <!-- 工具 -->
+  <div style="padding:10px;flex:1;overflow-y:auto">
+    <div style="height:1px;background:rgba(255,255,255,.12);margin:6px 0 10px"></div>
+    <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);letter-spacing:.1em;padding:0 8px 4px">工具</div>
+    <button class="drawer-nav" onclick="exportExcel();toggleDrawer()"><span>⬇</span> 匯出備份</button>
+    <button class="drawer-nav" onclick="document.getElementById('xlsxInput').click();toggleDrawer()"><span>⬆</span> 匯入資料</button>
+    <button class="drawer-nav" id="drawer-theme-btn" onclick="toggleTheme();updateDrawerThemeBtn()"><span>🌙</span> 切換主題</button>
+    <div style="height:1px;background:rgba(255,255,255,.12);margin:10px 0"></div>
+    <button class="drawer-nav" onclick="handleSignOut()" style="color:#ff9999!important;background:rgba(192,24,42,.2)!important"><span>🚪</span> 登出</button>
   </div>
 </div>
 
@@ -806,12 +627,11 @@ function initGoogleMaps() {
   </div>
   <!-- 頂部工具列 -->
   <div class="topbar">
-    <div class="topbar-title" id="topbar-title">募集線</div>
+    <div class="topbar-title" id="topbar-title">首頁</div>
     <div class="topbar-right">
       <span id="sync-status" style="font-size:11px;color:var(--tx3);display:none"></span>
       <span id="storage-usage" class="storage-badge" style="display:none"></span>
-      <!-- 桌機：登出按鈕 -->
-      <button id="topbar-signout" onclick="handleSignOut()" style="padding:5px 12px;background:rgba(192,24,42,.12);color:var(--red);border:1px solid rgba(192,24,42,.25);border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:5px">🚪 登出</button>
+      <button onclick="toggleDrawer()" style="width:36px;height:36px;background:var(--accl);border:1px solid var(--bdr);border-radius:8px;cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center;color:var(--acc);flex-shrink:0">☰</button>
     </div>
   </div>
   <main>
@@ -1466,9 +1286,11 @@ const PAGE_TITLES={'recruit':'募集線','track':'追蹤線','commission':'委�
 function switchPage(p){
   currentPage=p;
   document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));
-  document.querySelectorAll('.nav-btn').forEach(e=>e.classList.remove('active'));
   document.getElementById('page-'+p).classList.add('active');
-  document.getElementById('nav-'+p).classList.add('active');
+  // 更新 drawer nav active
+  document.querySelectorAll('.drawer-nav').forEach(e=>e.classList.remove('active'));
+  const dn = document.getElementById('dnav-'+p);
+  if(dn) dn.classList.add('active');
   const tb=document.getElementById('topbar-title');
   if(tb)tb.textContent=PAGE_TITLES[p]||'';
   if(p==='stats'){initStatsYears();renderStats();}
@@ -1953,7 +1775,7 @@ function renderRecruit(){
   const todayCount=db.recruit.filter(r=>r.date===today).length;
   document.getElementById('stats-recruit').innerHTML=`<div class="sc"><div class="sn">${db.recruit.length}</div><div class="sl">募集線總件數</div></div>
     <div class="sc"><div class="sn">${todayCount}</div><div class="sl">今日新增件數</div></div>`;
-  document.getElementById('b-recruit').textContent=db.recruit.length;
+  document.getElementById('db-recruit').textContent=db.recruit.length;
   const filtered=filterItems('recruit');
   const items=sortItems('recruit',filtered);
   const wrap=document.getElementById('recruit-view');
@@ -1999,7 +1821,7 @@ function renderTrack(){
   const todayCount=db.track.filter(r=>(r.trackDate||r.date)===today).length;
   document.getElementById('stats-track').innerHTML=`<div class="sc"><div class="sn">${db.track.length}</div><div class="sl">追蹤線總件數</div></div>
     <div class="sc"><div class="sn">${todayCount}</div><div class="sl">今日新增件數</div></div>`;
-  document.getElementById('b-track').textContent=db.track.length;
+  document.getElementById('db-track').textContent=db.track.length;
   const filtered=filterItems('track');
   const items=sortItems('track',filtered);
   const wrap=document.getElementById('track-view');
@@ -2099,7 +1921,7 @@ function renderCommission(){
   document.getElementById('stats-commission').innerHTML=`<div class="sc"><div class="sn">${genAll.length}</div><div class="sl">一般委託</div></div>
     <div class="sc"><div class="sn">${excAll.length}</div><div class="sl">專任委託</div></div>
     <div class="sc"><div class="sn">${expCount}</div><div class="sl">即將到期</div></div>`;
-  document.getElementById('b-commission').textContent=db.commission.length;
+  document.getElementById('db-commission').textContent=db.commission.length;
 }
 
 function renderAll(){renderRecruit();renderTrack();renderCommission();}
@@ -3336,10 +3158,10 @@ function openGoogleMaps() {
 }
 
 // ══════════════════════════════════════════════════════
-// ── 手機版右側抽屜 ──
-function toggleMobileDrawer(){
-  const drawer  = document.getElementById('mobile-drawer');
-  const overlay = document.getElementById('mobile-drawer-overlay');
+// ── 選單抽屜 ──
+function toggleDrawer(){
+  const drawer  = document.getElementById('main-drawer');
+  const overlay = document.getElementById('drawer-overlay');
   if(!drawer) return;
   const isOpen = drawer.style.transform === 'translateX(0%)';
   if(isOpen){
@@ -3351,6 +3173,8 @@ function toggleMobileDrawer(){
     overlay.style.display  = 'block';
   }
 }
+// 保留舊名稱相容性
+function toggleMobileDrawer(){ toggleDrawer(); }
 function updateDrawerThemeBtn(){
   const btn = document.getElementById('drawer-theme-btn');
   if(!btn) return;
@@ -3440,16 +3264,7 @@ window.onFirebaseLogin = async function(user){
   if(dName)  dName.textContent  = user.displayName || '使用者';
   if(dEmail) dEmail.textContent = user.email || '';
 
-  // 動態計算底部 sidebar 高度，設到 CSS 變數
-  function updateBottomBarHeight(){
-    const sidebar = document.getElementById('sidebar');
-    if(!sidebar) return;
-    const h = sidebar.offsetHeight;
-    if(h > 0){
-      document.documentElement.style.setProperty('--bottom-bar-h', (h + 24) + 'px');
-    }
-  }
-  // 登入後計算
+  // 計算底部 sidebar 高度（已無底部列，保留空函數相容性）
   await loadFromFirestore(user.uid);
 
   // 初始化 UI
@@ -3463,10 +3278,6 @@ window.onFirebaseLogin = async function(user){
   switchPage('stats');
   renderAll();
   checkNotifs();
-
-  // 計算底部高度
-  setTimeout(updateBottomBarHeight, 100);
-  window.addEventListener('resize', updateBottomBarHeight);
 
   // 閒置自動登出
   startAutoLogout();
