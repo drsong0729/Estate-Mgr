@@ -3065,22 +3065,13 @@ function openGoogleMaps() {
     : [...tripSelected];
   const addrs = ids.map(id => {
     const r = getTripItem(id);
-    return ownerHouseholdAddr(r) || fullAddr(r.propCity,r.propDist,r.propAddr);
+    const a = ownerHouseholdAddr(r) || fullAddr(r.propCity,r.propDist,r.propAddr);
+    // 加「台灣」前綴讓 Google Maps 正確解析中文地址
+    return a && a !== '—' ? '台灣' + a : null;
   }).filter(Boolean);
   if (addrs.length === 0) { alert('所選物件均無有效地址'); return; }
-
-  let url;
-  if (addrs.length === 1) {
-    // 單點：直接搜尋
-    url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addrs[0])}`;
-  } else {
-    // 多點：起點 + 終點 + 中間 waypoints
-    const origin      = encodeURIComponent(addrs[0]);
-    const destination = encodeURIComponent(addrs[addrs.length - 1]);
-    const waypoints   = addrs.slice(1, -1).map(a => encodeURIComponent(a)).join('|');
-    url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}${waypoints ? `&waypoints=${waypoints}` : ''}`;
-  }
-  window.open(url, '_blank');
+  const encoded = addrs.map(a => encodeURIComponent(a)).join('/');
+  window.open(`https://www.google.com/maps/dir/${encoded}`, '_blank');
 }
 
 // ══════════════════════════════════════════════════════
