@@ -553,6 +553,55 @@ th.sortable:not(.asc):not(.desc) .sort-icon::after{content:'⇅'}
 .trip-chip button{border:none;background:none;color:inherit;cursor:pointer;font-size:13px;padding:0;line-height:1;opacity:.7}
 .trip-chip button:hover{opacity:1}
 </style>
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+  import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
+    from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+  import { getFirestore, doc, getDoc, setDoc }
+    from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+  // ── Firebase 設定 ──
+  const firebaseConfig = {
+    apiKey: "AIzaSyCe5b4l0Eru24YeD09wrEFktKEqZKeI7Vw",
+    authDomain: "estate-tracker-3ddc2.firebaseapp.com",
+    projectId: "estate-tracker-3ddc2",
+    storageBucket: "estate-tracker-3ddc2.firebasestorage.app",
+    messagingSenderId: "90794280447",
+    appId: "1:90794280447:web:50558311633514c27b93ca",
+    measurementId: "G-6G4YXXP9ZK"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db_fs = getFirestore(app);
+  const provider = new GoogleAuthProvider();
+
+  // 掛到 window 供其他 script 使用
+  window._firebaseAuth = auth;
+  window._firebaseDb = db_fs;
+  window._firebaseProvider = provider;
+  window._firebaseSignIn = () => signInWithPopup(auth, provider);
+  window._firebaseSignOut = () => signOut(auth);
+  window._firebaseDocRef = (uid) => doc(db_fs, 'users', uid, 'data', 'main');
+  window._firebaseGoalsRef = (uid) => doc(db_fs, 'users', uid, 'data', 'goals');
+  window._firebaseGetDoc = getDoc;
+  window._firebaseSetDoc = setDoc;
+
+  // 監聽登入狀態
+  onAuthStateChanged(auth, user => {
+    if (user) {
+      window._currentUser = user;
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('app-wrapper').style.display = 'flex';
+      if (typeof window.onFirebaseLogin === 'function') window.onFirebaseLogin(user);
+    } else {
+      window._currentUser = null;
+      document.getElementById('login-screen').style.display = 'flex';
+      document.getElementById('app-wrapper').style.display = 'none';
+    }
+  });
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
 // Google Maps JS API 載入完成後的 callback
@@ -566,6 +615,125 @@ function initGoogleMaps() {
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBDX0LHYeD0bHQvzLezIir-ZYjOJUVHI3k&callback=initGoogleMaps&loading=async" async defer></script>
 </head>
 <body>
+
+<!-- ══════════════════════════════════════
+     登入畫面
+══════════════════════════════════════ -->
+<div id="login-screen" style="
+  display:flex;align-items:center;justify-content:center;
+  min-height:100vh;width:100%;
+  background:linear-gradient(135deg,#0f519b 0%,#0d4589 60%,#1a2332 100%);
+  position:fixed;inset:0;z-index:9999;
+">
+  <div style="
+    background:#fff;border-radius:20px;padding:44px 40px 36px;
+    max-width:380px;width:90%;text-align:center;
+    box-shadow:0 24px 80px rgba(0,0,0,.35);
+  ">
+    <div style="font-size:48px;margin-bottom:8px">🏠</div>
+    <div style="font-size:22px;font-weight:800;color:#0f519b;margin-bottom:4px">房仲屋主管理系統</div>
+    <div style="font-size:13px;color:#7a90aa;margin-bottom:32px">請使用 Google 帳號登入以同步您的資料</div>
+    <button id="google-signin-btn" onclick="handleSignIn()" style="
+      display:flex;align-items:center;justify-content:center;gap:12px;
+      width:100%;padding:13px 20px;border-radius:10px;
+      border:2px solid #e0e7ef;background:#fff;cursor:pointer;
+      font-size:15px;font-weight:600;color:#1a2332;
+      transition:all .18s;font-family:inherit;
+    "
+    onmouseover="this.style.background='#f0f4f8';this.style.borderColor='#0f519b'"
+    onmouseout="this.style.background='#fff';this.style.borderColor='#e0e7ef'"
+    >
+      <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.36-8.16 2.36-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
+      使用 Google 帳號登入
+    </button>
+    <div id="login-error" style="display:none;margin-top:16px;padding:10px 14px;background:#fceef0;border:1px solid #e04060;border-radius:8px;font-size:12px;color:#c0182a"></div>
+    <div style="margin-top:24px;font-size:11px;color:#b0c0d8;line-height:1.6">
+      您的資料將安全儲存於 Google Cloud<br>並在所有裝置間自動同步
+    </div>
+    <div style="margin-top:14px;font-size:11px;color:#8090a8;line-height:1.7">
+      登入即表示您同意
+      <a href="#" onclick="document.getElementById('privacy-modal').style.display='flex';return false;"
+         style="color:#4a90d9;text-decoration:underline;cursor:pointer">本系統隱私權條款</a>
+    </div>
+  </div>
+</div>
+
+<!-- 隱私權條款 Modal -->
+<div id="privacy-modal" style="
+  display:none;position:fixed;inset:0;z-index:99999;
+  background:rgba(0,0,0,.6);align-items:center;justify-content:center;padding:16px;
+" onclick="if(event.target===this)this.style.display='none'">
+  <div style="
+    background:#fff;border-radius:16px;max-width:600px;width:100%;
+    max-height:85vh;display:flex;flex-direction:column;
+    box-shadow:0 24px 80px rgba(0,0,0,.4);overflow:hidden;
+  ">
+    <!-- header -->
+    <div style="padding:20px 24px 16px;border-bottom:1px solid #e4eaf2;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+      <div style="font-size:16px;font-weight:800;color:#0f519b">🔒 隱私權保護政策</div>
+      <button onclick="document.getElementById('privacy-modal').style.display='none'"
+        style="width:30px;height:30px;border:none;background:#f0f4f8;border-radius:50%;cursor:pointer;font-size:16px;color:#3d526b;display:flex;align-items:center;justify-content:center">✕</button>
+    </div>
+    <!-- content -->
+    <div style="padding:20px 24px;overflow-y:auto;font-size:13px;color:#1a2332;line-height:1.8">
+      <p style="margin-bottom:14px">非常歡迎您光臨「房仲屋主管理系統」（以下簡稱本網站），為了讓您能夠安心使用本網站的各項服務與資訊，特此向您說明本網站的隱私權保護政策，以保障您的權益，請您詳閱下列內容：</p>
+
+      <div style="font-weight:700;color:#0f519b;margin:16px 0 6px">一、隱私權保護政策的適用範圍</div>
+      <p>隱私權保護政策內容，包括本網站如何處理在您使用網站服務時收集到的個人識別資料。隱私權保護政策不適用於本網站以外的相關連結網站，也不適用於非本網站所委託或參與管理的人員。</p>
+
+      <div style="font-weight:700;color:#0f519b;margin:16px 0 6px">二、個人資料的蒐集、處理及利用方式</div>
+      <p style="margin-bottom:8px">當您造訪本網站或使用本網站所提供之功能服務時，我們將視該服務功能性質，請您提供必要的個人資料，並在該特定目的範圍內處理及利用您的個人資料；非經您書面同意，本網站不會將個人資料用於其他用途。</p>
+      <p style="margin-bottom:8px">本網站在您使用服務信箱、問卷調查等互動性功能時，會保留您所提供的姓名、電子郵件地址、聯絡方式及使用時間等。</p>
+      <p style="margin-bottom:8px">於一般瀏覽時，伺服器會自行記錄相關行徑，包括您使用連線設備的IP位址、使用時間、使用的瀏覽器、瀏覽及點選資料記錄等，做為我們增進網站服務的參考依據，此記錄為內部應用，決不對外公佈。</p>
+      <p>為提供精確的服務，我們會將收集的問卷調查內容進行統計與分析，分析結果之統計數據或說明文字呈現，除供內部研究外，我們會視需要公佈統計數據及說明文字，但不涉及特定個人之資料。您可以隨時向我們提出請求，以更正或刪除您的帳戶或本網站所蒐集的個人資料等隱私資訊。</p>
+
+      <div style="font-weight:700;color:#0f519b;margin:16px 0 6px">三、資料之保護</div>
+      <p style="margin-bottom:8px">本網站主機均設有防火牆、防毒系統等相關的各項資訊安全設備及必要的安全防護措施，加以保護網站及您的個人資料採用嚴格的保護措施，只由經過授權的人員才能接觸您的個人資料，相關處理人員皆簽有保密合約，如有違反保密義務者，將會受到相關的法律處分。</p>
+      <p>如因業務需要有必要委託其他單位提供服務時，本網站亦會嚴格要求其遵守保密義務，並且採取必要檢查程序以確定其將確實遵守。</p>
+
+      <div style="font-weight:700;color:#0f519b;margin:16px 0 6px">四、網站對外的相關連結</div>
+      <p>本網站的網頁提供其他網站的網路連結，您也可經由本網站所提供的連結，點選進入其他網站。但該連結網站不適用本網站的隱私權保護政策，您必須參考該連結網站中的隱私權保護政策。</p>
+
+      <div style="font-weight:700;color:#0f519b;margin:16px 0 6px">五、與第三人共用個人資料之政策</div>
+      <p style="margin-bottom:8px">本網站絕不會提供、交換、出租或出售任何您的個人資料給其他個人、團體、私人企業或公務機關，但有法律依據或合約義務者，不在此限。前項但書之情形包括不限於：</p>
+      <ul style="padding-left:20px;margin-bottom:8px">
+        <li>經由您書面同意。</li>
+        <li>法律明文規定。</li>
+        <li>為免除您生命、身體、自由或財產上之危險。</li>
+        <li>與公務機關或學術研究機構合作，基於公共利益為統計或學術研究而有必要，且資料經過提供者處理或蒐集著依其揭露方式無從識別特定之當事人。</li>
+        <li>當您在網站的行為，違反服務條款或可能損害或妨礙網站與其他使用者權益或導致任何人遭受損害時，經網站管理單位研析揭露您的個人資料是為了辨識、聯絡或採取法律行動所必要者。</li>
+        <li>有利於您的權益。</li>
+      </ul>
+      <p>本網站委託廠商協助蒐集、處理或利用您的個人資料時，將對委外廠商或個人善盡監督管理之責。</p>
+
+      <div style="font-weight:700;color:#0f519b;margin:16px 0 6px">六、Cookie 之使用</div>
+      <p>為了提供您最佳的服務，本網站會在您的電腦中放置並取用我們的 Cookie，若您不願接受 Cookie 的寫入，您可在您使用的瀏覽器功能項中設定隱私權等級為高，即可拒絕 Cookie 的寫入，但可能會導至網站某些功能無法正常執行。</p>
+
+      <div style="font-weight:700;color:#0f519b;margin:16px 0 6px">七、隱私權保護政策之修正</div>
+      <p>本網站隱私權保護政策將因應需求隨時進行修正，修正後的條款將刊登於網站上。</p>
+
+      <div style="font-weight:700;color:#0f519b;margin:16px 0 6px">八、聯繫管道</div>
+      <p>對於本站之隱私權政策有任何疑問，或者想提出變更、移除個人資料之請求，請藉由以下資訊聯繫我：</p>
+      <div style="margin-top:10px;padding:12px 16px;background:#f0f4f8;border-radius:8px;font-size:12px;line-height:2">
+        📧 Email：<a href="mailto:drsong0729@gmail.com" style="color:#0f519b">drsong0729@gmail.com</a><br>
+        📞 電話：0975711267<br>
+        💬 LINE：dr.song0729
+      </div>
+    </div>
+    <!-- footer -->
+    <div style="padding:14px 24px;border-top:1px solid #e4eaf2;flex-shrink:0;text-align:right">
+      <button onclick="document.getElementById('privacy-modal').style.display='none'"
+        style="padding:9px 24px;background:#0f519b;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">
+        我已閱讀並了解
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     主應用（登入後才顯示）
+══════════════════════════════════════ -->
+<div id="app-wrapper" style="display:none;width:100%;height:100vh;overflow:hidden;flex-direction:row">
 <!-- SIDEBAR -->
 <aside id="sidebar">
   <div class="sidebar-logo">
@@ -590,11 +758,20 @@ function initGoogleMaps() {
     </button>
   </nav>
   <div class="sidebar-footer">
+    <!-- 使用者資訊 -->
+    <div id="user-info" style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(255,255,255,.08);border-radius:8px;margin-bottom:8px">
+      <img id="user-avatar" src="" alt="" style="width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,.3);display:none">
+      <div style="flex:1;min-width:0">
+        <div id="user-name" style="font-size:11px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+        <div id="user-email" style="font-size:10px;color:rgba(255,255,255,.55);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+      </div>
+    </div>
     <button class="sidebar-action" onclick="exportExcel()">⬇ 匯出備份</button>
     <button class="sidebar-action" onclick="document.getElementById('xlsxInput').click()">⬆ 匯入資料</button>
     <input type="file" id="xlsxInput" class="hidden-input" accept=".json,.xlsx,.xls,.csv" onchange="importExcel(event)">
     <input type="file" id="xlsxInput2" class="hidden-input" accept=".json,.xlsx,.xls,.csv" onchange="importExcel(event)">
     <button class="theme-btn" id="themeBtn" onclick="toggleTheme()">🌙 切換主題</button>
+    <button class="sidebar-action" onclick="handleSignOut()" style="background:rgba(192,24,42,.25);color:#ff8899;border:1px solid rgba(192,24,42,.4);margin-top:4px">🚪 登出</button>
   </div>
 </aside>
 
@@ -609,6 +786,7 @@ function initGoogleMaps() {
   <div class="topbar">
     <div class="topbar-title" id="topbar-title">募集線</div>
     <div class="topbar-right">
+      <span id="sync-status" style="font-size:11px;color:var(--tx3);display:none"></span>
       <span id="storage-usage" class="storage-badge" style="display:none"></span>
     </div>
   </div>
@@ -1134,44 +1312,9 @@ function thSort(pool,col,label){
   return `<th class="sortable ${cls}" onclick="setSort('${pool}','${col}')">${label}<span class="sort-icon"></span></th>`;
 }
 
-// ── 初始化 ──
-function init(){
-  loadFromStorage();
-  loadGoals();
-  Object.keys(CITIES).forEach(c=>{
-    const o=document.createElement('option');
-    o.value=o.textContent=c;
-    document.getElementById('p-city').appendChild(o);
-  });
-  currentView='desktop';
-  switchPage('stats');
-  checkNotifs();
-  const su=document.getElementById('storage-usage');
-  if(su){
-    try{
-      const str=localStorage.getItem('estate_db2')||'';
-      const kb=Math.round(str.length/1024);
-      if(kb>0){su.textContent=`💾 ${kb} KB`;su.style.display='inline-block';}
-    }catch(e){}
-  }
-}
-function loadFromStorage(){try{const d=localStorage.getItem('estate_db2');if(d)db=JSON.parse(d);}catch(e){}}
-function save(){
-  try{
-    const str=JSON.stringify(db);
-    localStorage.setItem('estate_db2',str);
-    // 顯示儲存量警示（localStorage 約 5MB 上限）
-    const kb=Math.round(str.length/1024);
-    const el=document.getElementById('storage-usage');
-    if(el){
-      const pct=Math.min(100,Math.round(kb/5000*100));
-      el.textContent=`本機儲存：${kb} KB / 5000 KB（${pct}%）`;
-      el.style.color=pct>80?'var(--red)':pct>50?'var(--org)':'var(--tx3)';
-    }
-  }catch(e){
-    alert('⚠️ 儲存失敗！本機儲存空間可能已滿，請立即匯出備份資料！');
-  }
-}
+// ── init / save / loadFromStorage / saveGoals / loadGoals ──
+// 這些函數由下方 Firebase 整合區塊重新定義，此處為佔位保留相容性
+function init(){} // replaced by onFirebaseLogin → initUI()
 
 // ── 工具 ──
 function nowDate(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
@@ -2089,36 +2232,13 @@ document.addEventListener('click',function(e){
   const wrap=document.querySelector('.more-menu-wrap');
   if(wrap&&!wrap.contains(e.target))closeMoreMenu();
 });
-(function(){
-  const t=localStorage.getItem('theme');
-  if(t==='dark'){document.documentElement.dataset.theme='dark';document.getElementById('themeBtn').textContent='☀️';}
-})();
+// 主題初始化已移至下方 Firebase 整合區塊
 
 document.querySelectorAll('.ov').forEach(ov=>{ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('show');});});
 
 // ── 統計頁面 ──
-// ── 業績目標 ──
-function saveGoals(){
-  const g={
-    yearComm:document.getElementById('goal-year-comm').value,
-    yearExcl:document.getElementById('goal-year-excl').value,
-    yearGen:document.getElementById('goal-year-gen').value,
-    monthComm:document.getElementById('goal-month-comm').value,
-    monthExcl:document.getElementById('goal-month-excl').value,
-    monthGen:document.getElementById('goal-month-gen').value,
-  };
-  try{localStorage.setItem('estate_goals',JSON.stringify(g));}catch(e){}
-}
-function loadGoals(){
-  try{
-    const g=JSON.parse(localStorage.getItem('estate_goals')||'{}');
-    const map={
-      'goal-year-comm':'yearComm','goal-year-excl':'yearExcl','goal-year-gen':'yearGen',
-      'goal-month-comm':'monthComm','goal-month-excl':'monthExcl','goal-month-gen':'monthGen'
-    };
-    Object.entries(map).forEach(([id,key])=>{const el=document.getElementById(id);if(el&&g[key])el.value=g[key];});
-  }catch(e){}
-}
+// ── 業績目標（由 Firebase 整合區塊重新定義）──
+// saveGoals() 和 loadGoals() 已移至下方 Firebase 整合區塊
 
 let pieChartInst=null, barChartInst=null, goalYearChartInst=null, goalMonthChartInst=null;
 
@@ -2963,7 +3083,167 @@ function openGoogleMaps() {
   window.open(`https://www.google.com/maps/dir/${encoded}`, '_blank');
 }
 
-init();
+// ══════════════════════════════════════════════════════════
+//  Firebase 整合：登入 / 登出 / 雲端讀寫
+// ══════════════════════════════════════════════════════════
+
+// 顯示同步狀態
+function setSyncStatus(msg, color){
+  const el = document.getElementById('sync-status');
+  if(!el) return;
+  el.textContent = msg;
+  el.style.color = color || 'var(--tx3)';
+  el.style.display = msg ? 'inline' : 'none';
+}
+
+// 從 Firestore 載入資料
+async function loadFromFirestore(uid){
+  setSyncStatus('⏳ 載入中…');
+  try{
+    const ref = window._firebaseDocRef(uid);
+    const snap = await window._firebaseGetDoc(ref);
+    if(snap.exists()){
+      const data = snap.data();
+      db.recruit   = data.recruit   || [];
+      db.track     = data.track     || [];
+      db.commission= data.commission|| [];
+    }
+    // 載入目標
+    const gref = window._firebaseGoalsRef(uid);
+    const gsnap = await window._firebaseGetDoc(gref);
+    if(gsnap.exists()){
+      const g = gsnap.data();
+      const map = {
+        'goal-year-comm':'yearComm','goal-year-excl':'yearExcl','goal-year-gen':'yearGen',
+        'goal-month-comm':'monthComm','goal-month-excl':'monthExcl','goal-month-gen':'monthGen'
+      };
+      Object.entries(map).forEach(([id,key])=>{
+        const el=document.getElementById(id);
+        if(el && g[key]) el.value = g[key];
+      });
+    }
+    setSyncStatus('☁ 已同步', 'var(--grn)');
+    setTimeout(()=>setSyncStatus(''), 3000);
+  } catch(e){
+    setSyncStatus('⚠ 載入失敗', 'var(--red)');
+    console.error('Firestore 載入失敗', e);
+  }
+}
+
+// 儲存主資料到 Firestore
+async function save(){
+  const user = window._currentUser;
+  if(!user){ console.warn('尚未登入，略過儲存'); return; }
+  setSyncStatus('⏫ 儲存中…');
+  try{
+    const ref = window._firebaseDocRef(user.uid);
+    await window._firebaseSetDoc(ref, {
+      recruit:    db.recruit,
+      track:      db.track,
+      commission: db.commission,
+      updatedAt:  new Date().toISOString()
+    });
+    setSyncStatus('☁ 已同步', 'var(--grn)');
+    setTimeout(()=>setSyncStatus(''), 2500);
+  } catch(e){
+    setSyncStatus('⚠ 儲存失敗', 'var(--red)');
+    console.error('Firestore 儲存失敗', e);
+    alert('⚠️ 雲端儲存失敗！請確認網路連線。');
+  }
+}
+
+// 儲存目標到 Firestore
+async function saveGoals(){
+  const user = window._currentUser;
+  if(!user) return;
+  const g = {
+    yearComm:  document.getElementById('goal-year-comm').value,
+    yearExcl:  document.getElementById('goal-year-excl').value,
+    yearGen:   document.getElementById('goal-year-gen').value,
+    monthComm: document.getElementById('goal-month-comm').value,
+    monthExcl: document.getElementById('goal-month-excl').value,
+    monthGen:  document.getElementById('goal-month-gen').value,
+  };
+  try{
+    const ref = window._firebaseGoalsRef(user.uid);
+    await window._firebaseSetDoc(ref, g);
+  } catch(e){ console.error('目標儲存失敗', e); }
+}
+
+// loadGoals 改為從 Firestore（已在 loadFromFirestore 中處理），此為空函數保持相容
+function loadGoals(){ /* 由 loadFromFirestore 處理 */ }
+
+// loadFromStorage 改為空函數（不再使用 localStorage）
+function loadFromStorage(){ /* 改用 Firestore */ }
+
+// Google 登入
+async function handleSignIn(){
+  const btn = document.getElementById('google-signin-btn');
+  const errEl = document.getElementById('login-error');
+  btn.disabled = true;
+  btn.style.opacity = '.6';
+  errEl.style.display = 'none';
+  try{
+    await window._firebaseSignIn();
+    // onAuthStateChanged 會處理後續
+  } catch(e){
+    errEl.style.display = 'block';
+    errEl.textContent = '登入失敗：' + (e.message || '請再試一次');
+    btn.disabled = false;
+    btn.style.opacity = '1';
+  }
+}
+
+// 登出
+async function handleSignOut(){
+  if(!confirm('確定要登出嗎？')) return;
+  await window._firebaseSignOut();
+  db = {recruit:[], track:[], commission:[]};
+  location.reload();
+}
+
+// Firebase 登入成功後的初始化
+window.onFirebaseLogin = async function(user){
+  // 顯示主應用
+  const wrapper = document.getElementById('app-wrapper');
+  if(wrapper) wrapper.style.display = 'flex';
+
+  // 更新 sidebar 使用者資訊
+  const avatar = document.getElementById('user-avatar');
+  const nameEl = document.getElementById('user-name');
+  const emailEl = document.getElementById('user-email');
+  if(user.photoURL){ avatar.src = user.photoURL; avatar.style.display = 'inline'; }
+  if(nameEl) nameEl.textContent = user.displayName || '使用者';
+  if(emailEl) emailEl.textContent = user.email || '';
+
+  // 從 Firestore 載入資料後才初始化 UI
+  await loadFromFirestore(user.uid);
+  initUI();
+};
+
+// 原 init() 拆成兩段：
+// initUI() — 在登入且資料載入後執行
+function initUI(){
+  // 城市下拉
+  Object.keys(CITIES).forEach(c=>{
+    const o=document.createElement('option');
+    o.value=o.textContent=c;
+    document.getElementById('p-city').appendChild(o);
+  });
+  currentView='desktop';
+  switchPage('stats');
+  checkNotifs();
+}
+
+// 主題（保留 localStorage，這是 UI 偏好非業務資料）
+(function(){
+  const t=localStorage.getItem('theme');
+  if(t==='dark'){document.documentElement.dataset.theme='dark';}
+})();
+
+// 等 Firebase module 初始化後才啟動
+// （若 Firebase 還沒準備好，onAuthStateChanged 會自動處理）
 </script>
+</div><!-- /app-wrapper -->
 </body>
 </html>
