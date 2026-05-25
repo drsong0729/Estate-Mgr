@@ -1124,7 +1124,7 @@ function initGoogleMaps() {
 <div id="app-content" style="display:none">
   <!-- 頂部通知列 -->
   <div class="notif-bar" id="notifBar">
-    <span>⚠️</span><strong>委託即將到期（7天內）：</strong>
+    <span>⚠️</span><strong>委託即將到期（1個月內）：</strong>
     <span id="notifItems"></span>
   </div>
   <!-- 頂部工具列 -->
@@ -2277,7 +2277,7 @@ function expiryTag(end){
   if(!end)return'';
   const d=daysUntil(end);
   if(d<0)return`<span class="tag tag-exp">已到期</span>`;
-  if(d<=7)return`<span class="tag tag-exp">⚠️ 剩${d}天</span>`;
+  if(d<=30)return`<span class="tag tag-exp">⚠️ 剩${d}天</span>`;
   return`<span class="tag tag-g">有效中</span>`;
 }
 function latestProgSnippet(r){
@@ -2463,7 +2463,7 @@ function renderCommission(){
   else if(cdc){cdc.innerHTML='';}
   if(currentSubTab==='exclusive'){document.getElementById('stab-exclusive-c').style.display='block';document.getElementById('stab-general-c').style.display='none';}
   else{document.getElementById('stab-general-c').style.display='block';document.getElementById('stab-exclusive-c').style.display='none';}
-  const expCount=db.commission.filter(r=>r.commEnd&&daysUntil(r.commEnd)<=7&&daysUntil(r.commEnd)>=0).length;
+  const expCount=db.commission.filter(r=>r.commEnd&&daysUntil(r.commEnd)<=30&&daysUntil(r.commEnd)>=0).length;
   document.getElementById('stats-commission').innerHTML=`<div class="sc"><div class="sn">${genAll.length}</div><div class="sl">一般委託</div></div>
     <div class="sc"><div class="sn">${excAll.length}</div><div class="sl">專任委託</div></div>
     <div class="sc"><div class="sn">${expCount}</div><div class="sl">即將到期</div></div>`;
@@ -2524,12 +2524,31 @@ function confirmRenewComm(){
 
 // ── 通知 ──
 function checkNotifs(){
-  const expiring=db.commission.filter(r=>r.commEnd&&daysUntil(r.commEnd)>=0&&daysUntil(r.commEnd)<=7);
+  const expiring=db.commission.filter(r=>r.commEnd&&daysUntil(r.commEnd)>=0&&daysUntil(r.commEnd)<=30);
   const bar=document.getElementById('notifBar');
   if(expiring.length){
     bar.classList.add('show');
-    document.getElementById('notifItems').innerHTML=expiring.map(r=>`<span class="ntag">${ownersLabel(r)} ${escH(r.propCity)}${escH(r.propDist)}（剩${daysUntil(r.commEnd)}天）</span>`).join('');
+    document.getElementById('notifItems').innerHTML=expiring.map(r=>`<span class="ntag" style="cursor:pointer" onclick="goToCommissionDetail('${r.id}')">${ownersLabel(r)} ${escH(r.propCity)}${escH(r.propDist)}（剩${daysUntil(r.commEnd)}天）</span>`).join('');
   } else bar.classList.remove('show');
+}
+
+function goToCommissionDetail(id){
+  // 切換到委託頁面
+  switchPage('commission');
+  // 展開該筆委託細節
+  openDetailId.commission = id;
+  renderAll();
+  // 找出是一般還是專任並切換子頁籤
+  const r = db.commission.find(x => x.id === id);
+  if(r){
+    const tab = r.commType === '專任' ? 'exclusive' : 'general';
+    if(currentSubTab !== tab) switchSubTab(tab);
+  }
+  // 捲動到細節面板
+  setTimeout(()=>{
+    const dc = document.getElementById('commission-detail');
+    if(dc && dc.firstChild){ dc.scrollIntoView({behavior:'smooth', block:'start'}); }
+  }, 80);
 }
 
 // ── 匯出（JSON 格式，完整保留進度）──
