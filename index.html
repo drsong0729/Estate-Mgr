@@ -108,9 +108,11 @@ header{display:none!important}
   overflow-y:auto;
   overflow-x:hidden;
   -webkit-overflow-scrolling:touch;
+  padding-top:52px; /* topbar 高度 */
+  box-sizing:border-box;
 }
 
-/* 頂部工具列 */
+/* 頂部工具列 — fixed 固定不隨頁面捲動 */
 .topbar{
   background:var(--surf);
   border-bottom:1px solid var(--bdr);
@@ -118,8 +120,8 @@ header{display:none!important}
   height:52px;
   display:flex;align-items:center;justify-content:space-between;
   gap:12px;
-  position:sticky;top:0;z-index:90;
-  box-shadow:0 1px 4px rgba(15,81,155,.06);
+  position:fixed;top:0;left:0;right:0;z-index:500;
+  box-shadow:0 1px 6px rgba(15,81,155,.1);
 }
 .topbar-title{font-size:18px;font-weight:700;color:var(--tx)}
 .topbar-right{display:flex;align-items:center;gap:8px}
@@ -127,13 +129,12 @@ header{display:none!important}
 
 /* NOTIF */
 .notif-bar{background:var(--redl);border-bottom:2px solid var(--red);padding:7px 24px;display:none;align-items:center;gap:8px;font-size:12px;color:var(--red);flex-wrap:wrap}
-.notif-bar.show{display:flex}
-.ntag{background:var(--red);color:#fff;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
+.notif-bar.show{display:flex}.ntag{background:var(--red);color:#fff;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
 
 /* ════════════════════════════════
    MAIN
 ════════════════════════════════ */
-main{padding:20px 24px 48px;flex:1}
+main{padding:20px 24px 64px;}
 .page{display:none}.page.active{display:block}
 
 /* 頁面標題 */
@@ -347,7 +348,7 @@ a.plink:hover{text-decoration:underline}
 /* MOBILE */
 @media(max-width:768px){
   .topbar{padding:0 14px}
-  main{padding:14px 14px 48px}
+  main{padding:14px 14px 64px}
   .card-grid{grid-template-columns:1fr}
   .fg2,.fg3{grid-template-columns:1fr}
   .modal{border-radius:16px 16px 0 0;max-height:92vh;position:fixed;bottom:0;left:0;right:0;margin:0}
