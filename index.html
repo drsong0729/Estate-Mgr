@@ -583,12 +583,13 @@ a.plink:hover{text-decoration:underline}
 /* LP FADE */
 .lp-fade{opacity:0;transform:translateY(18px);transition:opacity .55s ease,transform .55s ease}
 .lp-fade.lp-visible{opacity:1;transform:translateY(0)}
+/* 往下滑提示預設隱藏（僅手機版透過 media query 顯示） */
+.lp-mobile-scroll-hint{display:none}
 /* 響應式 */
 @media(max-width:900px){
-  /* 手機版：全頁捲動，登入區塊融入 Hero，無割裂感 */
+  /* 手機版：全頁捲動，登入區塊填滿第一屏 */
   #login-screen{flex-direction:column;overflow-y:auto;overflow-x:hidden}
   #lp-content{order:2;overflow-y:visible}
-  /* sidebar 變成 Hero 內嵌的登入區，不再是獨立欄 */
   #lp-sidebar{
     order:1;width:100%;
     position:relative;height:auto;
@@ -597,25 +598,54 @@ a.plink:hover{text-decoration:underline}
     border-left:none;border-bottom:none;
     padding:0;
     justify-content:flex-start;
-    /* 融入 hero 背景：由 hero 提供背景色 */
   }
   #lp-sidebar::before,#lp-sidebar::after{display:none}
-  /* 登入內容放在 hero 風格容器內 */
+  /* 登入卡：填滿第一屏，flex 垂直置中 */
   .lp-login-card{
-    padding:44px 24px 36px;
-    background:linear-gradient(135deg,#0a3d78 0%,#0f519b 50%,#1a6bbf 100%);
+    min-height:100dvh;
+    min-height:100vh; /* fallback */
+    padding:0 28px;
+    background:linear-gradient(160deg,#0a3d78 0%,#0f519b 55%,#1a6bbf 100%);
     position:relative;overflow:hidden;
+    display:flex;flex-direction:column;
+    align-items:center;justify-content:center;
   }
+  /* 幾何底紋 */
   .lp-login-card::before{
     content:'';position:absolute;inset:0;
     background:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-    pointer-events:none;
+    pointer-events:none;z-index:0;
   }
+  /* 右下光暈 */
   .lp-login-card::after{
-    content:'';position:absolute;bottom:-60px;right:-60px;
-    width:200px;height:200px;border-radius:50%;
-    background:radial-gradient(circle,rgba(254,206,38,.1) 0%,transparent 70%);
-    pointer-events:none;
+    content:'';position:absolute;bottom:-80px;right:-80px;
+    width:260px;height:260px;border-radius:50%;
+    background:radial-gradient(circle,rgba(254,206,38,.12) 0%,transparent 70%);
+    pointer-events:none;z-index:0;
+  }
+  /* 登入卡內所有子元素在光暈之上 */
+  .lp-login-card > *{position:relative;z-index:1;width:100%;max-width:360px;}
+  .lp-login-card > *:not(.lp-mobile-scroll-hint){align-self:center;}
+  /* 往下滑提示：固定在卡片底部 */
+  .lp-mobile-scroll-hint{
+    position:absolute;bottom:28px;left:0;right:0;
+    display:flex;flex-direction:column;align-items:center;gap:6px;
+    z-index:2;
+    cursor:pointer;
+  }
+  .lp-mobile-scroll-hint-text{
+    font-size:12px;color:rgba(255,255,255,.55);
+    letter-spacing:.06em;font-weight:500;
+  }
+  .lp-mobile-scroll-hint-arrow{
+    font-size:22px;color:rgba(255,255,255,.45);
+    animation:lp-swipe 1.6s ease-in-out infinite;
+    line-height:1;
+  }
+  @keyframes lp-swipe{
+    0%{transform:translateY(-4px);opacity:.3}
+    50%{transform:translateY(4px);opacity:.8}
+    100%{transform:translateY(-4px);opacity:.3}
   }
   /* Hero 與下方介紹內容之間平滑過渡 */
   .lp-hero{padding:48px 20px 64px}
@@ -959,6 +989,11 @@ function initGoogleMaps() {
         <a href="#" onclick="document.getElementById('privacy-modal').style.display='flex';return false;">隱私權保護政策</a>
         　及　
         <a href="#" onclick="document.getElementById('consent-modal').style.display='flex';return false;">個人資料蒐集同意條款</a>
+      </div>
+      <!-- 手機版：往下滑提示（桌機透過 CSS 隱藏） -->
+      <div class="lp-mobile-scroll-hint" onclick="document.getElementById('lp-content').scrollIntoView({behavior:'smooth'})">
+        <span class="lp-mobile-scroll-hint-text">往下滑動了解系統介紹</span>
+        <span class="lp-mobile-scroll-hint-arrow">⌄</span>
       </div>
     </div>
     <div class="lp-scroll-tip">← 左側可捲動了解更多功能</div>
