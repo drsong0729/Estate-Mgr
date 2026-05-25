@@ -1857,10 +1857,14 @@ function renderRecruit(){
     <div class="sc"><div class="sn">${todayCount}</div><div class="sl">今日新增件數</div></div>`;
   document.getElementById('db-recruit').textContent=db.recruit.length;
   const filtered=filterItems('recruit');
-  const items=sortItems('recruit',filtered);
+  const allItems=sortItems('recruit',filtered);
+  // 篩選後重置超出範圍的頁碼
+  const totalPages=Math.max(1,Math.ceil(allItems.length/PAGE_SIZE));
+  if(currentPageMap.recruit>totalPages) currentPageMap.recruit=1;
+  const {items,page,total}=paginate(allItems,currentPageMap.recruit);
   const wrap=document.getElementById('recruit-view');
   if(currentView==='mobile'){
-    wrap.innerHTML=items.length?`<div class="card-grid">${items.map((r,i)=>`
+    wrap.innerHTML=(allItems.length?`<div class="card-grid">${items.map((r,i)=>`
       <div class="card" onclick="toggleDetail('recruit','${r.id}')">
         <div class="card-head"><span class="card-owner">${ownersLabel(r)}</span><span class="card-id">R${String(db.recruit.indexOf(r)+1).padStart(3,'0')}</span></div>
         <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px">${r.propType?`<span style="background:var(--accl);color:var(--acc);padding:1px 7px;border-radius:4px;font-size:11px;font-weight:700">${escH(r.propType)}</span>`:''} ${r.bldg?`<span class="card-bldg">🏢 ${escH(r.bldg)}</span>`:''}</div>
@@ -1869,7 +1873,8 @@ function renderRecruit(){
         <div class="card-meta">${r.propType!=='土地'?`<span class="cm">${layout(r.rooms,r.halls,r.baths,r.propType)}</span>`:''}<span class="cm">${r.area}坪</span><span class="cm">總價 <strong>${r.total}</strong>萬</span><span class="cm">${r.unit}萬/坪</span></div>
         ${(r.progress&&r.progress.length)?`<div class="card-progress"><div class="cp-time">最新進度</div>${latestProgSnippet(r)}</div>`:''}
         <div style="font-size:11px;color:var(--tx3)">${r.date} ${r.time}</div>
-      </div>`).join('')}</div>`:'<div style="text-align:center;padding:40px;color:var(--tx3)">📭 尚無符合資料</div>';
+      </div>`).join('')}</div>`:'<div style="text-align:center;padding:40px;color:var(--tx3)">📭 尚無符合資料</div>')
+      + pagerHTML('recruit',page,totalPages,total);
   } else {
     wrap.innerHTML=`<div class="tw"><table><thead><tr>
       ${thSort('recruit','idx','編號')}${thSort('recruit','date','日期')}${thSort('recruit','owner','屋主')}${thSort('recruit','bldg','建案')}
@@ -1886,7 +1891,8 @@ function renderRecruit(){
       <td><strong>${r.total}</strong>萬</td>
       <td>${r.unit}萬/坪</td>
       <td style="max-width:160px">${latestProgSnippet(r)}</td>
-    </tr>`).join(''):emptyRow(11)}</tbody></table></div>`;
+    </tr>`).join(''):emptyRow(11)}</tbody></table></div>`
+    + pagerHTML('recruit',page,totalPages,total);
   }
   const dc=document.getElementById('recruit-detail');
   if(openDetailId.recruit){
@@ -1903,10 +1909,13 @@ function renderTrack(){
     <div class="sc"><div class="sn">${todayCount}</div><div class="sl">今日新增件數</div></div>`;
   document.getElementById('db-track').textContent=db.track.length;
   const filtered=filterItems('track');
-  const items=sortItems('track',filtered);
+  const allItems=sortItems('track',filtered);
+  const totalPages=Math.max(1,Math.ceil(allItems.length/PAGE_SIZE));
+  if(currentPageMap.track>totalPages) currentPageMap.track=1;
+  const {items,page,total}=paginate(allItems,currentPageMap.track);
   const wrap=document.getElementById('track-view');
   if(currentView==='mobile'){
-    wrap.innerHTML=items.length?`<div class="card-grid">${items.map((r,i)=>`
+    wrap.innerHTML=(allItems.length?`<div class="card-grid">${items.map((r,i)=>`
       <div class="card" onclick="toggleDetail('track','${r.id}')">
         <div class="card-head"><span class="card-owner">${ownersLabel(r)}</span><span class="card-id">T${String(db.track.indexOf(r)+1).padStart(3,'0')}</span></div>
         <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px">${r.propType?`<span style="background:var(--accl);color:var(--acc);padding:1px 7px;border-radius:4px;font-size:11px;font-weight:700">${escH(r.propType)}</span>`:''} ${r.bldg?`<span class="card-bldg">🏢 ${escH(r.bldg)}</span>`:''}</div>
@@ -1915,7 +1924,8 @@ function renderTrack(){
         <div class="card-meta">${r.propType!=='土地'?`<span class="cm">${layout(r.rooms,r.halls,r.baths,r.propType)}</span>`:''}<span class="cm">${r.area}坪</span><span class="cm">總價 <strong>${r.total}</strong>萬</span><span class="cm">${r.unit}萬/坪</span></div>
         ${(r.progress&&r.progress.length)?`<div class="card-progress"><div class="cp-time">最新進度</div>${latestProgSnippet(r)}</div>`:''}
         <div style="font-size:11px;color:var(--tx3)">轉入：${r.trackDate||r.date}</div>
-      </div>`).join('')}</div>`:'<div style="text-align:center;padding:40px;color:var(--tx3)">📭 尚無符合資料</div>';
+      </div>`).join('')}</div>`:'<div style="text-align:center;padding:40px;color:var(--tx3)">📭 尚無符合資料</div>')
+      + pagerHTML('track',page,totalPages,total);
   } else {
     wrap.innerHTML=`<div class="tw"><table><thead><tr>
       ${thSort('track','idx','編號')}${thSort('track','date','轉入日期')}${thSort('track','owner','屋主')}${thSort('track','bldg','建案')}
@@ -1932,7 +1942,8 @@ function renderTrack(){
       <td><strong>${r.total}</strong>萬</td>
       <td>${r.unit}萬/坪</td>
       <td style="max-width:160px">${latestProgSnippet(r)}</td>
-    </tr>`).join(''):emptyRow(11)}</tbody></table></div>`;
+    </tr>`).join(''):emptyRow(11)}</tbody></table></div>`
+    + pagerHTML('track',page,totalPages,total);
   }
   const dc=document.getElementById('track-detail');
   if(openDetailId.track){
@@ -1987,10 +1998,28 @@ function renderCommission(){
     </div>`).join('')}</div>`;
   }
   const allComm=filterItems('commission');
-  const genAll=allComm.filter(r=>r.commType==='general');
-  const excAll=allComm.filter(r=>r.commType==='exclusive');
-  document.getElementById('stab-general-c').innerHTML=currentView==='mobile'?commCards(general,'G'):`<div class="tw"><table>${theadHtml}<tbody>${commTableRows(general,'G')}</tbody></table></div>`;
-  document.getElementById('stab-exclusive-c').innerHTML=currentView==='mobile'?commCards(exclusive,'E'):`<div class="tw"><table>${theadHtml}<tbody>${commTableRows(exclusive,'E')}</tbody></table></div>`;
+  const genAll=sortItems('commission',allComm.filter(r=>r.commType==='general'));
+  const excAll=sortItems('commission',allComm.filter(r=>r.commType==='exclusive'));
+
+  // 一般委託分頁
+  const genTotalPages=Math.max(1,Math.ceil(genAll.length/PAGE_SIZE));
+  if(currentPageMap.commission_general>genTotalPages) currentPageMap.commission_general=1;
+  const genPage=paginate(genAll,currentPageMap.commission_general);
+
+  // 專任委託分頁
+  const excTotalPages=Math.max(1,Math.ceil(excAll.length/PAGE_SIZE));
+  if(currentPageMap.commission_exclusive>excTotalPages) currentPageMap.commission_exclusive=1;
+  const excPage=paginate(excAll,currentPageMap.commission_exclusive);
+
+  document.getElementById('stab-general-c').innerHTML=
+    currentView==='mobile'
+      ? commCards(genPage.items,'G') + pagerHTML('commission_general',genPage.page,genTotalPages,genAll.length)
+      : `<div class="tw"><table>${theadHtml}<tbody>${commTableRows(genPage.items,'G')}</tbody></table></div>` + pagerHTML('commission_general',genPage.page,genTotalPages,genAll.length);
+
+  document.getElementById('stab-exclusive-c').innerHTML=
+    currentView==='mobile'
+      ? commCards(excPage.items,'E') + pagerHTML('commission_exclusive',excPage.page,excTotalPages,excAll.length)
+      : `<div class="tw"><table>${theadHtml}<tbody>${commTableRows(excPage.items,'E')}</tbody></table></div>` + pagerHTML('commission_exclusive',excPage.page,excTotalPages,excAll.length);
   // commission detail panel
   const cdc=document.getElementById('commission-detail');
   if(openDetailId.commission){renderDetailPanel('commission',openDetailId.commission);}
@@ -2004,7 +2033,14 @@ function renderCommission(){
   document.getElementById('db-commission').textContent=db.commission.length;
 }
 
-function renderAll(){renderRecruit();renderTrack();renderCommission();}
+function renderAll(){
+  currentPageMap.recruit=1;
+  currentPageMap.track=1;
+  currentPageMap.commission_general=1;
+  currentPageMap.commission_exclusive=1;
+  currentPageMap.trip=1;
+  renderRecruit();renderTrack();renderCommission();
+}
 
 // ── 委託續約 ──
 let renewCommId=null;
@@ -3006,12 +3042,17 @@ function renderTripList() {
     return;
   }
 
-  // 同步更新行程預覽（距離 badge 可能已非同步更新）
+  // 分頁
+  const tripTotalPages = Math.max(1, Math.ceil(filtered.length/PAGE_SIZE));
+  if(currentPageMap.trip > tripTotalPages) currentPageMap.trip = 1;
+  const {items:pagedItems, page:tripPage, total:tripTotal} = paginate(filtered, currentPageMap.trip);
+
+  // 同步更新行程預覽
   renderTripPreview(tripAnchorId
     ? [tripAnchorId, ...[...tripSelected].filter(id=>id!==tripAnchorId)]
     : [...tripSelected]);
 
-  wrap.innerHTML = `<div class="trip-grid">${filtered.map(r => {
+  wrap.innerHTML = `<div class="trip-grid">${pagedItems.map(r => {
     const isAnchor = r.id === tripAnchorId;
     const isSel = tripSelected.has(r.id);
     const householdAddr = ownerHouseholdAddr(r);
@@ -3032,7 +3073,7 @@ function renderTripList() {
         <div>${distBadgeHtml(r.id)}</div>
       </div>
     </div>`;
-  }).join('')}</div>`;
+  }).join('')}</div>` + pagerHTML('trip', tripPage, tripTotalPages, tripTotal);
 }
 
 // ── 已選區塊 ──
@@ -3238,6 +3279,60 @@ function openGoogleMaps() {
 }
 
 // ══════════════════════════════════════════════════════
+// ── 分頁系統 ──
+const PAGE_SIZE = 10;
+const currentPageMap = { recruit:1, track:1, commission_general:1, commission_exclusive:1, trip:1 };
+
+function paginate(items, page){
+  const total = items.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const p = Math.min(Math.max(1, page), totalPages);
+  const start = (p-1) * PAGE_SIZE;
+  return { items: items.slice(start, start+PAGE_SIZE), page:p, totalPages, total, start };
+}
+
+function pagerHTML(key, page, totalPages, total){
+  if(totalPages <= 1) return '';
+  const from = (page-1)*PAGE_SIZE+1;
+  const to   = Math.min(page*PAGE_SIZE, total);
+  const btn  = (label, pg, disabled, active) =>
+    `<button onclick="goPage('${key}',${pg})" style="
+      min-width:32px;height:32px;padding:0 10px;border-radius:7px;border:1px solid var(--bdr);
+      background:${active?'var(--acc)':'var(--surf)'};
+      color:${active?'#fff':'var(--tx)'};
+      font-size:13px;font-weight:${active?700:500};cursor:${disabled?'default':'pointer'};
+      opacity:${disabled?0.35:1};font-family:inherit;
+    " ${disabled?'disabled':''}>${label}</button>`;
+
+  let pages = '';
+  // 顯示最多 5 個頁碼
+  let start = Math.max(1, page-2);
+  let end   = Math.min(totalPages, start+4);
+  if(end-start<4) start = Math.max(1, end-4);
+  if(start>1) pages += btn('1',1,false,false) + (start>2?`<span style="color:var(--tx3);padding:0 4px">…</span>`:'');
+  for(let i=start;i<=end;i++) pages += btn(i,i,false,i===page);
+  if(end<totalPages) pages += (end<totalPages-1?`<span style="color:var(--tx3);padding:0 4px">…</span>`:'') + btn(totalPages,totalPages,false,false);
+
+  return `<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:12px 0 4px">
+    <div style="font-size:12px;color:var(--tx3)">共 ${total} 筆，第 ${from}–${to} 筆</div>
+    <div style="display:flex;align-items:center;gap:4px">
+      ${btn('‹', page-1, page<=1, false)}
+      ${pages}
+      ${btn('›', page+1, page>=totalPages, false)}
+    </div>
+  </div>`;
+}
+
+function goPage(key, page){
+  currentPageMap[key] = page;
+  if(key==='recruit') renderRecruit();
+  else if(key==='track') renderTrack();
+  else if(key==='commission_general'||key==='commission_exclusive') renderCommission();
+  else if(key==='trip') renderTripList();
+  // 捲回頁面頂部
+  document.getElementById('app-content').scrollTo({top:0, behavior:'smooth'});
+}
+
 // ── 首頁鼓勵短句 ──
 const QUOTES = [
   { icon:'🏆', text:'每一通電話，都是改變的開始。', sub:'堅持撥出去，機會就在下一通。' },
