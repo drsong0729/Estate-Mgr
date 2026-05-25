@@ -72,6 +72,7 @@
 }
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Noto Sans TC',system-ui,sans-serif;background:var(--bg);color:var(--tx);height:100vh;overflow:hidden;display:flex;transition:background .2s,color .2s}
+#app-wrapper{display:none;width:100%;height:100vh;overflow:hidden;flex-direction:row}
 
 /* ════════════════════════════════
    SIDEBAR — 左側垂直導覽
@@ -410,16 +411,17 @@ a.plink:hover{text-decoration:underline}
 
 /* MOBILE — sidebar 變成底部列 */
 @media(max-width:768px){
-  body{flex-direction:column}
+  body{flex-direction:column;overflow:hidden}
+  #app-wrapper{flex-direction:column;height:100vh;overflow:hidden}
   #sidebar{
     width:100%;min-width:0;height:auto;min-height:0;
-    position:sticky;bottom:0;top:auto;
-    flex-direction:row;
+    position:fixed;bottom:0;left:0;right:0;top:auto;
+    flex-direction:column;
     box-shadow:0 -2px 12px rgba(15,81,155,.2);
-    order:2;
+    order:2;z-index:200;
   }
   .sidebar-logo{display:none}
-  nav{flex-direction:row;padding:4px 6px;gap:0;overflow-x:auto}
+  nav{flex-direction:row;padding:4px 6px;gap:0;overflow-x:auto;flex:none}
   .nav-btn{
     flex-direction:column;gap:2px;padding:6px 8px;
     font-size:10px;align-items:center;flex:1;
@@ -431,7 +433,13 @@ a.plink:hover{text-decoration:underline}
   .nav-icon{width:auto;font-size:18px}
   .nbadge{margin-left:0;margin-top:2px}
   .sidebar-footer{display:none}
-  #app-content{order:1;min-height:0}
+  #mobile-user-bar{display:flex!important}
+  #app-content{
+    order:1;flex:1;
+    min-height:0;height:auto;
+    overflow-y:auto;
+    padding-bottom:120px;
+  }
   .topbar{padding:0 12px}
   main{padding:12px}
   .card-grid{grid-template-columns:1fr}
@@ -622,13 +630,27 @@ function initGoogleMaps() {
 <div id="login-screen" style="
   display:flex;align-items:center;justify-content:center;
   min-height:100vh;width:100%;
-  background:linear-gradient(135deg,#0f519b 0%,#0d4589 60%,#1a2332 100%);
+  background:#0d2340;
   position:fixed;inset:0;z-index:9999;
+  overflow:hidden;
 ">
+  <!-- 背景圖 -->
+  <div style="
+    position:absolute;inset:0;
+    background-image:url('bg.jpg');
+    background-size:cover;background-position:center;
+    opacity:0.28;
+  "></div>
+  <!-- 藍色漸層遮罩 -->
+  <div style="
+    position:absolute;inset:0;
+    background:linear-gradient(135deg,rgba(15,81,155,.82) 0%,rgba(13,69,137,.75) 55%,rgba(26,35,50,.88) 100%);
+  "></div>
   <div style="
     background:#fff;border-radius:20px;padding:44px 40px 36px;
     max-width:380px;width:90%;text-align:center;
-    box-shadow:0 24px 80px rgba(0,0,0,.35);
+    box-shadow:0 24px 80px rgba(0,0,0,.5);
+    position:relative;z-index:1;
   ">
     <div style="font-size:48px;margin-bottom:8px">🏠</div>
     <div style="font-size:22px;font-weight:800;color:#0f519b;margin-bottom:4px">房仲屋主管理系統</div>
@@ -733,7 +755,7 @@ function initGoogleMaps() {
 <!-- ══════════════════════════════════════
      主應用（登入後才顯示）
 ══════════════════════════════════════ -->
-<div id="app-wrapper" style="display:none;width:100%;height:100vh;overflow:hidden;flex-direction:row">
+<div id="app-wrapper">
 <!-- SIDEBAR -->
 <aside id="sidebar">
   <div class="sidebar-logo">
@@ -757,7 +779,15 @@ function initGoogleMaps() {
       <span class="nav-icon">📍</span>行程規劃
     </button>
   </nav>
-  <div class="sidebar-footer">
+  <!-- 手機版：使用者資訊列（桌機隱藏） -->
+  <div id="mobile-user-bar" style="display:none;align-items:center;gap:8px;padding:6px 12px 8px;border-top:1px solid rgba(255,255,255,.12);background:rgba(0,0,0,.15)">
+    <img id="mobile-user-avatar" src="" alt="" style="width:24px;height:24px;border-radius:50%;border:1.5px solid rgba(255,255,255,.4);display:none;flex-shrink:0">
+    <div style="flex:1;min-width:0">
+      <div id="mobile-user-name" style="font-size:11px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+      <div id="mobile-user-email" style="font-size:9px;color:rgba(255,255,255,.55);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+    </div>
+    <button onclick="handleSignOut()" style="padding:4px 10px;background:rgba(192,24,42,.3);color:#ff9999;border:1px solid rgba(192,24,42,.5);border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;flex-shrink:0">登出</button>
+  </div>
     <!-- 使用者資訊 -->
     <div id="user-info" style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(255,255,255,.08);border-radius:8px;margin-bottom:8px">
       <img id="user-avatar" src="" alt="" style="width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,.3);display:none">
@@ -3208,7 +3238,7 @@ window.onFirebaseLogin = async function(user){
   const wrapper = document.getElementById('app-wrapper');
   if(wrapper) wrapper.style.display = 'flex';
 
-  // 更新 sidebar 使用者資訊
+  // 更新 sidebar 使用者資訊（桌機）
   const avatar = document.getElementById('user-avatar');
   const nameEl = document.getElementById('user-name');
   const emailEl = document.getElementById('user-email');
@@ -3216,10 +3246,61 @@ window.onFirebaseLogin = async function(user){
   if(nameEl) nameEl.textContent = user.displayName || '使用者';
   if(emailEl) emailEl.textContent = user.email || '';
 
+  // 更新手機版使用者資訊
+  const mAvatar = document.getElementById('mobile-user-avatar');
+  const mName = document.getElementById('mobile-user-name');
+  const mEmail = document.getElementById('mobile-user-email');
+  if(user.photoURL && mAvatar){ mAvatar.src = user.photoURL; mAvatar.style.display = 'inline'; }
+  if(mName) mName.textContent = user.displayName || '使用者';
+  if(mEmail) mEmail.textContent = user.email || '';
+
   // 從 Firestore 載入資料後才初始化 UI
   await loadFromFirestore(user.uid);
   initUI();
+
+  // ── 自動登出：關閉頁面 / 閒置 10 分鐘 ──
+  startAutoLogout();
 };
+
+// ── 自動登出機制 ──
+let _idleTimer = null;
+const IDLE_MS = 10 * 60 * 1000; // 10 分鐘
+
+function resetIdleTimer(){
+  clearTimeout(_idleTimer);
+  _idleTimer = setTimeout(async ()=>{
+    alert('⏰ 您已閒置超過 10 分鐘，系統將自動登出。');
+    await window._firebaseSignOut();
+    db = {recruit:[], track:[], commission:[]};
+    location.reload();
+  }, IDLE_MS);
+}
+
+function startAutoLogout(){
+  // 使用者操作時重置計時
+  ['mousemove','mousedown','keydown','touchstart','scroll','click'].forEach(evt=>{
+    document.addEventListener(evt, resetIdleTimer, {passive:true});
+  });
+  resetIdleTimer();
+
+  // 關閉/離開頁面時登出（beforeunload + visibilitychange）
+  window.addEventListener('beforeunload', ()=>{
+    window._firebaseSignOut && window._firebaseSignOut();
+  });
+  document.addEventListener('visibilitychange', async ()=>{
+    if(document.visibilityState === 'hidden'){
+      // 頁面隱藏超過 30 秒視為離開，登出
+      _visHideTimer = setTimeout(async ()=>{
+        await window._firebaseSignOut();
+        db = {recruit:[], track:[], commission:[]};
+      }, 30000);
+    } else {
+      clearTimeout(_visHideTimer);
+      // 頁面重新可見時確認登入狀態
+    }
+  });
+}
+let _visHideTimer = null;
 
 // 原 init() 拆成兩段：
 // initUI() — 在登入且資料載入後執行
