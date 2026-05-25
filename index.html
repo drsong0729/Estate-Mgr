@@ -400,6 +400,231 @@ a.plink:hover{text-decoration:underline}
 
 ::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:3px}
 
+/* ════════════════════════════════
+   LANDING PAGE（登入前介紹頁）
+════════════════════════════════ */
+/* 登入畫面改為左右分割版型 */
+#login-screen{
+  display:flex!important;
+  flex-direction:row;
+  align-items:stretch;
+  position:fixed;inset:0;z-index:9999;
+  background:#0a3d78;overflow:hidden;
+}
+#lp-content{
+  flex:1;overflow-y:auto;
+  scroll-behavior:smooth;
+}
+/* 右側登入欄：深藍透明玻璃，與左側內容融為一體 */
+#lp-sidebar{
+  width:340px;flex-shrink:0;
+  background:rgba(5,22,50,.55);
+  backdrop-filter:blur(18px);
+  -webkit-backdrop-filter:blur(18px);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:32px 28px;
+  border-left:1px solid rgba(255,255,255,.08);
+  position:sticky;top:0;height:100vh;
+  overflow:hidden;
+}
+#lp-sidebar::before{
+  content:'';position:absolute;top:-100px;right:-80px;
+  width:300px;height:300px;border-radius:50%;
+  background:radial-gradient(circle,rgba(254,206,38,.08) 0%,transparent 70%);
+  pointer-events:none;
+}
+#lp-sidebar::after{
+  content:'';position:absolute;bottom:-80px;left:-60px;
+  width:240px;height:240px;border-radius:50%;
+  background:radial-gradient(circle,rgba(26,107,191,.25) 0%,transparent 70%);
+  pointer-events:none;
+}
+/* 登入區塊：全透明，文字直接在深藍背景上 */
+.lp-login-card{
+  width:100%;text-align:center;
+  position:relative;z-index:1;
+}
+.lp-login-card .lp-sys-icon{font-size:46px;margin-bottom:10px;display:block}
+.lp-login-card .lp-sys-name{
+  font-size:18px;font-weight:800;color:#fff;
+  margin-bottom:4px;letter-spacing:.01em;
+}
+.lp-login-card .lp-sys-hint{
+  font-size:12px;color:rgba(255,255,255,.5);
+  margin-bottom:28px;line-height:1.6;
+}
+/* Google 登入按鈕：半透明白底，保持可辨識 */
+#google-signin-btn{
+  display:flex!important;align-items:center;justify-content:center;gap:11px;
+  width:100%;padding:13px 18px;
+  border-radius:12px;
+  border:1.5px solid rgba(255,255,255,.25)!important;
+  background:rgba(255,255,255,.12)!important;
+  cursor:pointer;font-size:14px;font-weight:600;
+  color:#fff!important;
+  transition:all .2s;font-family:inherit;
+}
+#google-signin-btn:hover{
+  background:rgba(255,255,255,.22)!important;
+  border-color:rgba(255,255,255,.5)!important;
+  transform:translateY(-1px);
+}
+#login-error{border-radius:10px!important}
+.lp-login-meta{
+  margin-top:18px;font-size:10px;color:rgba(255,255,255,.35);line-height:1.7;
+}
+.lp-login-policy{
+  margin-top:10px;font-size:10px;color:rgba(255,255,255,.35);line-height:1.9;
+}
+.lp-login-policy a{color:rgba(100,180,255,.75);text-decoration:underline;cursor:pointer}
+/* 分隔線 */
+.lp-divider{
+  width:100%;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.12),transparent);
+  margin:22px 0;
+}
+.lp-scroll-tip{
+  margin-top:0;font-size:10px;color:rgba(255,255,255,.3);
+  text-align:center;line-height:1.7;position:relative;z-index:1;
+}
+/* LP 通用色彩變數 */
+#lp-content{
+  --navy:#0f519b;--navy-dk:#0a3d78;--navy-lt:#1a6bbf;
+  --gold:#fece26;--gold-lt:#fff4c2;
+  --bg:#f4f7fb;--tx:#1a2332;--tx2:#3d526b;--tx3:#7a90aa;
+  --surf:#ffffff;--bdr:#e0e8f0;
+}
+/* LP HERO */
+.lp-hero{background:linear-gradient(135deg,#0a3d78 0%,#0f519b 50%,#1a6bbf 100%);padding:80px 40px 100px;position:relative;overflow:hidden;text-align:center}
+.lp-hero::before{content:'';position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")}
+.lp-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(254,206,38,.18);border:1px solid rgba(254,206,38,.4);color:#fece26;font-size:12px;font-weight:700;letter-spacing:.08em;padding:6px 14px;border-radius:20px;margin-bottom:24px}
+.lp-hero-title{font-family:'DM Serif Display',Georgia,serif;font-size:clamp(30px,5vw,56px);color:#fff;line-height:1.2;margin-bottom:14px}
+.lp-hero-title span{color:#fece26}
+.lp-hero-sub{font-size:clamp(14px,1.8vw,17px);color:rgba(255,255,255,.72);max-width:520px;margin:0 auto 36px;line-height:1.7}
+.lp-stats{display:flex;gap:40px;justify-content:center;flex-wrap:wrap;margin-top:48px}
+.lp-stat-num{font-size:32px;font-weight:900;color:#fff;font-family:'DM Serif Display',Georgia,serif;display:block;line-height:1}
+.lp-stat-label{font-size:11px;color:rgba(255,255,255,.5);margin-top:4px;letter-spacing:.05em;display:block}
+.lp-scroll-down{margin-top:40px;font-size:11px;color:rgba(255,255,255,.4);letter-spacing:.1em;display:flex;flex-direction:column;align-items:center;gap:4px;animation:lp-bounce 2s infinite}
+@keyframes lp-bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(6px)}}
+/* LP SECTIONS */
+.lp-section{padding:64px 40px;background:var(--bg)}
+.lp-section.lp-surf{background:var(--surf)}
+.lp-section-inner{max-width:900px;margin:0 auto}
+.lp-label{font-size:11px;font-weight:700;letter-spacing:.15em;color:var(--navy);text-transform:uppercase;margin-bottom:8px}
+.lp-title{font-family:'DM Serif Display',Georgia,serif;font-size:clamp(24px,3.5vw,36px);color:var(--tx);line-height:1.25;margin-bottom:12px}
+.lp-sub{font-size:14px;color:var(--tx2);max-width:500px;line-height:1.7}
+/* LP FEATURES */
+.lp-features{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:18px;margin-top:36px}
+.lp-fcard{background:var(--surf);border:1px solid var(--bdr);border-radius:16px;padding:22px;transition:.2s;position:relative;overflow:hidden}
+.lp-fcard:hover{transform:translateY(-3px);box-shadow:0 12px 36px rgba(15,81,155,.1);border-color:rgba(15,81,155,.2)}
+.lp-fcard::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--navy),var(--navy-lt));opacity:0;transition:.2s}
+.lp-fcard:hover::before{opacity:1}
+.lp-fcard-icon{width:46px;height:46px;border-radius:12px;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:12px;border:1px solid var(--bdr)}
+.lp-fcard-title{font-size:15px;font-weight:700;color:var(--tx);margin-bottom:6px}
+.lp-fcard-desc{font-size:12px;color:var(--tx2);line-height:1.7}
+.lp-fcard-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px}
+.lp-tag{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;background:var(--bg);color:var(--navy);border:1px solid var(--bdr)}
+/* LP HOW IT WORKS */
+.lp-how{background:linear-gradient(135deg,#0a3d78,#0f519b);padding:64px 40px}
+.lp-how-inner{max-width:900px;margin:0 auto}
+.lp-how-title{font-family:'DM Serif Display',Georgia,serif;font-size:clamp(24px,3.5vw,36px);color:#fff;margin-bottom:6px}
+.lp-how-sub{font-size:13px;color:rgba(255,255,255,.6);margin-bottom:44px}
+.lp-steps{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:22px}
+.lp-step{text-align:center}
+.lp-step-num{width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.1);border:2px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:900;color:#fece26;margin:0 auto 10px;font-family:'DM Serif Display',Georgia,serif}
+.lp-step-icon{font-size:22px;display:block;margin-bottom:7px}
+.lp-step-title{font-size:13px;font-weight:700;color:#fff;margin-bottom:4px}
+.lp-step-desc{font-size:11px;color:rgba(255,255,255,.6);line-height:1.7}
+/* LP DETAIL */
+.lp-detail{padding:64px 40px;background:var(--bg)}
+.lp-detail.lp-surf{background:var(--surf)}
+.lp-detail-inner{max-width:900px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center}
+.lp-detail-inner.lp-rev{direction:rtl}
+.lp-detail-inner.lp-rev>*{direction:ltr}
+.lp-detail-list{list-style:none;display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.lp-detail-list li{display:flex;align-items:flex-start;gap:7px;font-size:13px;color:var(--tx2)}
+.lp-detail-list li span{color:var(--navy);font-weight:700;flex-shrink:0}
+/* LP VISUAL */
+.lp-visual{background:linear-gradient(135deg,#0f519b,#1a6bbf);border-radius:18px;padding:22px;aspect-ratio:4/3;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 20px 52px rgba(15,81,155,.18);position:relative;overflow:hidden}
+.lp-visual::before{content:'';position:absolute;top:-30%;right:-20%;width:220px;height:220px;background:rgba(255,255,255,.04);border-radius:50%}
+.lp-dv-title{font-size:11px;font-weight:600;color:rgba(255,255,255,.55);margin-bottom:9px}
+.lp-dv-row{display:flex;align-items:center;gap:9px;background:rgba(255,255,255,.1);border-radius:8px;padding:8px 11px;margin-bottom:6px}
+.lp-dv-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.lp-dv-label{font-size:11px;color:#fff;flex:1}
+.lp-dv-badge{padding:2px 8px;border-radius:20px;font-size:9px;font-weight:700}
+.lp-dv-chart{display:flex;align-items:flex-end;gap:4px;height:68px;margin-top:6px}
+.lp-dv-bar{flex:1;border-radius:4px 4px 0 0;background:rgba(255,255,255,.25);position:relative}
+.lp-dv-bar.lp-active{background:#fece26}
+.lp-dv-bar-label{position:absolute;bottom:-15px;left:50%;transform:translateX(-50%);font-size:8px;color:rgba(255,255,255,.5);white-space:nowrap}
+.lp-dv-map{background:rgba(0,0,0,.2);border-radius:9px;padding:11px;flex:1;display:flex;flex-direction:column;gap:6px}
+.lp-dv-pin{display:flex;align-items:center;gap:6px;font-size:11px;color:rgba(255,255,255,.8)}
+.lp-dv-val{font-size:11px;font-weight:700;color:#fece26}
+/* LP SECURITY */
+.lp-security{padding:64px 40px;background:var(--bg)}
+.lp-security-inner{max-width:900px;margin:0 auto}
+.lp-sec-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px;margin-top:36px}
+.lp-sec-card{background:var(--surf);border:1px solid var(--bdr);border-radius:13px;padding:18px;display:flex;align-items:flex-start;gap:11px}
+.lp-sec-icon{width:38px;height:38px;border-radius:10px;background:rgba(15,81,155,.07);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.lp-sec-title{font-size:12px;font-weight:700;color:var(--tx);margin-bottom:3px}
+.lp-sec-desc{font-size:11px;color:var(--tx3);line-height:1.6}
+/* LP CTA */
+.lp-cta{background:linear-gradient(135deg,#0a3d78,#0f519b,#1a6bbf);padding:64px 40px;text-align:center}
+.lp-cta-title{font-family:'DM Serif Display',Georgia,serif;font-size:clamp(22px,4vw,38px);color:#fff;margin-bottom:10px}
+.lp-cta-sub{font-size:14px;color:rgba(255,255,255,.65);margin-bottom:24px}
+.lp-cta-btn{display:inline-flex;align-items:center;gap:7px;padding:12px 26px;background:#fece26;color:#1a2332;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 8px 24px rgba(254,206,38,.35);transition:.2s}
+.lp-cta-btn:hover{transform:translateY(-2px);box-shadow:0 12px 32px rgba(254,206,38,.5)}
+/* LP FOOTER */
+.lp-footer{background:#0a1628;padding:22px 40px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.lp-footer-logo{display:flex;align-items:center;gap:8px}
+.lp-footer-logo-icon{width:26px;height:26px;background:#fece26;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px}
+.lp-footer-logo-text{font-size:12px;font-weight:700;color:rgba(255,255,255,.6)}
+.lp-footer-copy{font-size:11px;color:rgba(255,255,255,.3)}
+/* LP FADE */
+.lp-fade{opacity:0;transform:translateY(18px);transition:opacity .55s ease,transform .55s ease}
+.lp-fade.lp-visible{opacity:1;transform:translateY(0)}
+/* 響應式 */
+@media(max-width:900px){
+  /* 手機版：全頁捲動，登入區塊融入 Hero，無割裂感 */
+  #login-screen{flex-direction:column;overflow-y:auto;overflow-x:hidden}
+  #lp-content{order:2;overflow-y:visible}
+  /* sidebar 變成 Hero 內嵌的登入區，不再是獨立欄 */
+  #lp-sidebar{
+    order:1;width:100%;
+    position:relative;height:auto;
+    background:transparent;
+    backdrop-filter:none;-webkit-backdrop-filter:none;
+    border-left:none;border-bottom:none;
+    padding:0;
+    justify-content:flex-start;
+    /* 融入 hero 背景：由 hero 提供背景色 */
+  }
+  #lp-sidebar::before,#lp-sidebar::after{display:none}
+  /* 登入內容放在 hero 風格容器內 */
+  .lp-login-card{
+    padding:44px 24px 36px;
+    background:linear-gradient(135deg,#0a3d78 0%,#0f519b 50%,#1a6bbf 100%);
+    position:relative;overflow:hidden;
+  }
+  .lp-login-card::before{
+    content:'';position:absolute;inset:0;
+    background:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    pointer-events:none;
+  }
+  .lp-login-card::after{
+    content:'';position:absolute;bottom:-60px;right:-60px;
+    width:200px;height:200px;border-radius:50%;
+    background:radial-gradient(circle,rgba(254,206,38,.1) 0%,transparent 70%);
+    pointer-events:none;
+  }
+  /* Hero 與下方介紹內容之間平滑過渡 */
+  .lp-hero{padding:48px 20px 64px}
+  .lp-section,.lp-detail,.lp-detail.lp-surf,.lp-how,.lp-security,.lp-cta{padding:44px 20px}
+  .lp-footer{padding:18px 20px}
+  .lp-detail-inner{grid-template-columns:1fr}
+  .lp-detail-inner.lp-rev{direction:ltr}
+  .lp-scroll-tip{display:none}
+}
+
 /* 可排序表頭 */
 th.sortable{cursor:pointer;user-select:none;white-space:nowrap}
 th.sortable:hover{background:var(--bg2);color:var(--acc)}
@@ -502,32 +727,243 @@ function initGoogleMaps() {
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBDX0LHYeD0bHQvzLezIir-ZYjOJUVHI3k&callback=initGoogleMaps&loading=async" async defer></script>
 </head>
 <body>
-<!-- 登入畫面 -->
-<div id="login-screen" style="
-  display:flex;align-items:center;justify-content:center;
-  position:fixed;inset:0;z-index:9999;background:#0d2340;overflow:hidden;
-">
-  <div style="position:absolute;inset:0;background-image:url('bg.jpg');background-size:cover;background-position:center;opacity:0.35"></div>
-  <div style="background:#fff;border-radius:20px;padding:44px 40px 36px;max-width:380px;width:90%;text-align:center;box-shadow:0 24px 80px rgba(0,0,0,.5);position:relative;z-index:1">
-    <div style="font-size:48px;margin-bottom:8px">🏠</div>
-    <div style="font-size:22px;font-weight:800;color:#0f519b;margin-bottom:4px">房仲屋主管理系統</div>
-    <div style="font-size:13px;color:#7a90aa;margin-bottom:32px">請使用 Google 帳號登入以同步您的資料</div>
-    <button id="google-signin-btn" onclick="handleSignIn()" style="display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:13px 20px;border-radius:10px;border:2px solid #e0e7ef;background:#fff;cursor:pointer;font-size:15px;font-weight:600;color:#1a2332;transition:all .18s;font-family:inherit"
-      onmouseover="this.style.background='#f0f4f8';this.style.borderColor='#0f519b'"
-      onmouseout="this.style.background='#fff';this.style.borderColor='#e0e7ef'">
-      <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.36-8.16 2.36-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
-      使用 Google 帳號登入
-    </button>
-    <div id="login-error" style="display:none;margin-top:16px;padding:10px 14px;background:#fceef0;border:1px solid #e04060;border-radius:8px;font-size:12px;color:#c0182a"></div>
-    <div style="margin-top:24px;font-size:11px;color:#b0c0d8;line-height:1.6">您的資料將安全儲存於 Google Cloud<br>並在所有裝置間自動同步</div>
-    <div style="margin-top:14px;font-size:11px;color:#8090a8;line-height:1.9">
-      登入即表示您同意<br>
-      <a href="#" onclick="document.getElementById('privacy-modal').style.display='flex';return false;" style="color:#4a90d9;text-decoration:underline;cursor:pointer">本系統隱私權保護政策</a>
-      　及　
-      <a href="#" onclick="document.getElementById('consent-modal').style.display='flex';return false;" style="color:#4a90d9;text-decoration:underline;cursor:pointer">個人資料蒐集同意條款</a>
+<!-- 登入畫面 + 介紹頁 -->
+<div id="login-screen">
+
+  <!-- ══ 左側：系統介紹內容（可捲動） ══ -->
+  <div id="lp-content">
+
+    <!-- HERO -->
+    <div class="lp-hero">
+      <div class="lp-badge">🚀 專為台灣房仲打造</div>
+      <h1 class="lp-hero-title">讓每一筆<span>屋主資料</span><br>都成為成交機會</h1>
+      <p class="lp-hero-sub">整合募集線、追蹤線、委託管理與行程規劃，<br>搭配 Google 雲端同步，電腦手機隨時掌握業績。</p>
+      <div class="lp-stats">
+        <div class="lp-stat"><span class="lp-stat-num">5</span><span class="lp-stat-label">核心功能模組</span></div>
+        <div class="lp-stat"><span class="lp-stat-num">∞</span><span class="lp-stat-label">筆資料雲端儲存</span></div>
+        <div class="lp-stat"><span class="lp-stat-num">100%</span><span class="lp-stat-label">跨裝置即時同步</span></div>
+      </div>
+      <div class="lp-scroll-down"><span>向下捲動了解功能</span><span>↓</span></div>
     </div>
+
+    <!-- FEATURES -->
+    <div class="lp-section">
+      <div class="lp-section-inner">
+        <div class="lp-fade">
+          <div class="lp-label">核心功能</div>
+          <h2 class="lp-title">五大模組，全面掌握業務</h2>
+          <p class="lp-sub">從第一次接觸屋主到委託簽約，完整追蹤每一個業務環節。</p>
+        </div>
+        <div class="lp-features">
+          <div class="lp-fcard lp-fade">
+            <div class="lp-fcard-icon">📋</div>
+            <div class="lp-fcard-title">募集線</div>
+            <div class="lp-fcard-desc">記錄從地政謄本或其他管道取得的潛在屋主資訊，包含物件地址、屋主戶籍地、物件類型、格局、總價等完整資料，並可新增拜訪進度紀錄。</div>
+            <div class="lp-fcard-tags"><span class="lp-tag">多屋主支援</span><span class="lp-tag">進度追蹤</span><span class="lp-tag">快速搜尋</span></div>
+          </div>
+          <div class="lp-fcard lp-fade">
+            <div class="lp-fcard-icon">🔍</div>
+            <div class="lp-fcard-title">追蹤線</div>
+            <div class="lp-fcard-desc">將有意願的屋主從募集線轉入追蹤線，持續跟進聯絡紀錄。系統自動保留轉入日期，方便檢視跟進週期與接觸頻率。</div>
+            <div class="lp-fcard-tags"><span class="lp-tag">一鍵轉入</span><span class="lp-tag">跟進紀錄</span><span class="lp-tag">日期追蹤</span></div>
+          </div>
+          <div class="lp-fcard lp-fade">
+            <div class="lp-fcard-icon">📝</div>
+            <div class="lp-fcard-title">委託管理</div>
+            <div class="lp-fcard-desc">記錄一般委託與專任委託，自動計算委託到期日並顯示警示。支援續約功能，並整合業績達成率圖表呈現每月委託成效。</div>
+            <div class="lp-fcard-tags"><span class="lp-tag">到期警示</span><span class="lp-tag">一鍵續約</span><span class="lp-tag">業績圖表</span></div>
+          </div>
+          <div class="lp-fcard lp-fade">
+            <div class="lp-fcard-icon">📍</div>
+            <div class="lp-fcard-title">行程規劃</div>
+            <div class="lp-fcard-desc">勾選多筆物件後自動計算距離，依遠近排序規劃最佳拜訪路線。一鍵匯出至 Google Maps 開啟多點導航，出門拜訪更有效率。</div>
+            <div class="lp-fcard-tags"><span class="lp-tag">距離計算</span><span class="lp-tag">Google Maps</span><span class="lp-tag">路線排序</span></div>
+          </div>
+          <div class="lp-fcard lp-fade">
+            <div class="lp-fcard-icon">📊</div>
+            <div class="lp-fcard-title">首頁儀表板</div>
+            <div class="lp-fcard-desc">設定年度與月度委託目標，即時追蹤實際達成進度。全年曲線圖呈現每月目標與實際委託數對比，清楚掌握業績趨勢。</div>
+            <div class="lp-fcard-tags"><span class="lp-tag">目標設定</span><span class="lp-tag">達成率圖表</span><span class="lp-tag">全年趨勢</span></div>
+          </div>
+          <div class="lp-fcard lp-fade" style="background:linear-gradient(135deg,#0f519b,#1a6bbf);border-color:transparent">
+            <div class="lp-fcard-icon" style="background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.2)">☁️</div>
+            <div class="lp-fcard-title" style="color:#fff">雲端同步</div>
+            <div class="lp-fcard-desc" style="color:rgba(255,255,255,.7)">資料儲存於 Google Firebase 台灣伺服器，電腦新增的資料手機立刻看到。每個 Google 帳號資料完全隔離，安全無虞。</div>
+            <div class="lp-fcard-tags"><span class="lp-tag" style="background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.2)">即時同步</span><span class="lp-tag" style="background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.2)">台灣伺服器</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HOW IT WORKS -->
+    <div class="lp-how">
+      <div class="lp-how-inner">
+        <div class="lp-fade">
+          <div class="lp-label" style="color:#fece26">使用流程</div>
+          <h2 class="lp-how-title">四步驟，輕鬆上手</h2>
+          <p class="lp-how-sub">從登入到開始管理業務，只需幾分鐘。</p>
+        </div>
+        <div class="lp-steps">
+          <div class="lp-step lp-fade"><span class="lp-step-icon">🔑</span><div class="lp-step-num">1</div><div class="lp-step-title">Google 帳號登入</div><div class="lp-step-desc">使用您的 Google 帳號一鍵登入，無需另外申請帳號，每次開啟網站需重新登入確保安全。</div></div>
+          <div class="lp-step lp-fade"><span class="lp-step-icon">📋</span><div class="lp-step-num">2</div><div class="lp-step-title">建立募集線資料</div><div class="lp-step-desc">將從地政謄本取得的屋主資訊輸入系統，包含物件地址、屋主戶籍、物件詳情，並記錄拜訪進度。</div></div>
+          <div class="lp-step lp-fade"><span class="lp-step-icon">🔍</span><div class="lp-step-num">3</div><div class="lp-step-title">轉入追蹤 / 委託</div><div class="lp-step-desc">有意願的屋主一鍵轉入追蹤線持續跟進，成功取得委託後再轉入委託管理，全程不漏接。</div></div>
+          <div class="lp-step lp-fade"><span class="lp-step-icon">📍</span><div class="lp-step-num">4</div><div class="lp-step-title">規劃行程出發</div><div class="lp-step-desc">選取今日拜訪物件，系統自動排序最短路線，一鍵開啟 Google Maps 導航，高效出門拜訪。</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DETAIL：募集線 -->
+    <div class="lp-detail">
+      <div class="lp-detail-inner">
+        <div class="lp-fade">
+          <div class="lp-label">募集線管理</div>
+          <h2 class="lp-title">完整記錄每一筆屋主資料</h2>
+          <p class="lp-sub">支援多屋主、同物件多位所有人的情況，一筆資料可登記多位屋主及各自的戶籍地址。</p>
+          <ul class="lp-detail-list">
+            <li><span>✓</span>物件地址、類型、坪數、總價、單價、格局、物件網址</li>
+            <li><span>✓</span>屋主姓氏、性別、聯絡電話、戶籍地址（支援多位屋主）</li>
+            <li><span>✓</span>拜訪進度紀錄，每筆記錄含時間戳記</li>
+            <li><span>✓</span>搜尋、篩選、排序，快速定位特定物件</li>
+            <li><span>✓</span>每頁 10 筆分頁顯示，瀏覽更流暢</li>
+          </ul>
+        </div>
+        <div class="lp-visual lp-fade">
+          <div class="lp-dv-title">募集線 — 物件資料</div>
+          <div>
+            <div class="lp-dv-row"><div class="lp-dv-dot" style="background:#fece26"></div><div class="lp-dv-label">高雄市三民區民族一路***巷</div><div class="lp-dv-badge" style="background:rgba(254,206,38,.2);color:#fece26">大樓</div></div>
+            <div class="lp-dv-row"><div class="lp-dv-dot" style="background:#4ade80"></div><div class="lp-dv-label">高雄市左營區博愛二路***號</div><div class="lp-dv-badge" style="background:rgba(74,222,128,.2);color:#4ade80">透天</div></div>
+            <div class="lp-dv-row"><div class="lp-dv-dot" style="background:#60a5fa"></div><div class="lp-dv-label">高雄市左營區重清路***號</div><div class="lp-dv-badge" style="background:rgba(96,165,250,.2);color:#60a5fa">店面</div></div>
+            <div class="lp-dv-row"><div class="lp-dv-dot" style="background:#f87171"></div><div class="lp-dv-label">高雄市苓雅區光華一路</div><div class="lp-dv-badge" style="background:rgba(248,113,113,.2);color:#f87171">土地</div></div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between"><div style="font-size:11px;color:rgba(255,255,255,.5)">共 11 筆</div><div style="font-size:11px;color:#fece26">第 1–10 筆 ‹ 1 2 ›</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DETAIL：儀表板 -->
+    <div class="lp-detail lp-surf">
+      <div class="lp-detail-inner lp-rev">
+        <div class="lp-fade">
+          <div class="lp-label">業績儀表板</div>
+          <h2 class="lp-title">目標清晰，進度一目瞭然</h2>
+          <p class="lp-sub">設定年度和每月委託目標，系統自動計算達成率並以圖表呈現，讓你隨時知道距離目標還有多遠。</p>
+          <ul class="lp-detail-list">
+            <li><span>✓</span>年度委託目標（專任 + 一般自動加總）</li>
+            <li><span>✓</span>月目標支援選擇任意年月瀏覽和設定</li>
+            <li><span>✓</span>全年每月目標 vs 實際曲線圖，可切換年份</li>
+            <li><span>✓</span>每次進入首頁顯示隨機房仲鼓勵語錄</li>
+          </ul>
+        </div>
+        <div class="lp-visual lp-fade">
+          <div class="lp-dv-title">全年委託趨勢 — 2026年</div>
+          <div class="lp-dv-chart">
+            <div class="lp-dv-bar" style="height:20%"><span class="lp-dv-bar-label">1月</span></div>
+            <div class="lp-dv-bar" style="height:15%"><span class="lp-dv-bar-label">2月</span></div>
+            <div class="lp-dv-bar" style="height:30%"><span class="lp-dv-bar-label">3月</span></div>
+            <div class="lp-dv-bar" style="height:25%"><span class="lp-dv-bar-label">4月</span></div>
+            <div class="lp-dv-bar lp-active" style="height:80%"><span class="lp-dv-bar-label">5月</span></div>
+            <div class="lp-dv-bar" style="height:40%;border:2px dashed rgba(254,206,38,.5)"><span class="lp-dv-bar-label">6月</span></div>
+            <div class="lp-dv-bar" style="height:40%;border:2px dashed rgba(254,206,38,.5)"><span class="lp-dv-bar-label">7月</span></div>
+            <div class="lp-dv-bar" style="height:40%;border:2px dashed rgba(254,206,38,.5)"><span class="lp-dv-bar-label">8月</span></div>
+            <div class="lp-dv-bar" style="height:40%;border:2px dashed rgba(254,206,38,.5)"><span class="lp-dv-bar-label">9月</span></div>
+          </div>
+          <div style="display:flex;gap:14px;margin-top:22px">
+            <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:rgba(255,255,255,.6)"><div style="width:10px;height:10px;background:#fece26;border-radius:2px"></div>實際委託</div>
+            <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:rgba(255,255,255,.6)"><div style="width:10px;height:3px;border-top:2px dashed rgba(254,206,38,.5)"></div>目標</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DETAIL：行程規劃 -->
+    <div class="lp-detail">
+      <div class="lp-detail-inner">
+        <div class="lp-fade">
+          <div class="lp-label">行程規劃</div>
+          <h2 class="lp-title">一鍵規劃最佳拜訪路線</h2>
+          <p class="lp-sub">從募集線和追蹤線中勾選今日欲拜訪的物件，系統自動計算距離並排序，直接開啟 Google Maps 導航。</p>
+          <ul class="lp-detail-list">
+            <li><span>✓</span>勾選第一個物件自動設為基準點，計算其他物件距離</li>
+            <li><span>✓</span>依距離由近到遠自動排序，規劃最省時路線</li>
+            <li><span>✓</span>可設定距離上限過濾，只顯示符合範圍的物件</li>
+            <li><span>✓</span>一鍵開啟 Google Maps 多點導航</li>
+          </ul>
+        </div>
+        <div class="lp-visual lp-fade">
+          <div class="lp-dv-title">今日行程 — 已選 3 個物件</div>
+          <div class="lp-dv-map">
+            <div class="lp-dv-pin"><span>⚓</span><div style="flex:1"><div style="font-size:10px;color:rgba(255,255,255,.5);margin-bottom:2px">基準點</div><div>三民區民族一路***巷</div></div><div class="lp-dv-val">出發</div></div>
+            <div style="width:1px;height:14px;background:rgba(255,255,255,.15);margin-left:11px"></div>
+            <div class="lp-dv-pin"><span>📍</span><div style="flex:1"><div style="font-size:10px;color:rgba(255,255,255,.5);margin-bottom:2px">停靠點 1</div><div>左營區博愛二路***號</div></div><div class="lp-dv-val">1.2km</div></div>
+            <div style="width:1px;height:14px;background:rgba(255,255,255,.15);margin-left:11px"></div>
+            <div class="lp-dv-pin"><span>📍</span><div style="flex:1"><div style="font-size:10px;color:rgba(255,255,255,.5);margin-bottom:2px">停靠點 2</div><div>左營區重清路***號</div></div><div class="lp-dv-val">2.8km</div></div>
+          </div>
+          <button style="width:100%;padding:9px;background:#fece26;color:#1a2332;border:none;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🗺 開啟 Google Maps 導航</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECURITY -->
+    <div class="lp-security">
+      <div class="lp-security-inner">
+        <div class="lp-fade">
+          <div class="lp-label">資料安全</div>
+          <h2 class="lp-title">您的資料，只有您能存取</h2>
+          <p class="lp-sub">採用 Google Firebase 企業級安全架構，多重防護確保業務資料安全。</p>
+        </div>
+        <div class="lp-sec-grid">
+          <div class="lp-sec-card lp-fade"><div class="lp-sec-icon">🔐</div><div><div class="lp-sec-title">Google 帳號驗證</div><div class="lp-sec-desc">每次開啟網站須重新登入，不保留登入狀態。閒置 10 分鐘自動登出。</div></div></div>
+          <div class="lp-sec-card lp-fade"><div class="lp-sec-icon">🛡</div><div><div class="lp-sec-title">資料完全隔離</div><div class="lp-sec-desc">每位使用者只能存取自己帳號下的資料，Firestore 安全規則嚴格執行。</div></div></div>
+          <div class="lp-sec-card lp-fade"><div class="lp-sec-icon">🇹🇼</div><div><div class="lp-sec-title">台灣境內伺服器</div><div class="lp-sec-desc">資料儲存於 Google Firebase 台灣伺服器（asia-east1），不涉及境外傳輸。</div></div></div>
+          <div class="lp-sec-card lp-fade"><div class="lp-sec-icon">🔒</div><div><div class="lp-sec-title">HTTPS 加密傳輸</div><div class="lp-sec-desc">所有資料傳輸均採用 TLS 加密，防止資料在傳輸過程中遭攔截。</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CTA -->
+    <div class="lp-cta">
+      <div class="lp-fade">
+        <h2 class="lp-cta-title">準備好開始了嗎？</h2>
+        <p class="lp-cta-sub">使用 Google 帳號即可免費開始，無需任何設定。</p>
+        <button class="lp-cta-btn" onclick="handleSignIn()">🔑 立即登入，免費使用</button>
+      </div>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="lp-footer">
+      <div class="lp-footer-logo">
+        <div class="lp-footer-logo-icon">🏠</div>
+        <div class="lp-footer-logo-text">房仲屋主管理系統</div>
+      </div>
+      <div class="lp-footer-copy">© 2026 吳松儒・個人資料依《個人資料保護法》保護</div>
+    </div>
+
+  </div><!-- /#lp-content -->
+
+  <!-- ══ 右側：固定登入面板 ══ -->
+  <div id="lp-sidebar">
+    <div class="lp-login-card">
+      <span class="lp-sys-icon">🏠</span>
+      <div class="lp-sys-name">房仲屋主管理系統</div>
+      <div class="lp-sys-hint">請使用 Google 帳號登入<br>以同步您的業務資料</div>
+      <button id="google-signin-btn" onclick="handleSignIn()">
+        <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.36-8.16 2.36-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
+        使用 Google 帳號登入
+      </button>
+      <div id="login-error" style="display:none;margin-top:14px;padding:9px 12px;background:rgba(192,24,42,.15);border:1px solid rgba(192,24,42,.4);border-radius:10px;font-size:11px;color:#ffaaaa"></div>
+      <div class="lp-divider"></div>
+      <div class="lp-login-meta">您的資料將安全儲存於 Google Cloud<br>並在所有裝置間自動同步</div>
+      <div class="lp-login-policy">
+        登入即表示您同意<br>
+        <a href="#" onclick="document.getElementById('privacy-modal').style.display='flex';return false;">隱私權保護政策</a>
+        　及　
+        <a href="#" onclick="document.getElementById('consent-modal').style.display='flex';return false;">個人資料蒐集同意條款</a>
+      </div>
+    </div>
+    <div class="lp-scroll-tip">← 左側可捲動了解更多功能</div>
   </div>
-</div>
+
+</div><!-- /#login-screen -->
 
 <!-- 隱私權條款 Modal -->
 <div id="privacy-modal" style="display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.6);align-items:center;justify-content:center;padding:16px" onclick="if(event.target===this)this.style.display='none'">
@@ -3517,6 +3953,24 @@ function startAutoLogout(){
 
 
 init();
+
+// ── Landing Page Fade-in Observer ──
+(function(){
+  const lpObs = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if(e.isIntersecting){ e.target.classList.add('lp-visible'); } });
+  }, { threshold: 0.08 });
+  function mountLpObs(){
+    document.querySelectorAll('.lp-fade').forEach(el => lpObs.observe(el));
+  }
+  const ls = document.getElementById('login-screen');
+  if(ls){
+    new MutationObserver(() => {
+      if(ls.style.display !== 'none'){ mountLpObs(); }
+    }).observe(ls, { attributes:true, attributeFilter:['style'] });
+  }
+  document.addEventListener('DOMContentLoaded', mountLpObs);
+  setTimeout(mountLpObs, 150);
+})();
 </script>
 </body>
 </html>
