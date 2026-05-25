@@ -433,6 +433,7 @@ a.plink:hover{text-decoration:underline}
     transition:color .15s,background .15s;
     position:relative;
     text-align:center;
+    display:flex;
   }
   .nav-btn:active{background:rgba(255,255,255,.1)}
   .nav-btn.active{color:#fff}
@@ -455,10 +456,10 @@ a.plink:hover{text-decoration:underline}
   #app-content{
     order:1;flex:1;min-height:0;
     overflow-y:auto;
-    padding-bottom:calc(104px + env(safe-area-inset-bottom,0px) + 16px);
+    padding-bottom:var(--bottom-bar-h, 160px);
   }
   .topbar{padding:0 14px}
-  main{padding:14px;padding-bottom:24px}
+  main{padding:14px}
   .card-grid{grid-template-columns:1fr}
   .fg2,.fg3{grid-template-columns:1fr}
   .modal{border-radius:16px 16px 0 0;max-height:92vh;position:fixed;bottom:0;left:0;right:0;margin:0}
@@ -3382,6 +3383,16 @@ window.onFirebaseLogin = async function(user){
   if(mName) mName.textContent = user.displayName || '使用者';
   if(mEmail) mEmail.textContent = user.email || '';
 
+  // 動態計算底部 sidebar 高度，設到 CSS 變數
+  function updateBottomBarHeight(){
+    const sidebar = document.getElementById('sidebar');
+    if(!sidebar) return;
+    const h = sidebar.offsetHeight;
+    if(h > 0){
+      document.documentElement.style.setProperty('--bottom-bar-h', (h + 24) + 'px');
+    }
+  }
+  // 登入後計算
   await loadFromFirestore(user.uid);
 
   // 初始化 UI
@@ -3395,6 +3406,10 @@ window.onFirebaseLogin = async function(user){
   switchPage('stats');
   renderAll();
   checkNotifs();
+
+  // 計算底部高度
+  setTimeout(updateBottomBarHeight, 100);
+  window.addEventListener('resize', updateBottomBarHeight);
 
   // 閒置自動登出
   startAutoLogout();
