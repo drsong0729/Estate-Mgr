@@ -587,23 +587,35 @@ th.sortable:not(.asc):not(.desc) .sort-icon::after{content:'⇅'}
   window._firebaseGetDoc = getDoc;
   window._firebaseSetDoc = setDoc;
 
-  onAuthStateChanged(auth, user => {
-    if (user) {
-      window._currentUser = user;
-      document.getElementById('login-screen').style.display = 'none';
-      document.getElementById('sidebar').style.display = '';
-      document.getElementById('app-content').style.display = '';
-      if (typeof window.onFirebaseLogin === 'function') window.onFirebaseLogin(user);
-    } else {
-      window._currentUser = null;
-      document.getElementById('login-screen').style.display = 'flex';
-      document.getElementById('sidebar').style.display = 'none';
-      document.getElementById('app-content').style.display = 'none';
-    }
-  });
+  // 每次開啟網站強制登出一次（用 sessionStorage 確保只登出一次，登入後不會再被登出）
+  const SESSION_KEY = 'fb_session_cleared';
+  if (!sessionStorage.getItem(SESSION_KEY)) {
+    sessionStorage.setItem(SESSION_KEY, '1');
+    signOut(auth).finally(() => {
+      // 登出完成後再開始監聽
+      startAuthListener();
+    });
+  } else {
+    // 本次 session 已清除過（使用者已登入中），直接監聽
+    startAuthListener();
+  }
 
-  // 每次進入網站強制登出，確保重新登入
-  signOut(auth).catch(()=>{});
+  function startAuthListener() {
+    onAuthStateChanged(auth, user => {
+      if (user) {
+        window._currentUser = user;
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('sidebar').style.display = '';
+        document.getElementById('app-content').style.display = '';
+        if (typeof window.onFirebaseLogin === 'function') window.onFirebaseLogin(user);
+      } else {
+        window._currentUser = null;
+        document.getElementById('login-screen').style.display = 'flex';
+        document.getElementById('sidebar').style.display = 'none';
+        document.getElementById('app-content').style.display = 'none';
+      }
+    });
+  }
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
@@ -3129,6 +3141,7 @@ async function handleSignIn(){
 async function handleSignOut(){
   if(!confirm('確定要登出嗎？')) return;
   clearTimeout(window._idleTimer);
+  sessionStorage.removeItem('fb_session_cleared');
   await window._firebaseSignOut();
   db = {recruit:[], track:[], commission:[]};
   location.reload();
@@ -3173,6 +3186,7 @@ function resetIdleTimer(){
   clearTimeout(_idleTimer);
   _idleTimer = setTimeout(async ()=>{
     alert('⏰ 您已閒置超過 10 分鐘，系統將自動登出。');
+    sessionStorage.removeItem('fb_session_cleared');
     await window._firebaseSignOut();
     db = {recruit:[], track:[], commission:[]};
     location.reload();
