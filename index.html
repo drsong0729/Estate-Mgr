@@ -601,6 +601,9 @@ th.sortable:not(.asc):not(.desc) .sort-icon::after{content:'⇅'}
       document.getElementById('app-content').style.display = 'none';
     }
   });
+
+  // 每次進入網站強制登出，確保重新登入
+  signOut(auth).catch(()=>{});
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
