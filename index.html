@@ -520,9 +520,11 @@ function initGoogleMaps() {
     </button>
     <div id="login-error" style="display:none;margin-top:16px;padding:10px 14px;background:#fceef0;border:1px solid #e04060;border-radius:8px;font-size:12px;color:#c0182a"></div>
     <div style="margin-top:24px;font-size:11px;color:#b0c0d8;line-height:1.6">您的資料將安全儲存於 Google Cloud<br>並在所有裝置間自動同步</div>
-    <div style="margin-top:14px;font-size:11px;color:#8090a8;line-height:1.7">
-      登入即表示您同意
-      <a href="#" onclick="document.getElementById('privacy-modal').style.display='flex';return false;" style="color:#4a90d9;text-decoration:underline;cursor:pointer">本系統隱私權條款</a>
+    <div style="margin-top:14px;font-size:11px;color:#8090a8;line-height:1.9">
+      登入即表示您同意<br>
+      <a href="#" onclick="document.getElementById('privacy-modal').style.display='flex';return false;" style="color:#4a90d9;text-decoration:underline;cursor:pointer">本系統隱私權保護政策</a>
+      　及　
+      <a href="#" onclick="document.getElementById('consent-modal').style.display='flex';return false;" style="color:#4a90d9;text-decoration:underline;cursor:pointer">個人資料蒐集同意條款</a>
     </div>
   </div>
 </div>
@@ -560,6 +562,66 @@ function initGoogleMaps() {
     </div>
     <div style="padding:14px 24px;border-top:1px solid #e4eaf2;flex-shrink:0;text-align:right">
       <button onclick="document.getElementById('privacy-modal').style.display='none'" style="padding:9px 24px;background:#0f519b;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">我已閱讀並了解</button>
+    </div>
+  </div>
+</div>
+
+<!-- 個人資料蒐集同意條款 Modal -->
+<div id="consent-modal" style="display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.6);align-items:center;justify-content:center;padding:16px" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:#fff;border-radius:16px;max-width:600px;width:100%;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(0,0,0,.4);overflow:hidden">
+    <!-- header -->
+    <div style="padding:20px 24px 16px;border-bottom:1px solid #e4eaf2;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+      <div style="font-size:16px;font-weight:800;color:#0f519b">📋 個人資料蒐集、處理及利用同意書</div>
+      <button onclick="document.getElementById('consent-modal').style.display='none'" style="width:30px;height:30px;border:none;background:#f0f4f8;border-radius:50%;cursor:pointer;font-size:16px;color:#3d526b;display:flex;align-items:center;justify-content:center">✕</button>
+    </div>
+    <!-- content -->
+    <div style="padding:20px 24px;overflow-y:auto;font-size:13px;color:#1a2332;line-height:1.9">
+
+      <p style="margin-bottom:6px"><strong>蒐集主體：</strong>房仲屋主管理系統</p>
+      <p style="margin-bottom:6px"><strong>系統開發者：</strong>吳松儒</p>
+      <p style="margin-bottom:16px"><strong>適用法規：</strong>中華民國《個人資料保護法》</p>
+
+      <div style="font-weight:700;color:#0f519b;margin:16px 0 6px;font-size:13px">一、蒐集目的</div>
+      <p>本系統蒐集個人資料之目的為提供房仲業務管理功能（募集線、追蹤線、委託管理、行程規劃）、帳號驗證與身分識別，以及使用者個人業務資料之雲端同步與備份。</p>
+
+      <div style="font-weight:700;color:#0f519b;margin:16px 0 6px;font-size:13px">二、蒐集之個人資料類別</div>
+      <p style="margin-bottom:6px"><strong>（一）使用者本人資料（透過 Google 登入自動取得）：</strong>姓名、電子郵件地址、Google 帳號頭像。</p>
+      <p style="margin-bottom:6px"><strong>（二）使用者自行輸入之業務資料：</strong>屋主姓氏、性別、聯絡電話、不動產物件地址、屋主戶籍地址、委託類型、委託條件及其他業務相關資訊。</p>
+      <p style="margin-bottom:6px;padding:10px 12px;background:#f0f4f8;border-radius:8px;font-size:12px;color:#3d526b">
+        ⚠️ <strong>特別說明：</strong>屋主相關資料（含姓氏、性別、物件地址、戶籍地址）係由使用者自行從政府全國地政電子謄本系統或其他合法管道取得後手動輸入。<strong>本系統不會主動蒐集屋主個人資料</strong>，使用者應確保其蒐集、輸入及利用屋主個人資料之行為符合《個人資料保護法》及相關法規之規定。
+      </p>
+
+      <div style="font-weight:700;color:#0f519b;margin:16px 0 6px;font-size:13px">三、利用期間、地區及對象</div>
+      <p>資料自使用者登入起保存，至主動要求刪除或本系統終止服務為止。伺服器位於台灣境內（Google Firebase，asia-east1）。資料僅限該 Google 帳號之使用者本人存取，不提供予任何第三人。</p>
+
+      <div style="font-weight:700;color:#0f519b;margin:16px 0 6px;font-size:13px">四、多人使用說明</div>
+      <p>本系統開放供多位房仲人員使用，各帳號資料彼此完全隔離。若因使用者主動提供帳號密碼、未登出遭他人冒用、裝置遭竊或遭惡意程式入侵等非因本系統技術缺失所致之情形，造成資料外洩，本系統及開發者不負相關法律責任。</p>
+
+      <div style="font-weight:700;color:#0f519b;margin:16px 0 6px;font-size:13px">五、資料保護措施</div>
+      <p>採 HTTPS/TLS 加密傳輸、Firestore 安全規則限制每人僅能存取自身資料、閒置 10 分鐘自動登出、每次開啟網站須重新登入。</p>
+
+      <div style="font-weight:700;color:#0f519b;margin:16px 0 6px;font-size:13px">六、當事人之權利</div>
+      <p>依《個人資料保護法》第三條，您得行使查詢、閱覽、製給複製本、補充更正、停止利用及刪除等權利。請聯繫：</p>
+      <div style="margin-top:8px;padding:10px 14px;background:#f0f4f8;border-radius:8px;font-size:12px;line-height:2">
+        📧 drsong0729@gmail.com　📞 0975711267　💬 LINE：dr.song0729<br>
+        <span style="color:#7a90aa">本系統將於接獲請求後 15 個工作日內回覆。</span>
+      </div>
+
+      <div style="font-weight:700;color:#0f519b;margin:16px 0 6px;font-size:13px">七、免責聲明</div>
+      <p>使用者應對其輸入之所有資料內容及其取得方式負完全責任。若涉及違法蒐集或未經當事人同意等情形，相關法律責任由使用者自行承擔，本系統開發者不負連帶責任。</p>
+
+      <div style="font-weight:700;color:#0f519b;margin:16px 0 6px;font-size:13px">八、條款變更</div>
+      <p>本系統保留隨時修訂本同意書之權利，修訂後之條款將公告於登入頁面。使用者於條款修訂後繼續使用本系統，視為已同意修訂後之內容。</p>
+
+      <div style="margin-top:20px;padding:12px 14px;background:#f0f7ff;border:1px solid #c0d8f0;border-radius:8px;font-size:12px;color:#3d526b">
+        <strong>同意聲明：</strong>使用本系統（包含點擊登入按鈕）即表示您已閱讀、理解並同意本同意書之全部內容。若您不同意任何條款，請勿使用本系統。
+      </div>
+
+      <p style="margin-top:14px;font-size:11px;color:#a0b0c8;text-align:right">最後更新日期：2026年5月25日</p>
+    </div>
+    <!-- footer -->
+    <div style="padding:14px 24px;border-top:1px solid #e4eaf2;flex-shrink:0;text-align:right">
+      <button onclick="document.getElementById('consent-modal').style.display='none'" style="padding:9px 24px;background:#0f519b;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">我已閱讀並了解</button>
     </div>
   </div>
 </div>
@@ -741,6 +803,21 @@ function initGoogleMaps() {
 </div>
 <!-- PAGE: 首頁 -->
 <div class="page" id="page-stats">
+  <!-- 鼓勵短句 -->
+  <div id="daily-quote" style="
+    margin-bottom:18px;
+    padding:14px 20px;
+    background:linear-gradient(135deg,var(--acc),#1a6bbf);
+    border-radius:14px;
+    display:flex;align-items:center;gap:12px;
+    box-shadow:0 3px 12px rgba(15,81,155,.18);
+  ">
+    <span style="font-size:26px;flex-shrink:0" id="quote-icon">💪</span>
+    <div>
+      <div id="quote-text" style="font-size:14px;font-weight:700;color:#fff;line-height:1.5"></div>
+      <div id="quote-sub" style="font-size:11px;color:rgba(255,255,255,.65);margin-top:2px"></div>
+    </div>
+  </div>
   <!-- 業績目標設定區 -->
   <div class="goal-section">
     <div class="goal-card">
@@ -1296,7 +1373,7 @@ function switchPage(p){
   if(dn) dn.classList.add('active');
   const tb=document.getElementById('topbar-title');
   if(tb)tb.textContent=PAGE_TITLES[p]||'';
-  if(p==='stats'){initStatsYears();renderStats();}
+  if(p==='stats'){initStatsYears();renderDailyQuote();renderStats();}
   else if(p==='trip'){tripInitHCitySelect();renderTripList();renderTripSelected();updateMapsBtn();}
   else renderAll();
 }
@@ -2212,7 +2289,7 @@ function initStatsYears(){
     ...db.track.map(r=>r.date),
     ...db.commission.map(r=>r.date)
   ].filter(Boolean);
-  const years=[...new Set(allDates.map(d=>d.slice(0,4)))].sort().reverse();
+  const years=[...new Set(allDates.map(d=>d.slice(0,4)).filter(y=>/^\d{4}$/.test(y)))].sort().reverse();
   const curYear=new Date().getFullYear().toString();
   if(!years.includes(curYear))years.unshift(curYear);
   const curVal=sel.value;
@@ -3161,6 +3238,44 @@ function openGoogleMaps() {
 }
 
 // ══════════════════════════════════════════════════════
+// ── 首頁鼓勵短句 ──
+const QUOTES = [
+  { icon:'🏆', text:'每一通電話，都是改變的開始。', sub:'堅持撥出去，機會就在下一通。' },
+  { icon:'🔥', text:'沒有白費的拜訪，只有還沒成熟的緣分。', sub:'今天種下的種子，明天就是委託。' },
+  { icon:'💡', text:'了解屋主的需求，是成交最快的捷徑。', sub:'傾聽比說話更有力量。' },
+  { icon:'🚀', text:'市場再難，有準備的人永遠有機會。', sub:'勤跑、勤記、勤追蹤。' },
+  { icon:'🌟', text:'每一個物件都是你展現專業的舞台。', sub:'讓屋主感受到你的用心。' },
+  { icon:'💪', text:'拒絕不是終點，是下一次成功的起點。', sub:'被拒絕越多次，成交離你越近。' },
+  { icon:'🎯', text:'目標清晰，行動自然有力。', sub:'設好今天的目標，一筆一筆達成。' },
+  { icon:'🌅', text:'新的一天，新的機會，新的委託。', sub:'積極出發，好事自然發生。' },
+  { icon:'🤝', text:'信任是最好的名片。', sub:'真誠對待每一位屋主，口碑勝過廣告。' },
+  { icon:'📈', text:'數字會說話，行動讓數字增長。', sub:'今天的努力，就是明天的業績。' },
+  { icon:'🏡', text:'你不只是在賣房子，你是在幫人實現夢想。', sub:'這份工作值得你全力以赴。' },
+  { icon:'⚡', text:'比別人多拜訪一戶，就多一份機會。', sub:'勤奮是最可靠的競爭優勢。' },
+  { icon:'🎉', text:'上一筆成交是動力，下一筆才是目標。', sub:'保持節奏，持續前進。' },
+  { icon:'🧭', text:'方向對了，堅持走下去就是成功。', sub:'相信自己的判斷，也相信自己的努力。' },
+  { icon:'💎', text:'真正的高手，把每一次拜訪都當作最後一次機會。', sub:'專注當下，結果自然會來。' },
+  { icon:'🌈', text:'困難是篩選器，只有堅持的人才能看到彩虹。', sub:'今天辛苦，明天輕鬆。' },
+  { icon:'📋', text:'把追蹤線做好，委託自然水到渠成。', sub:'系統化跟進，讓機會不流失。' },
+  { icon:'🏃', text:'速度是競爭力，今天能做的不要拖到明天。', sub:'快一步，就贏一步。' },
+  { icon:'🌿', text:'每天進步一點點，累積起來就是巨大的差距。', sub:'不求完美，只求每天比昨天更好。' },
+  { icon:'🦁', text:'房仲不是等機會，是創造機會。', sub:'主動出擊，讓屋主找你。' },
+];
+
+function renderDailyQuote(){
+  const el = document.getElementById('daily-quote');
+  if(!el) return;
+  // 每次載入首頁隨機選一條（排除上一條）
+  const last = parseInt(sessionStorage.getItem('lastQuoteIdx') || '-1');
+  let idx;
+  do { idx = Math.floor(Math.random() * QUOTES.length); } while(idx === last && QUOTES.length > 1);
+  sessionStorage.setItem('lastQuoteIdx', idx);
+  const q = QUOTES[idx];
+  document.getElementById('quote-icon').textContent = q.icon;
+  document.getElementById('quote-text').textContent = q.text;
+  document.getElementById('quote-sub').textContent  = q.sub;
+}
+
 // ── 選單抽屜 ──
 function toggleDrawer(){
   const drawer  = document.getElementById('main-drawer');
@@ -3278,6 +3393,7 @@ window.onFirebaseLogin = async function(user){
   });
   currentView='desktop';
   initMonthGoalSelector();
+  renderDailyQuote();
   switchPage('stats');
   renderAll();
   checkNotifs();
