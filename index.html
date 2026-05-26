@@ -398,6 +398,24 @@ a.plink:hover{text-decoration:underline}
 .btn-sameaddr-sm{padding:3px 8px;font-size:10px;font-weight:600;background:var(--accl);color:var(--acc);border:1px solid var(--acc);border-radius:6px;cursor:pointer;font-family:inherit;transition:.2s}
 .btn-sameaddr-sm:hover{background:var(--acc);color:#fff}
 
+
+/* ── 首頁分頁標籤 ── */
+.stats-tabs{display:flex;gap:6px;margin-bottom:18px;background:var(--bg);padding:5px;border-radius:12px;border:1px solid var(--bdr)}
+.stats-tab{flex:1;padding:9px 12px;border:none;background:transparent;border-radius:9px;font-size:13px;font-weight:600;color:var(--tx2);cursor:pointer;transition:.18s;font-family:inherit}
+.stats-tab.active{background:var(--acc);color:#fff;box-shadow:0 2px 8px rgba(15,81,155,.25)}
+.stats-tab:hover:not(.active){background:var(--bdr);color:var(--tx)}
+
+/* ── KPI 儀表板 ── */
+.kpi-board{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:18px}
+.kpi-card{background:var(--surf);border:1px solid var(--bdr);border-radius:14px;padding:14px 16px;position:relative;overflow:hidden}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--kpi-color,var(--acc))}
+.kpi-label{font-size:10px;color:var(--tx3);font-weight:600;letter-spacing:.05em;margin-bottom:4px;text-transform:uppercase}
+.kpi-val{font-size:28px;font-weight:900;color:var(--tx);line-height:1;margin-bottom:2px;font-variant-numeric:tabular-nums}
+.kpi-sub{font-size:11px;color:var(--tx3)}
+.kpi-rate{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;margin-top:4px}
+.kpi-rate.ok{background:rgba(26,122,74,.12);color:#1a7a4a}
+.kpi-rate.warn{background:rgba(254,206,38,.18);color:#9a7a00}
+.kpi-rate.na{background:var(--bg);color:var(--tx3)}
 ::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:3px}
 
 /* ════════════════════════════════
@@ -1313,25 +1331,35 @@ function initGoogleMaps() {
       <div id="quote-sub" style="font-size:11px;color:rgba(255,255,255,.65);margin-top:2px"></div>
     </div>
   </div>
-  <!-- 業績目標設定區 -->
+  <!-- 目標設定區（含業績、成交件數） -->
   <div class="goal-section">
+    <!-- 年度目標 -->
     <div class="goal-card">
       <div class="goal-card-title">📅 年度目標設定（<span id="goal-year-label"></span>）</div>
       <div class="goal-inputs">
         <div class="goal-input-group">
-          <label class="goal-lbl">└ 專任委託目標</label>
+          <label class="goal-lbl">└ 專任委託目標（件）</label>
           <input class="fc goal-fc" type="number" id="goal-year-excl" placeholder="0" min="0" oninput="syncGoalTotal('year');saveGoals();renderStats()">
         </div>
         <div class="goal-input-group">
-          <label class="goal-lbl">└ 一般委託目標</label>
+          <label class="goal-lbl">└ 一般委託目標（件）</label>
           <input class="fc goal-fc" type="number" id="goal-year-gen" placeholder="0" min="0" oninput="syncGoalTotal('year');saveGoals();renderStats()">
         </div>
         <div class="goal-input-group" style="grid-column:1/-1">
           <label class="goal-lbl" style="color:var(--acc)">年委託目標合計（件）</label>
           <input class="fc goal-fc" type="number" id="goal-year-comm" placeholder="0" min="0" readonly style="background:var(--accl);color:var(--acc);font-weight:700;cursor:default">
         </div>
+        <div class="goal-input-group">
+          <label class="goal-lbl">年度業績目標（萬元）</label>
+          <input class="fc goal-fc" type="number" id="goal-year-profit" placeholder="0" min="0" step="0.1" oninput="saveGoals();renderStats()">
+        </div>
+        <div class="goal-input-group">
+          <label class="goal-lbl">年度成交件數目標（件）</label>
+          <input class="fc goal-fc" type="number" id="goal-year-deals" placeholder="0" min="0" oninput="saveGoals();renderStats()">
+        </div>
       </div>
     </div>
+    <!-- 月目標 -->
     <div class="goal-card">
       <div class="goal-card-title" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
         <span>📆 月目標設定</span>
@@ -1347,70 +1375,142 @@ function initGoogleMaps() {
       </div>
       <div class="goal-inputs" style="margin-top:12px">
         <div class="goal-input-group">
-          <label class="goal-lbl">└ 專任委託目標</label>
+          <label class="goal-lbl">└ 專任委託目標（件）</label>
           <input class="fc goal-fc" type="number" id="goal-month-excl" placeholder="0" min="0" oninput="syncGoalTotal('month');saveMonthGoal()">
         </div>
         <div class="goal-input-group">
-          <label class="goal-lbl">└ 一般委託目標</label>
+          <label class="goal-lbl">└ 一般委託目標（件）</label>
           <input class="fc goal-fc" type="number" id="goal-month-gen" placeholder="0" min="0" oninput="syncGoalTotal('month');saveMonthGoal()">
         </div>
         <div class="goal-input-group" style="grid-column:1/-1">
           <label class="goal-lbl" style="color:var(--acc)">月委託目標合計（件）</label>
           <input class="fc goal-fc" type="number" id="goal-month-comm" placeholder="0" min="0" readonly style="background:var(--accl);color:var(--acc);font-weight:700;cursor:default">
         </div>
+        <div class="goal-input-group">
+          <label class="goal-lbl">月業績目標（萬元）</label>
+          <input class="fc goal-fc" type="number" id="goal-month-profit" placeholder="0" min="0" step="0.1" oninput="saveMonthGoal()">
+        </div>
+        <div class="goal-input-group">
+          <label class="goal-lbl">月成交件數目標（件）</label>
+          <input class="fc goal-fc" type="number" id="goal-month-deals" placeholder="0" min="0" oninput="saveMonthGoal()">
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- 篩選列 -->
-  <div class="stats-filter">
-    <div class="sf-group">
-      <span class="search-label">年份</span>
-      <select class="fc" id="stats-year" onchange="renderStats()"></select>
-    </div>
-    <div class="sf-group">
-      <span class="search-label">月份（空白 = 全年）</span>
-      <select class="fc" id="stats-month" onchange="renderStats()">
-        <option value="">全年統計</option>
-        <option value="1">1月</option><option value="2">2月</option><option value="3">3月</option>
-        <option value="4">4月</option><option value="5">5月</option><option value="6">6月</option>
-        <option value="7">7月</option><option value="8">8月</option><option value="9">9月</option>
-        <option value="10">10月</option><option value="11">11月</option><option value="12">12月</option>
-      </select>
-    </div>
+  <!-- 首頁分頁標籤 -->
+  <div class="stats-tabs">
+    <button class="stats-tab active" id="stab-commission-btn" onclick="switchStatsTab('commission')">📝 委託成效</button>
+    <button class="stats-tab" id="stab-profit-btn" onclick="switchStatsTab('profit')">💰 業績成效</button>
   </div>
-  <!-- 總覽卡片 -->
-  <div class="stats" id="stats-overview"></div>
-  <!-- 圖表區 -->
-  <div class="chart-area" id="chart-area">
-    <div class="chart-card" id="chart-card-pie" style="display:none">
-      <div class="chart-title" id="pie-title">單月分佈</div>
-      <canvas id="pieChart"></canvas>
-    </div>
-    <div class="chart-card" id="chart-card-bar">
-      <div class="chart-title" id="bar-title">全年趨勢</div>
-      <canvas id="barChart"></canvas>
-    </div>
-  </div>
-  <!-- 目標達成圖表區 -->
-  <div class="chart-area" style="margin-top:16px">
-    <div class="chart-card">
-      <div class="chart-title">📅 年度委託目標達成</div>
-      <canvas id="goalYearChart"></canvas>
-    </div>
-    <div class="chart-card">
-      <div class="chart-title">📆 本月委託目標達成</div>
-      <canvas id="goalMonthChart"></canvas>
-    </div>
-  </div>
-  <!-- 全年曲線圖 -->
-  <div class="chart-area" style="margin-top:16px;grid-template-columns:1fr">
-    <div class="chart-card">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
-        <div class="chart-title" style="margin-bottom:0">📈 全年每月目標 vs 實際</div>
-        <select class="fc" id="trend-year" style="width:100px;font-size:13px" onchange="renderStats()"></select>
+
+  <!-- ═══════════════════════ 委託成效 分頁 ═══════════════════════ -->
+  <div id="stats-pane-commission">
+    <!-- 儀表板 -->
+    <div class="kpi-board" id="kpi-commission"></div>
+    <!-- 篩選列 -->
+    <div class="stats-filter">
+      <div class="sf-group">
+        <span class="search-label">年份</span>
+        <select class="fc" id="stats-year" onchange="renderStats()"></select>
       </div>
-      <canvas id="trendChart"></canvas>
+      <div class="sf-group">
+        <span class="search-label">月份（空白 = 全年）</span>
+        <select class="fc" id="stats-month" onchange="renderStats()">
+          <option value="">全年統計</option>
+          <option value="1">1月</option><option value="2">2月</option><option value="3">3月</option>
+          <option value="4">4月</option><option value="5">5月</option><option value="6">6月</option>
+          <option value="7">7月</option><option value="8">8月</option><option value="9">9月</option>
+          <option value="10">10月</option><option value="11">11月</option><option value="12">12月</option>
+        </select>
+      </div>
+    </div>
+    <!-- 總覽卡片 -->
+    <div class="stats" id="stats-overview"></div>
+    <!-- 分佈圖表 -->
+    <div class="chart-area" id="chart-area">
+      <div class="chart-card" id="chart-card-pie" style="display:none">
+        <div class="chart-title" id="pie-title">單月分佈</div>
+        <canvas id="pieChart"></canvas>
+      </div>
+      <div class="chart-card" id="chart-card-bar">
+        <div class="chart-title" id="bar-title">全年趨勢</div>
+        <canvas id="barChart"></canvas>
+      </div>
+    </div>
+    <!-- 委託目標達成圖表 -->
+    <div class="chart-area" style="margin-top:16px">
+      <div class="chart-card">
+        <div class="chart-title">📅 年度委託目標達成</div>
+        <canvas id="goalYearChart"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">📆 本月委託目標達成</div>
+        <canvas id="goalMonthChart"></canvas>
+      </div>
+    </div>
+    <!-- 全年委託曲線圖 -->
+    <div class="chart-area" style="margin-top:16px;grid-template-columns:1fr">
+      <div class="chart-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+          <div class="chart-title" style="margin-bottom:0">📈 全年每月委託目標 vs 實際</div>
+          <select class="fc" id="trend-year" style="width:100px;font-size:13px" onchange="renderStats()"></select>
+        </div>
+        <canvas id="trendChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════ 業績成效 分頁 ═══════════════════════ -->
+  <div id="stats-pane-profit" style="display:none">
+    <!-- 儀表板 -->
+    <div class="kpi-board" id="kpi-profit"></div>
+    <!-- 年度業績曲線 -->
+    <div class="chart-area" style="margin-top:0;grid-template-columns:1fr">
+      <div class="chart-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+          <div class="chart-title" style="margin-bottom:0">💰 全年每月業績目標 vs 實際</div>
+          <select class="fc" id="profit-trend-year" style="width:100px;font-size:13px" onchange="renderStats()"></select>
+        </div>
+        <canvas id="profitTrendChart"></canvas>
+      </div>
+    </div>
+    <!-- 月業績曲線 -->
+    <div class="chart-area" style="margin-top:16px;grid-template-columns:1fr">
+      <div class="chart-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+          <div class="chart-title" style="margin-bottom:0">📆 本月業績 vs 目標</div>
+          <div style="display:flex;gap:6px">
+            <select class="fc" id="profit-month-year-sel" style="width:90px;font-size:13px" onchange="renderStats()"></select>
+            <select class="fc" id="profit-month-sel" style="width:72px;font-size:13px" onchange="renderStats()">
+              <option value="1">1月</option><option value="2">2月</option><option value="3">3月</option>
+              <option value="4">4月</option><option value="5">5月</option><option value="6">6月</option>
+              <option value="7">7月</option><option value="8">8月</option><option value="9">9月</option>
+              <option value="10">10月</option><option value="11">11月</option><option value="12">12月</option>
+            </select>
+          </div>
+        </div>
+        <canvas id="profitMonthChart"></canvas>
+      </div>
+    </div>
+    <!-- 年度成交件數曲線 -->
+    <div class="chart-area" style="margin-top:16px;grid-template-columns:1fr">
+      <div class="chart-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+          <div class="chart-title" style="margin-bottom:0">🏆 全年每月成交件數目標 vs 實際</div>
+          <select class="fc" id="deals-trend-year" style="width:100px;font-size:13px" onchange="renderStats()"></select>
+        </div>
+        <canvas id="dealsTrendChart"></canvas>
+      </div>
+    </div>
+    <!-- 月成交件數曲線 -->
+    <div class="chart-area" style="margin-top:16px;grid-template-columns:1fr">
+      <div class="chart-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+          <div class="chart-title" style="margin-bottom:0">📆 本月成交件數 vs 目標</div>
+        </div>
+        <canvas id="dealsMonthChart"></canvas>
+      </div>
     </div>
   </div>
 </div>
@@ -1688,9 +1788,9 @@ function initGoogleMaps() {
           <input class="fc" type="number" id="deal-fee" placeholder="%" step="0.1" min="0" max="100" oninput="calcDealProfit()">
         </div>
         <div class="fgp" style="grid-column:1/-1">
-          <label class="lbl">業績獎勵分成（%）<span class="req">*</span></label>
-          <input class="fc" type="number" id="deal-bonus" placeholder="%" step="0.1" min="0" max="100" oninput="calcDealProfit()">
-          <div style="font-size:10px;color:var(--tx3);margin-top:3px">自動帶入委託時填寫的數值，可修改</div>
+          <label class="lbl" style="color:var(--tx3)">業績獎勵分成（%）</label>
+          <input class="fc" type="number" id="deal-bonus" readonly style="background:var(--bg);color:var(--tx2);cursor:default">
+          <div style="font-size:10px;color:var(--tx3);margin-top:3px">自動帶入委託設定的分成比例</div>
         </div>
         <div class="fgp" style="grid-column:1/-1">
           <label class="lbl" style="color:var(--acc);font-weight:700">房仲可得業績（萬）</label>
@@ -2877,9 +2977,11 @@ async function saveMonthGoal(){
   const month = document.getElementById('goal-month-month').value;
   const key   = monthGoalKey(year, month);
   const g = {
-    excl: document.getElementById('goal-month-excl').value,
-    gen:  document.getElementById('goal-month-gen').value,
-    comm: document.getElementById('goal-month-comm').value,
+    excl:   document.getElementById('goal-month-excl').value,
+    gen:    document.getElementById('goal-month-gen').value,
+    comm:   document.getElementById('goal-month-comm').value,
+    profit: document.getElementById('goal-month-profit').value,
+    deals:  document.getElementById('goal-month-deals').value,
   };
   const ref = window._firebaseGoalsRef(user.uid);
   window._firebaseSetDoc(ref, {[key]: g}, {merge: true}).catch(e=>console.error(e));
@@ -2896,9 +2998,11 @@ async function loadMonthGoal(){
   try{
     const snap = await window._firebaseGetDoc(window._firebaseGoalsRef(user.uid));
     const g = snap.exists() ? (snap.data()[key] || {}) : {};
-    document.getElementById('goal-month-excl').value = g.excl || '';
-    document.getElementById('goal-month-gen').value  = g.gen  || '';
-    document.getElementById('goal-month-comm').value = g.comm || '';
+    document.getElementById('goal-month-excl').value   = g.excl   || '';
+    document.getElementById('goal-month-gen').value    = g.gen    || '';
+    document.getElementById('goal-month-comm').value   = g.comm   || '';
+    document.getElementById('goal-month-profit').value = g.profit || '';
+    document.getElementById('goal-month-deals').value  = g.deals  || '';
     syncGoalTotal('month');
   }catch(e){ console.error(e); }
   renderStats();
@@ -2909,13 +3013,41 @@ function saveGoals(){
   const user = window._currentUser;
   if(!user) return;
   const g = {
-    yearComm: document.getElementById('goal-year-comm').value,
-    yearExcl: document.getElementById('goal-year-excl').value,
-    yearGen:  document.getElementById('goal-year-gen').value,
+    yearComm:   document.getElementById('goal-year-comm').value,
+    yearExcl:   document.getElementById('goal-year-excl').value,
+    yearGen:    document.getElementById('goal-year-gen').value,
+    yearProfit: document.getElementById('goal-year-profit').value,
+    yearDeals:  document.getElementById('goal-year-deals').value,
   };
   window._firebaseSetDoc(window._firebaseGoalsRef(user.uid), g, {merge: true}).catch(e=>console.error(e));
 }
 function loadGoals(){ /* 由 loadFromFirestore 處理 */ }
+
+
+// ── 首頁分頁切換 ──
+let _currentStatsTab = 'commission';
+function switchStatsTab(tab){
+  _currentStatsTab = tab;
+  ['commission','profit'].forEach(t => {
+    document.getElementById('stab-'+t+'-btn').classList.toggle('active', t===tab);
+    document.getElementById('stats-pane-'+t).style.display = t===tab ? '' : 'none';
+  });
+  renderStats();
+}
+
+// ── KPI 卡片產生器 ──
+function kpiCard(label, val, unit, goalVal, color){
+  const rate = goalVal > 0 ? Math.round(val / goalVal * 100) : null;
+  const rateClass = rate === null ? 'na' : rate >= 100 ? 'ok' : rate >= 70 ? 'warn' : 'warn';
+  const rateText  = rate === null ? '未設目標' : rate + '%';
+  const goal = goalVal > 0 ? `目標 ${goalVal}${unit}` : '未設目標';
+  return `<div class="kpi-card" style="--kpi-color:${color}">
+    <div class="kpi-label">${label}</div>
+    <div class="kpi-val">${val}<span style="font-size:14px;font-weight:500;color:var(--tx3)">${unit}</span></div>
+    <div class="kpi-sub">${goal}</div>
+    <span class="kpi-rate ${rateClass}">${rateText}</span>
+  </div>`;
+}
 
 let pieChartInst=null, barChartInst=null, goalYearChartInst=null, goalMonthChartInst=null, trendChartInst=null;
 
@@ -2933,14 +3065,22 @@ function initStatsYears(){
   if(!years.includes(curYear))years.unshift(curYear);
   const curVal=sel.value;
   const trendVal=trendSel?trendSel.value:'';
-  sel.innerHTML=years.map(y=>`<option value="${y}">${y}年</option>`).join('');
-  if(trendSel) trendSel.innerHTML=years.map(y=>`<option value="${y}">${y}年</option>`).join('');
+  const yrHtml=years.map(y=>`<option value="${y}">${y}年</option>`).join('');
+  sel.innerHTML=yrHtml;
+  if(trendSel) trendSel.innerHTML=yrHtml;
+  ['profit-trend-year','deals-trend-year','profit-month-year-sel'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){el.innerHTML=yrHtml;el.value=curYear;}
+  });
   if(curVal&&years.includes(curVal))sel.value=curVal;
   else sel.value=curYear;
   if(trendSel){
     if(trendVal&&years.includes(trendVal))trendSel.value=trendVal;
     else trendSel.value=curYear;
   }
+  // 初始化月份選單
+  const pmSel=document.getElementById('profit-month-sel');
+  if(pmSel&&!pmSel.value){pmSel.value=new Date().getMonth()+1;}
 }
 
 function getDateField(pool, r){
@@ -3257,6 +3397,47 @@ function renderStats(){
 
   // ── 全年曲線圖 ──
   renderTrendChart();
+
+  // ── KPI 儀表板：委託成效 ──
+  const now2=new Date();
+  const curYear2=now2.getFullYear().toString();
+  const curMonth2=now2.getMonth()+1;
+  const gYearCommKPI=parseInt(document.getElementById('goal-year-comm').value)||0;
+  const ayCommKPI=db.commission.filter(r=>{const d=getDateField('commission',r);return d&&d.slice(0,4)===curYear2;}).length;
+  const ayExclKPI=db.commission.filter(r=>{const d=getDateField('commission',r);return d&&d.slice(0,4)===curYear2&&r.commType==='exclusive';}).length;
+  const ayGenKPI=db.commission.filter(r=>{const d=getDateField('commission',r);return d&&d.slice(0,4)===curYear2&&r.commType==='general';}).length;
+  const selGoalYear2=parseInt((document.getElementById('goal-month-year')||{}).value)||parseInt(curYear2);
+  const selGoalMonth2=parseInt((document.getElementById('goal-month-month')||{}).value)||curMonth2;
+  const gMonthCommKPI=parseInt(document.getElementById('goal-month-comm').value)||0;
+  const amCommKPI=db.commission.filter(r=>{const d=getDateField('commission',r);return d&&parseInt(d.slice(0,4))===selGoalYear2&&parseInt(d.slice(5,7))===selGoalMonth2;}).length;
+  const kpiCommEl=document.getElementById('kpi-commission');
+  if(kpiCommEl) kpiCommEl.innerHTML=
+    kpiCard('年度委託（件）',ayCommKPI,'件',gYearCommKPI,'#0f519b')+
+    kpiCard('└ 專任委託',ayExclKPI,'件',parseInt(document.getElementById('goal-year-excl').value)||0,'#1a6bbf')+
+    kpiCard('└ 一般委託',ayGenKPI,'件',parseInt(document.getElementById('goal-year-gen').value)||0,'#4a90d9')+
+    kpiCard(`${selGoalYear2}年${selGoalMonth2}月委託`,amCommKPI,'件',gMonthCommKPI,'#1a7a4a');
+
+  // ── KPI 儀表板：業績成效 ──
+  const gYearProfit=parseFloat(document.getElementById('goal-year-profit').value)||0;
+  const gYearDeals=parseInt(document.getElementById('goal-year-deals').value)||0;
+  const gMonthProfit=parseFloat(document.getElementById('goal-month-profit').value)||0;
+  const gMonthDeals=parseInt(document.getElementById('goal-month-deals').value)||0;
+  if(!db.closed) db.closed=[];
+  const ayDeals=db.closed.filter(r=>r.closedDate&&r.closedDate.slice(0,4)===curYear2&&r.closedType==='self').length;
+  const ayProfit=db.closed.filter(r=>r.closedDate&&r.closedDate.slice(0,4)===curYear2&&r.closedType==='self')
+    .reduce((s,r)=>s+parseFloat(r.dealProfit||0),0);
+  const amDeals=db.closed.filter(r=>r.closedDate&&parseInt(r.closedDate.slice(0,4))===selGoalYear2&&parseInt(r.closedDate.slice(5,7))===selGoalMonth2&&r.closedType==='self').length;
+  const amProfit=db.closed.filter(r=>r.closedDate&&parseInt(r.closedDate.slice(0,4))===selGoalYear2&&parseInt(r.closedDate.slice(5,7))===selGoalMonth2&&r.closedType==='self')
+    .reduce((s,r)=>s+parseFloat(r.dealProfit||0),0);
+  const kpiProfEl=document.getElementById('kpi-profit');
+  if(kpiProfEl) kpiProfEl.innerHTML=
+    kpiCard('年度業績（萬）',ayProfit.toFixed(1),'萬',gYearProfit,'#1a7a4a')+
+    kpiCard('年度成交件數',ayDeals,'件',gYearDeals,'#0f519b')+
+    kpiCard(`${selGoalYear2}/${selGoalMonth2}月業績`,amProfit.toFixed(1),'萬',gMonthProfit,'#d4a800')+
+    kpiCard(`${selGoalYear2}/${selGoalMonth2}月成交`,amDeals,'件',gMonthDeals,'#1a6bbf');
+
+  // ── 業績/成交圖表（async，在分頁顯示時才渲染）
+  if(_currentStatsTab==='profit') renderProfitCharts();
 }
 
 async function renderTrendChart(){
@@ -3351,6 +3532,121 @@ async function renderTrendChart(){
   });
 }
 
+
+// ══════════════════════════════════════════════════════
+// ── 業績成效圖表 ──
+// ══════════════════════════════════════════════════════
+let profitTrendChartInst=null, profitMonthChartInst=null;
+let dealsTrendChartInst=null, dealsMonthChartInst=null;
+
+async function renderProfitCharts(){
+  if(!db.closed) db.closed=[];
+  const isDark=document.documentElement.dataset.theme==='dark';
+  const gridColor=isDark?'rgba(255,255,255,.08)':'rgba(0,0,0,.07)';
+  const labels=['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+  const user=window._currentUser;
+
+  // 讀取目標
+  let goalsData={};
+  if(user){
+    try{
+      const snap=await window._firebaseGetDoc(window._firebaseGoalsRef(user.uid));
+      if(snap.exists()) goalsData=snap.data();
+    }catch(e){}
+  }
+
+  // 年份選單
+  const profitYear=(document.getElementById('profit-trend-year')||{}).value||new Date().getFullYear().toString();
+  const dealsYear=(document.getElementById('deals-trend-year')||{}).value||profitYear;
+  const profitMonthYear=parseInt((document.getElementById('profit-month-year-sel')||{}).value)||new Date().getFullYear();
+  const profitMonthM=parseInt((document.getElementById('profit-month-sel')||{}).value)||(new Date().getMonth()+1);
+
+  function makeLineChart(canvasId, inst, actualData, goalData, label, color, unit){
+    if(inst) inst.destroy();
+    const ctx=document.getElementById(canvasId);
+    if(!ctx) return null;
+    return new Chart(ctx.getContext('2d'),{
+      type:'line',
+      data:{
+        labels,
+        datasets:[
+          {label:'實際'+label,data:actualData,borderColor:color,backgroundColor:color+'22',borderWidth:2.5,pointRadius:5,pointBackgroundColor:color,fill:true,tension:0.35},
+          {label:'目標',data:goalData,borderColor:'#fece26',backgroundColor:'rgba(254,206,38,.08)',borderWidth:2.5,borderDash:[6,4],pointRadius:4,pointBackgroundColor:'#fece26',fill:false,tension:0.35}
+        ]
+      },
+      options:{
+        responsive:true,
+        plugins:{
+          legend:{position:'top',labels:{padding:14,font:{size:12}}},
+          tooltip:{callbacks:{afterLabel:(ctx)=>{if(ctx.datasetIndex===0){const g=goalData[ctx.dataIndex];if(g>0)return `達成率：${Math.round(ctx.raw/g*100)}%`;}return '';}}}
+        },
+        scales:{
+          x:{grid:{color:gridColor},ticks:{font:{size:12}}},
+          y:{beginAtZero:true,grid:{color:gridColor},ticks:{callback:v=>v+unit}}
+        }
+      }
+    });
+  }
+
+  // ── 全年業績曲線 ──
+  const profitActual=Array.from({length:12},(_,i)=>{
+    const m=i+1;
+    return db.closed.filter(r=>r.closedDate&&r.closedDate.slice(0,4)===profitYear&&parseInt(r.closedDate.slice(5,7))===m&&r.closedType==='self')
+      .reduce((s,r)=>s+parseFloat(r.dealProfit||0),0);
+  }).map(v=>parseFloat(v.toFixed(2)));
+  const profitGoalYear=Array.from({length:12},(_,i)=>{
+    const key=monthGoalKey(profitYear,i+1);
+    return parseFloat((goalsData[key]||{}).profit||0);
+  });
+  profitTrendChartInst=makeLineChart('profitTrendChart',profitTrendChartInst,profitActual,profitGoalYear,'業績','#1a7a4a','萬');
+
+  // ── 月業績 bar ──
+  const selfClosed=db.closed.filter(r=>r.closedDate&&parseInt(r.closedDate.slice(0,4))===profitMonthYear&&parseInt(r.closedDate.slice(5,7))===profitMonthM&&r.closedType==='self');
+  const amProfitAct=parseFloat(selfClosed.reduce((s,r)=>s+parseFloat(r.dealProfit||0),0).toFixed(2));
+  const pmKey=monthGoalKey(profitMonthYear,profitMonthM);
+  const amProfitGoal=parseFloat((goalsData[pmKey]||{}).profit||0);
+  if(profitMonthChartInst){profitMonthChartInst.destroy();profitMonthChartInst=null;}
+  const pmCtx=document.getElementById('profitMonthChart');
+  if(pmCtx){
+    profitMonthChartInst=new Chart(pmCtx.getContext('2d'),{
+      type:'bar',
+      data:{labels:[`${profitMonthYear}年${profitMonthM}月`],datasets:[
+        {label:'實際業績（萬）',data:[amProfitAct],backgroundColor:'rgba(26,122,74,.75)',borderColor:'#1a7a4a',borderWidth:1.5,borderRadius:8},
+        {label:'目標（萬）',data:[amProfitGoal],backgroundColor:'rgba(254,206,38,.25)',borderColor:'#d4a800',borderWidth:2,borderRadius:8,borderDash:[]}
+      ]},
+      options:{responsive:true,plugins:{legend:{position:'top'},tooltip:{callbacks:{afterLabel:(ctx)=>{if(ctx.datasetIndex===0&&amProfitGoal>0)return `達成率：${Math.round(amProfitAct/amProfitGoal*100)}%`;return '';}}}},
+        scales:{x:{grid:{color:gridColor}},y:{beginAtZero:true,grid:{color:gridColor},ticks:{callback:v=>v+'萬'}}}}
+    });
+  }
+
+  // ── 全年成交件數曲線 ──
+  const dealsActual=Array.from({length:12},(_,i)=>{
+    const m=i+1;
+    return db.closed.filter(r=>r.closedDate&&r.closedDate.slice(0,4)===dealsYear&&parseInt(r.closedDate.slice(5,7))===m&&r.closedType==='self').length;
+  });
+  const dealsGoalYear=Array.from({length:12},(_,i)=>{
+    const key=monthGoalKey(dealsYear,i+1);
+    return parseInt((goalsData[key]||{}).deals||0);
+  });
+  dealsTrendChartInst=makeLineChart('dealsTrendChart',dealsTrendChartInst,dealsActual,dealsGoalYear,'成交','#0f519b','件');
+
+  // ── 月成交件數 bar ──
+  const amDealsAct=db.closed.filter(r=>r.closedDate&&parseInt(r.closedDate.slice(0,4))===profitMonthYear&&parseInt(r.closedDate.slice(5,7))===profitMonthM&&r.closedType==='self').length;
+  const amDealsGoal=parseInt((goalsData[pmKey]||{}).deals||0);
+  if(dealsMonthChartInst){dealsMonthChartInst.destroy();dealsMonthChartInst=null;}
+  const dmCtx=document.getElementById('dealsMonthChart');
+  if(dmCtx){
+    dealsMonthChartInst=new Chart(dmCtx.getContext('2d'),{
+      type:'bar',
+      data:{labels:[`${profitMonthYear}年${profitMonthM}月`],datasets:[
+        {label:'實際成交（件）',data:[amDealsAct],backgroundColor:'rgba(15,81,155,.75)',borderColor:'#0f519b',borderWidth:1.5,borderRadius:8},
+        {label:'目標（件）',data:[amDealsGoal],backgroundColor:'rgba(254,206,38,.25)',borderColor:'#d4a800',borderWidth:2,borderRadius:8}
+      ]},
+      options:{responsive:true,plugins:{legend:{position:'top'},tooltip:{callbacks:{afterLabel:(ctx)=>{if(ctx.datasetIndex===0&&amDealsGoal>0)return `達成率：${Math.round(amDealsAct/amDealsGoal*100)}%`;return '';}}}},
+        scales:{x:{grid:{color:gridColor}},y:{beginAtZero:true,grid:{color:gridColor},ticks:{stepSize:1,precision:0}}}}
+    });
+  }
+}
 // ══════════════════════════════════════════
 // 📍 行程規劃模組
 // ══════════════════════════════════════════
@@ -4025,8 +4321,10 @@ async function loadFromFirestore(uid){
     if(gsnap.exists()){
       const g = gsnap.data();
       // 年度目標
-      if(g.yearExcl) document.getElementById('goal-year-excl').value = g.yearExcl;
-      if(g.yearGen)  document.getElementById('goal-year-gen').value  = g.yearGen;
+      if(g.yearExcl)   document.getElementById('goal-year-excl').value   = g.yearExcl;
+      if(g.yearGen)    document.getElementById('goal-year-gen').value    = g.yearGen;
+      if(g.yearProfit) document.getElementById('goal-year-profit').value = g.yearProfit;
+      if(g.yearDeals)  document.getElementById('goal-year-deals').value  = g.yearDeals;
       syncGoalTotal('year');
       // 本月目標
       const now = new Date();
