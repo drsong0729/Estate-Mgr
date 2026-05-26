@@ -1162,6 +1162,9 @@ function initGoogleMaps() {
     <button class="drawer-nav" id="dnav-trip" onclick="switchPage('trip');toggleDrawer()">
       <span>📍</span> 行程規劃
     </button>
+    <button class="drawer-nav" id="dnav-closed" onclick="switchPage('closed');toggleDrawer()">
+      <span>🏁</span> 已結案 <span class="dnbadge" id="db-closed">0</span>
+    </button>
   </div>
   <!-- 工具 -->
   <div style="padding:10px;flex:1;overflow-y:auto">
@@ -1411,6 +1414,21 @@ function initGoogleMaps() {
     </div>
   </div>
 </div>
+<!-- PAGE: 已結案 -->
+<div class="page" id="page-closed">
+  <div class="ph">
+    <div style="font-size:13px;color:var(--tx2)">🏁 成交與結案紀錄</div>
+  </div>
+  <div class="stats" id="stats-closed"></div>
+  <div class="search-bar" id="search-closed">
+    <div class="search-quick">
+      <input class="fc" id="sq-closed-name" placeholder="🔍 搜尋屋主姓氏 / 建案名稱..." oninput="renderClosed()">
+      <button class="btn-clear" onclick="clearClosedSearch()">✕ 清除</button>
+    </div>
+  </div>
+  <div id="closed-detail" style="margin-bottom:16px"></div>
+  <div id="closed-list-c"></div>
+</div>
 <!-- PAGE: 行程規劃 -->
 <div class="page" id="page-trip">
   <div class="ph">
@@ -1597,6 +1615,8 @@ function initGoogleMaps() {
           <input class="fc" type="date" id="c-start"></div>
         <div class="fgp"><label class="lbl">終止日<span class="req">*</span></label>
           <input class="fc" type="date" id="c-end"></div>
+        <div class="fgp"><label class="lbl">公司業績獎勵分成（%）</label>
+          <input class="fc" type="number" id="c-company-bonus" placeholder="%" step="0.1" min="0" max="100"></div>
       </div>
     </div>
   </div>
@@ -1627,12 +1647,78 @@ function initGoogleMaps() {
           <input class="fc" type="date" id="ec-start"></div>
         <div class="fgp"><label class="lbl">終止日</label>
           <input class="fc" type="date" id="ec-end"></div>
+        <div class="fgp"><label class="lbl">公司業績獎勵分成（%）</label>
+          <input class="fc" type="number" id="ec-company-bonus" step="0.1" min="0" max="100"></div>
       </div>
     </div>
   </div>
   <div class="mf">
     <button class="btn btn-g" onclick="closeOv('editcomm')">取消</button>
     <button class="btn btn-p" onclick="saveCommEdit()">儲存</button>
+  </div>
+</div></div>
+
+<!-- MODAL: 成交 -->
+<div class="ov" id="ov-deal">
+<div class="modal modal-md">
+  <div class="mh"><div class="mt">🏆 成交</div><button class="mc" onclick="closeOv('deal')">✕</button></div>
+  <div class="mb">
+    <div id="deal-info" style="margin-bottom:12px"></div>
+    <div class="fsec">
+      <div class="fsec-t">成交方式</div>
+      <div class="rrow-wrap">
+        <label class="rrow"><input type="radio" name="deal-type" value="self" checked onchange="toggleDealType()"><span>自己成交</span></label>
+        <label class="rrow"><input type="radio" name="deal-type" value="other" onchange="toggleDealType()"><span>其他仲介成交</span></label>
+      </div>
+    </div>
+    <!-- 自己成交區 -->
+    <div id="deal-self-section" class="fsec">
+      <div class="fsec-t">成交資訊（必填）</div>
+      <div class="fg fg3">
+        <div class="fgp">
+          <label class="lbl">成交總價（萬）<span class="req">*</span></label>
+          <input class="fc" type="number" id="deal-total" placeholder="萬" step="0.1" min="0" oninput="calcDealUnit();calcDealProfit()">
+        </div>
+        <div class="fgp">
+          <label class="lbl">成交單價（萬/坪）</label>
+          <input class="fc" id="deal-unit" readonly placeholder="自動計算">
+        </div>
+        <div class="fgp">
+          <label class="lbl">最終服務費（%）<span class="req">*</span></label>
+          <input class="fc" type="number" id="deal-fee" placeholder="%" step="0.1" min="0" max="100" oninput="calcDealProfit()">
+        </div>
+        <div class="fgp" style="grid-column:1/-1">
+          <label class="lbl">業績獎勵分成（%）<span class="req">*</span></label>
+          <input class="fc" type="number" id="deal-bonus" placeholder="%" step="0.1" min="0" max="100" oninput="calcDealProfit()">
+          <div style="font-size:10px;color:var(--tx3);margin-top:3px">自動帶入委託時填寫的數值，可修改</div>
+        </div>
+        <div class="fgp" style="grid-column:1/-1">
+          <label class="lbl" style="color:var(--acc);font-weight:700">房仲可得業績（萬）</label>
+          <input class="fc" id="deal-profit" readonly style="background:var(--accl);color:var(--acc);font-weight:700;font-size:15px">
+          <div style="font-size:10px;color:var(--tx3);margin-top:3px">= 成交總價 × 服務費% × 業績獎勵分成%</div>
+        </div>
+      </div>
+    </div>
+    <!-- 其他仲介成交區 -->
+    <div id="deal-other-section" class="fsec" style="display:none">
+      <div class="fsec-t">成交資訊（選填）</div>
+      <div class="fg fg3">
+        <div class="fgp">
+          <label class="lbl">成交總價（萬）</label>
+          <input class="fc" type="number" id="deal-other-total" placeholder="萬（可不填）" step="0.1" min="0" oninput="calcDealOtherUnit()">
+          <label class="rrow" style="margin-top:5px"><input type="checkbox" id="deal-other-unknown" onchange="toggleDealOtherUnknown()"><span style="font-size:12px">成交價未知</span></label>
+        </div>
+        <div class="fgp">
+          <label class="lbl">成交單價（萬/坪）</label>
+          <input class="fc" id="deal-other-unit" readonly placeholder="自動計算">
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="mf">
+    <button class="btn btn-g" onclick="closeOv('deal')">取消</button>
+    <button class="btn btn-p" id="deal-self-btn" onclick="confirmDealSelf()">列入成交！</button>
+    <button class="btn btn-p" id="deal-other-btn" style="display:none" onclick="confirmDealOther()">結案</button>
   </div>
 </div></div>
 
@@ -1704,7 +1790,7 @@ const CITIES={"基隆市":["仁愛區","信義區","中正區","中山區","安�
 let db={recruit:[],track:[],commission:[]};
 let editId=null,pendingId=null,editCommId=null;
 let currentPage='recruit',currentSubTab='general',currentView='desktop';
-let openDetailId={recruit:null,track:null,commission:null};
+let openDetailId={recruit:null,track:null,commission:null,closed:null};
 let progPages={};  // id -> page number
 
 // ── 排序狀態 ──
@@ -1757,6 +1843,7 @@ function save(){
     recruit: db.recruit,
     track: db.track,
     commission: db.commission,
+    closed: db.closed || [],
     updatedAt: new Date().toISOString()
   }).then(()=>{
     setSyncStatus('☁ 已同步','var(--grn)');
@@ -1854,7 +1941,7 @@ function toggleFilter(pool){
 }
 
 // ── 頁面切換 ──
-const PAGE_TITLES={'recruit':'募集線','track':'追蹤線','commission':'委託管理','stats':'首頁','trip':'行程規劃'};
+const PAGE_TITLES={'recruit':'募集線','track':'追蹤線','commission':'委託管理','stats':'首頁','trip':'行程規劃','closed':'已結案'};
 function switchPage(p){
   currentPage=p;
   document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));
@@ -1866,6 +1953,7 @@ function switchPage(p){
   const tb=document.getElementById('topbar-title');
   if(tb)tb.textContent=PAGE_TITLES[p]||'';
   if(p==='stats'){initStatsYears();renderDailyQuote();renderStats();}
+  else if(p==='closed'){renderClosed();}
   else if(p==='trip'){tripInitHCitySelect();renderTripList();renderTripSelected();updateMapsBtn();}
   else renderAll();
 }
@@ -2100,9 +2188,10 @@ function confirmToComm(){
   const start=document.getElementById('c-start').value;
   const end=document.getElementById('c-end').value;
   const ctype=document.querySelector('input[name="ctype"]:checked').value;
+  const bonus=document.getElementById('c-company-bonus').value;
   if(!fee||!start||!end){alert('請填寫服務費、起始日、終止日');return;}
   const r=db.track.find(x=>x.id===pendingId);
-  if(r){r.commDate=nowDate();r.commFee=fee;r.commStart=start;r.commEnd=end;r.commType=ctype;
+  if(r){r.commDate=nowDate();r.commFee=fee;r.commStart=start;r.commEnd=end;r.commType=ctype;r.companyBonus=bonus;
     db.commission.push({...r});db.track=db.track.filter(x=>x.id!==pendingId);}
   save();renderAll();closeOv('tocomm');checkNotifs();
 }
@@ -2114,7 +2203,7 @@ function openEditComm(id){
   document.getElementById('ec-fee').value=r.commFee||'';
   document.getElementById('ec-start').value=r.commStart||'';
   document.getElementById('ec-end').value=r.commEnd||'';
-  // set commission type radio
+  document.getElementById('ec-company-bonus').value=r.companyBonus||'';
   document.querySelectorAll('input[name="ectype"]').forEach(rb=>{
     rb.checked=(rb.value===(r.commType||'general'));
   });
@@ -2128,6 +2217,7 @@ function saveCommEdit(){
     r.commEnd=document.getElementById('ec-end').value;
     const ectypeEl=document.querySelector('input[name="ectype"]:checked');
     if(ectypeEl)r.commType=ectypeEl.value;
+    r.companyBonus=document.getElementById('ec-company-bonus').value;
   }
   save();renderAll();closeOv('editcomm');checkNotifs();
 }
@@ -2242,8 +2332,8 @@ function renderDetailPanel(pool,id){
         ${pool==='recruit'?`<button class="btn btn-sm btn-edit" onclick="event.stopPropagation();openRecruitModal('${id}','${pool}')">✏️ 編輯</button>
         <button class="btn btn-sm btn-track" onclick="event.stopPropagation();openToTrack('${id}')">→ 追蹤線</button>`:
         `<button class="btn btn-sm btn-edit" onclick="event.stopPropagation();openRecruitModal('${id}','${pool}')">✏️ 編輯</button>
-        <button class="btn btn-sm btn-comm" onclick="event.stopPropagation();openToComm('${id}')">→ 委託</button>`}
-        <button class="btn btn-sm btn-del" onclick="delItem('${pool}','${id}',event)">🗑</button>
+        <button class="btn btn-sm btn-comm" onclick="event.stopPropagation();openDeal('${id}')">🏆 成交</button>`}
+        <button class="btn btn-sm btn-del" onclick="delItem('${pool}','${id}',event)">🗑 刪除</button>
         <button class="btn btn-sm btn-g" onclick="toggleDetail('${pool}','${id}')">✕ 收起</button>
       </div>
     </div>
@@ -2265,6 +2355,7 @@ function renderDetailPanel(pool,id){
         ${pool==='commission'?`
         <div class="dp-field"><div class="k">委託類型</div><div class="v" style="font-weight:700;color:var(--acc)">${r.commType==='exclusive'?'專任委託':'一般委託'}</div></div>
         <div class="dp-field"><div class="k">服務費</div><div class="v">${r.commFee||'—'}%</div></div>
+        <div class="dp-field"><div class="k">業績獎勵分成</div><div class="v">${r.companyBonus?r.companyBonus+'%':'—'}</div></div>
         <div class="dp-field"><div class="k">委託起始</div><div class="v">${r.commStart||'—'}</div></div>
         <div class="dp-field"><div class="k">委託終止</div><div class="v">${r.commEnd||'—'}</div></div>
         <div class="dp-field"><div class="k">狀態</div><div class="v">${expiryTag(r.commEnd)}</div></div>
@@ -2468,7 +2559,7 @@ function renderCommission(){
       <td><div style="display:flex;gap:4px;flex-wrap:wrap">
         <button class="btn btn-sm btn-edit" onclick="openEditComm('${r.id}')">✏️ 編輯</button>
         <button class="btn btn-sm" style="background:var(--grnl);color:var(--grn);border:1px solid var(--grn)" onclick="openRenewComm('${r.id}')">🔄 續約</button>
-        <button class="btn btn-sm btn-del" onclick="delItem('commission','${r.id}',event)">🗑</button>
+        <button class="btn btn-sm btn-del" onclick="delItem('commission','${r.id}',event)">🗑 刪除</button>
       </div></td>
     </tr>`).join('');
   }
@@ -2485,7 +2576,7 @@ function renderCommission(){
       <div class="card-actions">
         <button class="btn btn-sm btn-edit" onclick="openEditComm('${r.id}')">✏️ 編輯</button>
         <button class="btn btn-sm" style="background:var(--grnl);color:var(--grn);border:1px solid var(--grn)" onclick="openRenewComm('${r.id}')">🔄 續約</button>
-        <button class="btn btn-sm btn-del" onclick="delItem('commission','${r.id}',event)">🗑</button>
+        <button class="btn btn-sm btn-del" onclick="delItem('commission','${r.id}',event)">🗑 刪除</button>
       </div>
     </div>`).join('')}</div>`;
   }
@@ -2531,7 +2622,8 @@ function renderAll(){
   currentPageMap.commission_general=1;
   currentPageMap.commission_exclusive=1;
   currentPageMap.trip=1;
-  renderRecruit();renderTrack();renderCommission();
+  currentPageMap.closed=1;
+  renderClosed();renderRecruit();renderTrack();renderCommission();
 }
 
 // ── 委託續約 ──
@@ -3792,7 +3884,7 @@ function openGoogleMaps() {
 // ══════════════════════════════════════════════════════
 // ── 分頁系統 ──
 const PAGE_SIZE = 10;
-const currentPageMap = { recruit:1, track:1, commission_general:1, commission_exclusive:1, trip:1 };
+const currentPageMap = { recruit:1, track:1, commission_general:1, commission_exclusive:1, trip:1, closed:1 };
 
 function paginate(items, page){
   const total = items.length;
@@ -3837,6 +3929,7 @@ function pagerHTML(key, page, totalPages, total){
 function goPage(key, page){
   currentPageMap[key] = page;
   if(key==='recruit') renderRecruit();
+  else if(key==='closed') renderClosed();
   else if(key==='track') renderTrack();
   else if(key==='commission_general'||key==='commission_exclusive') renderCommission();
   else if(key==='trip') renderTripList();
@@ -3926,6 +4019,7 @@ async function loadFromFirestore(uid){
       db.recruit    = data.recruit    || [];
       db.track      = data.track      || [];
       db.commission = data.commission || [];
+      db.closed      = data.closed      || [];
     }
     const gsnap = await window._firebaseGetDoc(window._firebaseGoalsRef(uid));
     if(gsnap.exists()){
@@ -3968,7 +4062,7 @@ async function handleSignOut(){
   if(!confirm('確定要登出嗎？')) return;
   clearTimeout(window._idleTimer);
   await window._firebaseSignOut();
-  db = {recruit:[], track:[], commission:[]};
+  db = {recruit:[], track:[], commission:[], closed:[]};
   location.reload();
 }
 
@@ -4015,7 +4109,7 @@ function resetIdleTimer(){
   _idleTimer = setTimeout(async ()=>{
     alert('⏰ 您已閒置超過 10 分鐘，系統將自動登出。');
     await window._firebaseSignOut();
-    db = {recruit:[], track:[], commission:[]};
+    db = {recruit:[], track:[], commission:[], closed:[]};
     location.reload();
   }, IDLE_MS);
 }
@@ -4024,6 +4118,266 @@ function startAutoLogout(){
     document.addEventListener(evt, resetIdleTimer, {passive:true});
   });
   resetIdleTimer();
+}
+
+
+
+// ══════════════════════════════════════════════════════
+// ── 成交功能 ──
+// ══════════════════════════════════════════════════════
+let _dealId = null;
+
+function openDeal(id){
+  _dealId = id;
+  const r = db.commission.find(x => x.id === id);
+  if(!r) return;
+  document.getElementById('deal-info').innerHTML = infoBox(r);
+  // 重設欄位
+  document.getElementById('deal-total').value = '';
+  document.getElementById('deal-unit').value  = '';
+  document.getElementById('deal-fee').value   = r.commFee || '';
+  document.getElementById('deal-bonus').value = r.companyBonus || '';
+  document.getElementById('deal-profit').value = '';
+  document.getElementById('deal-other-total').value = '';
+  document.getElementById('deal-other-unit').value  = '';
+  document.getElementById('deal-other-unknown').checked = false;
+  document.getElementById('deal-other-total').disabled = false;
+  // 預設自己成交
+  document.querySelector('input[name="deal-type"][value="self"]').checked = true;
+  toggleDealType();
+  openOv('deal');
+}
+
+function toggleDealType(){
+  const isSelf = document.querySelector('input[name="deal-type"]:checked').value === 'self';
+  document.getElementById('deal-self-section').style.display = isSelf ? '' : 'none';
+  document.getElementById('deal-other-section').style.display = isSelf ? 'none' : '';
+  document.getElementById('deal-self-btn').style.display  = isSelf ? '' : 'none';
+  document.getElementById('deal-other-btn').style.display = isSelf ? 'none' : '';
+}
+
+function calcDealUnit(){
+  const r = db.commission.find(x => x.id === _dealId);
+  const total = parseFloat(document.getElementById('deal-total').value);
+  const area  = r ? parseFloat(r.area) : 0;
+  if(total > 0 && area > 0){
+    document.getElementById('deal-unit').value = (total / area).toFixed(2);
+  } else {
+    document.getElementById('deal-unit').value = '';
+  }
+}
+
+function calcDealProfit(){
+  const total = parseFloat(document.getElementById('deal-total').value) || 0;
+  const fee   = parseFloat(document.getElementById('deal-fee').value)   || 0;
+  const bonus = parseFloat(document.getElementById('deal-bonus').value) || 0;
+  if(total > 0 && fee > 0 && bonus > 0){
+    const profit = total * (fee / 100) * (bonus / 100);
+    document.getElementById('deal-profit').value = profit.toFixed(2);
+  } else {
+    document.getElementById('deal-profit').value = '';
+  }
+}
+
+function calcDealOtherUnit(){
+  const r = db.commission.find(x => x.id === _dealId);
+  const total = parseFloat(document.getElementById('deal-other-total').value);
+  const area  = r ? parseFloat(r.area) : 0;
+  if(total > 0 && area > 0){
+    document.getElementById('deal-other-unit').value = (total / area).toFixed(2);
+  } else {
+    document.getElementById('deal-other-unit').value = '';
+  }
+}
+
+function toggleDealOtherUnknown(){
+  const unknown = document.getElementById('deal-other-unknown').checked;
+  document.getElementById('deal-other-total').disabled = unknown;
+  document.getElementById('deal-other-unit').value = '';
+  if(unknown) document.getElementById('deal-other-total').value = '';
+}
+
+function confirmDealSelf(){
+  const total  = document.getElementById('deal-total').value;
+  const fee    = document.getElementById('deal-fee').value;
+  const bonus  = document.getElementById('deal-bonus').value;
+  const profit = document.getElementById('deal-profit').value;
+  if(!total || !fee || !bonus){
+    alert('請填寫成交總價、最終服務費及業績獎勵分成');
+    return;
+  }
+  const r = db.commission.find(x => x.id === _dealId);
+  if(r){
+    const closed = {
+      ...r,
+      closedDate: nowDate(),
+      closedType: 'self',
+      dealTotal:  total,
+      dealUnit:   document.getElementById('deal-unit').value,
+      dealFee:    fee,
+      dealBonus:  bonus,
+      dealProfit: profit,
+    };
+    if(!db.closed) db.closed = [];
+    db.closed.push(closed);
+    db.commission = db.commission.filter(x => x.id !== _dealId);
+  }
+  save(); renderAll(); closeOv('deal'); checkNotifs();
+  setTimeout(() => alert('🎉 恭喜成交！！努力是值得的！'), 100);
+}
+
+function confirmDealOther(){
+  const r = db.commission.find(x => x.id === _dealId);
+  const unknown = document.getElementById('deal-other-unknown').checked;
+  const total   = unknown ? '' : document.getElementById('deal-other-total').value;
+  const unit    = unknown ? '' : document.getElementById('deal-other-unit').value;
+  if(r){
+    const closed = {
+      ...r,
+      closedDate:      nowDate(),
+      closedType:      'other',
+      dealTotal:       total,
+      dealUnit:        unit,
+      dealTotalUnknown: unknown,
+    };
+    if(!db.closed) db.closed = [];
+    db.closed.push(closed);
+    db.commission = db.commission.filter(x => x.id !== _dealId);
+  }
+  save(); renderAll(); closeOv('deal'); checkNotifs();
+  setTimeout(() => alert('💪 每次的經驗都是成長的養份，繼續加油別氣餒！'), 100);
+}
+
+// ══════════════════════════════════════════════════════
+// ── 已結案頁面 ──
+// ══════════════════════════════════════════════════════
+function clearClosedSearch(){
+  const el = document.getElementById('sq-closed-name');
+  if(el) el.value = '';
+  renderClosed();
+}
+
+function renderClosed(){
+  if(!db.closed) db.closed = [];
+  const nameKw = (document.getElementById('sq-closed-name')||{value:''}).value.trim().toLowerCase();
+  const list = db.closed.filter(r => {
+    const owners2 = r.owners&&r.owners.length ? r.owners : [{name:r.ownerName||''}];
+    return !nameKw ||
+      owners2.some(o => (o.name||'').toLowerCase().includes(nameKw)) ||
+      (r.bldg||'').toLowerCase().includes(nameKw);
+  });
+
+  // 統計卡
+  const statsEl = document.getElementById('stats-closed');
+  if(statsEl){
+    const selfCount  = list.filter(x => x.closedType === 'self').length;
+    const otherCount = list.filter(x => x.closedType === 'other').length;
+    const totalProfit = list.filter(x => x.closedType === 'self' && x.dealProfit)
+                            .reduce((s,x) => s + parseFloat(x.dealProfit||0), 0);
+    statsEl.innerHTML = `
+      <div class="stat-card"><div class="sc-val">${list.length}</div><div class="sc-lbl">總結案</div></div>
+      <div class="stat-card"><div class="sc-val">${selfCount}</div><div class="sc-lbl">自己成交</div></div>
+      <div class="stat-card"><div class="sc-val">${otherCount}</div><div class="sc-lbl">他人成交</div></div>
+      <div class="stat-card"><div class="sc-val">${totalProfit.toFixed(1)}</div><div class="sc-lbl">累計業績（萬）</div></div>
+    `;
+  }
+
+  // 更新 badge
+  const badge = document.getElementById('db-closed');
+  if(badge) badge.textContent = db.closed.length;
+
+  // 列表
+  const el = document.getElementById('closed-list-c');
+  if(!el) return;
+  if(!list.length){
+    el.innerHTML = `<div style="text-align:center;color:var(--tx3);padding:40px 20px;font-size:14px">📭 尚無結案紀錄</div>`;
+    return;
+  }
+  const { items, page, totalPages, total, start } = paginate(list, currentPageMap['closed']||1);
+  currentPageMap['closed'] = page;
+
+  el.innerHTML = items.map((r,i) => {
+    const isOpen = openDetailId['closed'] === r.id;
+    const typeLabel = r.closedType === 'self' ? '🏆 自己成交' : '📋 他人成交';
+    const typeColor = r.closedType === 'self' ? 'var(--grn)' : 'var(--org)';
+    return `
+    <div class="rec-row ${isOpen?'open':''}" onclick="toggleClosedDetail('${r.id}')">
+      <div class="rec-main">
+        <div class="rec-top">
+          <span class="rec-name">${ownersLabel(r)}</span>
+          <span class="tag" style="background:${typeColor}20;color:${typeColor};border-color:${typeColor}40">${typeLabel}</span>
+        </div>
+        <div class="rec-addr">${escH(fullAddr(r.propCity,r.propDist,r.propAddr))}</div>
+        <div class="rec-meta">
+          ${r.closedDate?`<span>結案日：${r.closedDate}</span>`:''}
+          ${r.closedType==='self'&&r.dealProfit?`<span style="color:var(--grn);font-weight:700">業績：${r.dealProfit}萬</span>`:''}
+          ${r.closedType==='other'&&r.dealTotalUnknown?`<span>成交價：未知</span>`:r.dealTotal?`<span>成交：${r.dealTotal}萬</span>`:''}
+        </div>
+      </div>
+      <div class="rec-actions">
+        <button class="btn btn-sm btn-del" onclick="delClosedItem('${r.id}',event)">🗑 刪除</button>
+      </div>
+    </div>
+    ${isOpen ? renderClosedDetailPanel(r) : ''}
+    `;
+  }).join('');
+
+  const pager = pagerHTML('closed', page, totalPages, total);
+  if(pager) el.innerHTML += pager;
+}
+
+function toggleClosedDetail(id){
+  if(openDetailId['closed'] === id) openDetailId['closed'] = null;
+  else openDetailId['closed'] = id;
+  renderClosed();
+  if(openDetailId['closed']){
+    setTimeout(()=>{
+      const el = document.getElementById('closed-dp-'+id);
+      if(el) el.scrollIntoView({behavior:'smooth',block:'start'});
+    }, 60);
+  }
+}
+
+function renderClosedDetailPanel(r){
+  const typeLabel = r.closedType === 'self' ? '🏆 自己成交' : '📋 他人成交';
+  return `<div class="detail-panel" id="closed-dp-${r.id}">
+    <div class="dp-header">
+      <div class="dp-title">${ownersLabel(r)} — ${escH(fullAddr(r.propCity,r.propDist,r.propAddr))}</div>
+      <div class="dp-actions">
+        <button class="btn btn-sm btn-g" onclick="toggleClosedDetail('${r.id}')">✕ 收起</button>
+      </div>
+    </div>
+    <div class="dp-body">
+      <div class="dp-grid">
+        ${r.bldg?`<div class="dp-field"><div class="k">建案名稱</div><div class="v">${escH(r.bldg)}</div></div>`:''}
+        <div class="dp-field" style="grid-column:1/-1"><div class="k">屋主</div><div class="v">${(r.owners&&r.owners.length?r.owners:[{name:r.ownerName,gender:r.ownerGender}]).map(o=>`<span>${escH(o.name)}${escH(o.gender||'')}</span>`).join('、')}</div></div>
+        <div class="dp-field"><div class="k">物件地址</div><div class="v">${escH(fullAddr(r.propCity,r.propDist,r.propAddr))}</div></div>
+        ${r.propType?`<div class="dp-field"><div class="k">物件類型</div><div class="v">${escH(r.propType)}</div></div>`:''}
+        <div class="dp-field"><div class="k">坪數</div><div class="v">${r.area} 坪</div></div>
+        <div class="dp-field"><div class="k">委託服務費</div><div class="v">${r.commFee||'—'}%</div></div>
+        <div class="dp-field"><div class="k">業績獎勵分成</div><div class="v">${r.companyBonus?r.companyBonus+'%':'—'}</div></div>
+        <div class="dp-field"><div class="k">委託類型</div><div class="v">${r.commType==='exclusive'?'專任委託':'一般委託'}</div></div>
+        <div class="dp-field"><div class="k">結案日期</div><div class="v">${r.closedDate||'—'}</div></div>
+        <div class="dp-field"><div class="k">成交方式</div><div class="v" style="font-weight:700">${typeLabel}</div></div>
+        ${r.closedType==='self'?`
+        <div class="dp-field"><div class="k">成交總價</div><div class="v" style="font-weight:700;color:var(--grn)">${r.dealTotal} 萬</div></div>
+        <div class="dp-field"><div class="k">成交單價</div><div class="v">${r.dealUnit} 萬/坪</div></div>
+        <div class="dp-field"><div class="k">最終服務費</div><div class="v">${r.dealFee}%</div></div>
+        <div class="dp-field"><div class="k" style="color:var(--acc)">房仲業績</div><div class="v" style="font-weight:800;color:var(--acc);font-size:16px">${r.dealProfit} 萬</div></div>
+        `:`
+        <div class="dp-field"><div class="k">成交總價</div><div class="v">${r.dealTotalUnknown?'未知':r.dealTotal?r.dealTotal+' 萬':'—'}</div></div>
+        ${!r.dealTotalUnknown&&r.dealUnit?`<div class="dp-field"><div class="k">成交單價</div><div class="v">${r.dealUnit} 萬/坪</div></div>`:''}
+        `}
+      </div>
+    </div>
+  </div>`;
+}
+
+function delClosedItem(id, e){
+  if(e) e.stopPropagation();
+  if(!confirm('確定刪除此筆結案紀錄？')) return;
+  db.closed = db.closed.filter(x => x.id !== id);
+  save(); renderClosed();
 }
 
 
