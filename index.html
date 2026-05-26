@@ -1715,8 +1715,7 @@ function initGoogleMaps() {
           <input class="fc" type="date" id="c-start"></div>
         <div class="fgp"><label class="lbl">終止日<span class="req">*</span></label>
           <input class="fc" type="date" id="c-end"></div>
-        <div class="fgp"><label class="lbl">公司業績獎勵分成（%）</label>
-          <input class="fc" type="number" id="c-company-bonus" placeholder="%" step="0.1" min="0" max="100"></div>
+
       </div>
     </div>
   </div>
@@ -2288,7 +2287,7 @@ function confirmToComm(){
   const start=document.getElementById('c-start').value;
   const end=document.getElementById('c-end').value;
   const ctype=document.querySelector('input[name="ctype"]:checked').value;
-  const bonus=document.getElementById('c-company-bonus').value;
+  const bonus='';
   if(!fee||!start||!end){alert('請填寫服務費、起始日、終止日');return;}
   const r=db.track.find(x=>x.id===pendingId);
   if(r){r.commDate=nowDate();r.commFee=fee;r.commStart=start;r.commEnd=end;r.commType=ctype;r.companyBonus=bonus;
@@ -2429,10 +2428,12 @@ function renderDetailPanel(pool,id){
     <div class="dp-header">
       <div class="dp-title">${ownersLabel(r)} — ${escH(fullAddr(r.propCity,r.propDist,r.propAddr))}</div>
       <div class="dp-actions">
-        ${pool==='recruit'?`<button class="btn btn-sm btn-edit" onclick="event.stopPropagation();openRecruitModal('${id}','${pool}')">✏️ 編輯</button>
-        <button class="btn btn-sm btn-track" onclick="event.stopPropagation();openToTrack('${id}')">→ 追蹤線</button>`:
-        `<button class="btn btn-sm btn-edit" onclick="event.stopPropagation();openRecruitModal('${id}','${pool}')">✏️ 編輯</button>
-        <button class="btn btn-sm btn-comm" onclick="event.stopPropagation();openDeal('${id}')">🏆 成交</button>`}
+        <button class="btn btn-sm btn-edit" onclick="event.stopPropagation();openRecruitModal('${id}','${pool}')">✏️ 編輯</button>
+        ${pool==='recruit'?
+          `<button class="btn btn-sm btn-track" onclick="event.stopPropagation();openToTrack('${id}')">→ 追蹤線</button>`:
+        pool==='track'?
+          `<button class="btn btn-sm btn-comm" onclick="event.stopPropagation();openToComm('${id}')">→ 委託</button>`:
+          `<button class="btn btn-sm btn-comm" onclick="event.stopPropagation();openDeal('${id}')">🏆 成交</button>`}
         <button class="btn btn-sm btn-del" onclick="delItem('${pool}','${id}',event)">🗑 刪除</button>
         <button class="btn btn-sm btn-g" onclick="toggleDetail('${pool}','${id}')">✕ 收起</button>
       </div>
