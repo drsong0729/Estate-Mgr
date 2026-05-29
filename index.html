@@ -1558,7 +1558,7 @@ function initGoogleMaps() {
 </div>
 
 <!-- PAGE: 管理後台（僅管理者可見） -->
-<div class="page" id="page-admin" style="display:none">
+<div class="page" id="page-admin">
   <div class="admin-topbar">
     <div style="display:flex;align-items:center;gap:10px">
       <span class="admin-badge">🛡 管理者後台</span>
@@ -4157,6 +4157,16 @@ async function loadFromFirestore(uid){
 async function handleSignIn(){
   const btn = document.getElementById('google-signin-btn');
   const errEl = document.getElementById('login-error');
+  // 等待 Firebase module 初始化完成（最多等 5 秒）
+  let waited = 0;
+  while(!window._firebaseSignIn && waited < 5000){
+    await new Promise(r => setTimeout(r, 100));
+    waited += 100;
+  }
+  if(!window._firebaseSignIn){
+    if(errEl){ errEl.style.display='block'; errEl.textContent='系統初始化失敗，請重新整理頁面再試。'; }
+    return;
+  }
   btn.disabled = true; btn.style.opacity = '.6';
   errEl.style.display = 'none';
   try{
@@ -4498,9 +4508,6 @@ let _adminUserCache = {}; // uid -> {recruit, track, commission, closed}
 function _initAdminNav(){
   const btn = document.getElementById('dnav-admin');
   if(btn) btn.style.display = '';
-  const pageEl = document.getElementById('page-admin');
-  if(pageEl) pageEl.style.display = '';
-  // PAGE_TITLES 加入 admin
   PAGE_TITLES['admin'] = '管理後台';
 }
 
