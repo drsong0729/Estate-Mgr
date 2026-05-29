@@ -4691,6 +4691,7 @@ function _renderUserDetailContent(area, u, data){
 }
 
 
+(function(){
   const lpObs = new IntersectionObserver((entries) => {
     entries.forEach(e => { if(e.isIntersecting){ e.target.classList.add('lp-visible'); } });
   }, { threshold: 0.08 });
