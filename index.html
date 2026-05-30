@@ -692,6 +692,15 @@ th.sortable:not(.asc):not(.desc) .sort-icon::after{content:'⇅'}
 .admin-user-detail{background:var(--surf2);border:1px solid var(--bdr);border-radius:var(--r);padding:16px 18px;margin-top:10px;animation:mi .2s ease}
 .admin-user-detail .dp-grid{margin-bottom:0}
 @media(max-width:600px){.admin-summary{grid-template-columns:1fr 1fr}}
+.sup-note-input{font-family:inherit;font-size:12px;padding:5px 8px;border:1px solid var(--bdr);border-radius:var(--r);background:var(--surf2);color:var(--tx);resize:vertical;width:100%;box-sizing:border-box}
+.sup-name-input{font-family:inherit;font-size:12px;padding:4px 8px;border:1px solid var(--bdr);border-radius:var(--r);background:var(--surf2);color:var(--tx);width:120px}
+.sup-edit-row{display:flex;flex-direction:column;gap:4px;min-width:160px}
+.sup-save-btn{font-size:11px;padding:3px 10px;border:none;border-radius:var(--r);background:var(--acc);color:#fff;cursor:pointer;font-family:inherit;font-weight:600;align-self:flex-start}
+.sup-save-btn:hover{opacity:.85}
+.role-badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700;color:#fff;letter-spacing:.03em}
+.role-select{font-family:inherit;font-size:12px;padding:3px 6px;border:1px solid var(--bdr);border-radius:var(--r);background:var(--surf2);color:var(--tx);cursor:pointer}
+.role-save-btn{font-size:11px;padding:3px 10px;border:none;border-radius:var(--r);background:#7c3aed;color:#fff;cursor:pointer;font-family:inherit;font-weight:600}
+.role-save-btn:hover{opacity:.85}
 </style>
 <script type="module">
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
@@ -723,7 +732,7 @@ th.sortable:not(.asc):not(.desc) .sort-icon::after{content:'⇅'}
   window._firebaseGoalsRef = (uid) => doc(db_fs, 'users', uid, 'data', 'goals');
   window._firebaseGetDoc = getDoc;
   window._firebaseSetDoc = setDoc;
-  // 管理者：公共索引（每位使用者的摘要）
+  // 主管：公共索引（每位員工的摘要）
   window._firebaseIndexRef = (uid) => doc(db_fs, 'users_index', uid);
   window._firebaseIndexColl = () => collection(db_fs, 'users_index');
   window._firebaseGetDocs = getDocs;
@@ -971,7 +980,7 @@ function initGoogleMaps() {
       <div class="lp-login-body">
         <span class="lp-sys-icon">🏠</span>
         <div class="lp-sys-name">房仲屋主管理系統</div>
-        <div style="font-size:11px;color:#fece26;margin-bottom:8px;font-weight:600">版本更新：2026-05-26 19:54</div>
+        <div style="font-size:11px;color:#fece26;margin-bottom:8px;font-weight:600">版本更新：2026-05-30 15:33</div>
         <div class="lp-sys-hint">請使用 Google 帳號登入<br>以同步您的業務資料</div>
         <button id="google-signin-btn" onclick="handleSignIn()">
           <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.36-8.16 2.36-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
@@ -1137,7 +1146,7 @@ function initGoogleMaps() {
       <span>🏁</span> 已結案 <span class="dnbadge" id="db-closed">0</span>
     </button>
     <button class="drawer-nav" id="dnav-admin" onclick="switchPage('admin');toggleDrawer()" style="display:none;background:rgba(124,58,237,.25)!important">
-      <span>🛡</span> 管理後台
+      <span>🛡</span> 主管後台
     </button>
   </div>
   <!-- 工具 -->
@@ -1557,11 +1566,11 @@ function initGoogleMaps() {
 
 </div>
 
-<!-- PAGE: 管理後台（僅管理者可見） -->
+<!-- PAGE: 主管後台（僅主管可見） -->
 <div class="page" id="page-admin">
   <div class="admin-topbar">
     <div style="display:flex;align-items:center;gap:10px">
-      <span class="admin-badge">🛡 管理者後台</span>
+      <span class="admin-badge">🛡 主管後台</span>
       <span style="font-size:13px;font-weight:700;color:var(--tx)">使用者業績總覽</span>
     </div>
     <div style="display:flex;align-items:center;gap:8px">
@@ -1590,14 +1599,16 @@ function initGoogleMaps() {
     <table>
       <thead>
         <tr>
-          <th>使用者</th>
+          <th>員工</th>
           <th>Email</th>
+          <th>身份組</th>
           <th style="text-align:center">募集線</th>
           <th style="text-align:center">追蹤線</th>
           <th style="text-align:center">委託</th>
           <th style="text-align:center">已結案</th>
           <th style="text-align:center">合計</th>
           <th>最後更新</th>
+          <th>自訂名稱 / 備註</th>
           <th>操作</th>
         </tr>
       </thead>
@@ -1876,10 +1887,37 @@ function initGoogleMaps() {
 </div></div>
 
 <script>
-// ── 管理者 Email 清單（全小寫） ──
-const ADMIN_EMAILS = [
-  'drsong0729@gmail.com'  // ← 可新增更多管理者，用逗號分隔
-];
+// ── 身份組設定 ──
+// 身份組優先順序：sysadmin > owner > supervisor > staff
+const ROLES = {
+  SYSADMIN:   'sysadmin',   // 系統管理員
+  OWNER:      'owner',      // 老闆
+  SUPERVISOR: 'supervisor', // 主管
+  STAFF:      'staff'       // 員工（預設）
+};
+// 硬編碼：系統管理員與老闆（不可被任何人更動）
+const FIXED_ROLES = {
+  'drsong0729@gmail.com':  ROLES.SYSADMIN,
+  'simon912251@gmail.com': ROLES.OWNER
+};
+// 可進入主管後台的身份組
+const SUPERVISOR_ROLES = [ROLES.SYSADMIN, ROLES.OWNER, ROLES.SUPERVISOR];
+// 身份組顯示名稱
+const ROLE_LABELS = {
+  sysadmin:   '系統管理員',
+  owner:      '老闆',
+  supervisor: '主管',
+  staff:      '員工'
+};
+// 身份組顯示顏色
+const ROLE_COLORS = {
+  sysadmin:   '#dc2626',
+  owner:      '#7c3aed',
+  supervisor: '#0f519b',
+  staff:      '#6b7280'
+};
+// 本登入者的角色（登入後由 onFirebaseLogin 或 Firestore 設定）
+window._myRole = ROLES.STAFF;
 
 const CITIES={"基隆市":["仁愛區","信義區","中正區","中山區","安樂區","暖暖區","七堵區"],"臺北市":["松山區","信義區","大安區","中山區","中正區","大同區","萬華區","文山區","南港區","內湖區","士林區","北投區"],"新北市":["板橋區","三重區","中和區","永和區","新莊區","新店區","樹林區","鶯歌區","三峽區","淡水區","汐止區","瑞芳區","土城區","蘆洲區","五股區","泰山區","林口區","深坑區","石碇區","坪林區","三芝區","石門區","八里區","平溪區","雙溪區","貢寮區","金山區","萬里區","烏來區"],"桃園市":["桃園區","中壢區","大溪區","楊梅區","蘆竹區","大園區","龜山區","八德區","龍潭區","平鎮區","新屋區","觀音區","復興區"],"新竹市":["東區","北區","香山區"],"新竹縣":["竹北市","湖口鄉","新豐鄉","新埔鎮","關西鎮","芎林鄉","寶山鄉","竹東鎮","五峰鄉","橫山鄉","尖石鄉","北埔鄉","峨眉鄉"],"苗栗縣":["竹南鎮","頭份市","三灣鄉","南庄鄉","獅潭鄉","後龍鎮","通霄鎮","苑裡鎮","苗栗市","造橋鄉","頭屋鄉","公館鄉","大湖鄉","泰安鄉","銅鑼鄉","三義鄉","西湖鄉","卓蘭鎮"],"臺中市":["中區","東區","南區","西區","北區","西屯區","南屯區","北屯區","豐原區","東勢區","大甲區","清水區","沙鹿區","梧棲區","后里區","神岡區","潭子區","大雅區","新社區","石岡區","外埔區","大安區","烏日區","大肚區","龍井區","霧峰區","太平區","大里區","和平區"],"彰化縣":["彰化市","芬園鄉","花壇鄉","秀水鄉","鹿港鎮","福興鄉","線西鄉","和美鎮","伸港鄉","員林市","社頭鄉","永靖鄉","埔心鄉","溪湖鎮","大村鄉","埔鹽鄉","田中鎮","北斗鎮","田尾鄉","埤頭鄉","溪州鄉","竹塘鄉","二林鎮","大城鄉","芳苑鄉","二水鄉"],"南投縣":["南投市","中寮鄉","草屯鎮","國姓鄉","埔里鎮","仁愛鄉","名間鄉","集集鎮","水里鄉","魚池鄉","信義鄉","竹山鎮","鹿谷鄉"],"雲林縣":["斗南鎮","大埤鄉","虎尾鎮","土庫鎮","褒忠鄉","東勢鄉","臺西鄉","崙背鄉","麥寮鄉","斗六市","林內鄉","古坑鄉","莿桐鄉","西螺鎮","二崙鄉","北港鎮","水林鄉","口湖鄉","四湖鄉","元長鄉"],"嘉義市":["東區","西區"],"嘉義縣":["番路鄉","梅山鄉","竹崎鄉","阿里山鄉","中埔鄉","大埔鄉","水上鄉","鹿草鄉","太保市","朴子市","東石鄉","六腳鄉","新港鄉","民雄鄉","大林鎮","溪口鄉","義竹鄉","布袋鎮"],"臺南市":["中西區","東區","南區","北區","安平區","安南區","永康區","歸仁區","新化區","左鎮區","玉井區","楠西區","南化區","仁德區","關廟區","龍崎區","官田區","麻豆區","佳里區","西港區","七股區","將軍區","學甲區","北門區","新營區","後壁區","白河區","東山區","六甲區","下營區","柳營區","鹽水區","善化區","大內區","山上區","新市區","安定區"],"高雄市":["楠梓區","左營區","鼓山區","三民區","鹽埕區","前金區","新興區","苓雅區","前鎮區","旗津區","小港區","鳳山區","林園區","大寮區","大樹區","大社區","仁武區","鳥松區","岡山區","橋頭區","燕巢區","田寮區","阿蓮區","路竹區","湖內區","茄萣區","永安區","彌陀區","梓官區","旗山區","美濃區","六龜區","甲仙區","杉林區","內門區","茂林區","桃源區","那瑪夏區"],"屏東縣":["屏東市","三地門鄉","霧台鄉","瑪家鄉","九如鄉","里港鄉","高樹鄉","鹽埔鄉","長治鄉","麟洛鄉","竹田鄉","內埔鄉","萬丹鄉","潮州鎮","泰武鄉","來義鄉","萬巒鄉","崁頂鄉","新埤鄉","南州鄉","林邊鄉","東港鎮","琉球鄉","佳冬鄉","新園鄉","枋寮鄉","枋山鄉","春日鄉","獅子鄉","車城鄉","牡丹鄉","恆春鎮","滿州鄉"],"宜蘭縣":["宜蘭市","頭城鎮","礁溪鄉","壯圍鄉","員山鄉","羅東鎮","三星鄉","大同鄉","五結鄉","冬山鄉","蘇澳鎮","南澳鄉"],"花蓮縣":["花蓮市","新城鄉","秀林鄉","吉安鄉","壽豐鄉","鳳林鎮","光復鄉","豐濱鄉","瑞穗鄉","萬榮鄉","玉里鎮","卓溪鄉","富里鄉"],"臺東縣":["臺東市","綠島鄉","蘭嶼鄉","延平鄉","卑南鄉","鹿野鄉","關山鎮","海端鄉","池上鄉","東河鄉","成功鎮","長濱鄉","太麻里鄉","金峰鄉","大武鄉","達仁鄉"],"澎湖縣":["馬公市","西嶼鄉","望安鄉","七美鄉","白沙鄉","湖西鄉"],"金門縣":["金城鎮","金湖鎮","金沙鎮","金寧鄉","烈嶼鄉","烏坵鄉"],"連江縣":["南竿鄉","北竿鄉","莒光鄉","東引鄉"]};
 
@@ -1941,7 +1979,7 @@ function save(){
   }).then(()=>{
     setSyncStatus('☁ 已同步','var(--grn)');
     setTimeout(()=>setSyncStatus(''),2500);
-    // 同步更新公共索引（供管理者查閱）
+    // 同步更新公共索引（供主管查閱）
     _syncUserIndex(user);
   }).catch(e=>{
     setSyncStatus('⚠ 儲存失敗','var(--red)');
@@ -1951,7 +1989,8 @@ function save(){
 
 function _syncUserIndex(user){
   if(!window._firebaseIndexRef) return;
-  window._firebaseSetDoc(window._firebaseIndexRef(user.uid), {
+  const fixedRole = FIXED_ROLES[(user.email||'').toLowerCase()];
+  const payload = {
     uid:         user.uid,
     name:        user.displayName || '',
     email:       user.email || '',
@@ -1961,7 +2000,10 @@ function _syncUserIndex(user){
     commCnt:     db.commission.length,
     closedCnt:   (db.closed||[]).length,
     updatedAt:   new Date().toISOString()
-  }, {merge:true}).catch(()=>{});
+  };
+  // 固定身份組：寫死不讓其他人覆蓋
+  if(fixedRole) payload.role = fixedRole;
+  window._firebaseSetDoc(window._firebaseIndexRef(user.uid), payload, {merge:true}).catch(()=>{});
 }
 
 function nowDate(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
@@ -4195,12 +4237,25 @@ window.onFirebaseLogin = async function(user){
   if(dName)  dName.textContent  = user.displayName || '使用者';
   if(dEmail) dEmail.textContent = user.email || '';
 
-  // 判斷是否為管理者
-  window._isAdmin = ADMIN_EMAILS.includes((user.email||'').toLowerCase());
+  // 判斷身份組：先看硬編碼，再查 Firestore 索引
+  const fixedRole = FIXED_ROLES[(user.email||'').toLowerCase()];
+  window._myRole = fixedRole || ROLES.STAFF; // 先設預設值，下面會從 Firestore 更新
 
   await loadFromFirestore(user.uid);
 
-  // 登入時同步一次索引（確保資料是最新的）
+  // 從 users_index 讀取實際身份組（非固定身份組的人）
+  if(!fixedRole){
+    try{
+      const idxSnap = await window._firebaseGetDoc(window._firebaseIndexRef(user.uid));
+      if(idxSnap.exists()){
+        window._myRole = idxSnap.data().role || ROLES.STAFF;
+      }
+    }catch(e){}
+  }
+
+  window._isSupervisor = SUPERVISOR_ROLES.includes(window._myRole);
+
+  // 登入時同步一次索引（確保資料與角色是最新的）
   _syncUserIndex(user);
 
   // 初始化 UI
@@ -4213,8 +4268,8 @@ window.onFirebaseLogin = async function(user){
   initMonthGoalSelector();
   renderDailyQuote();
 
-  if(window._isAdmin){
-    // 管理者：顯示管理後台，加入導覽按鈕
+  if(window._isSupervisor){
+    // 主管以上：顯示主管後台，加入導覽按鈕
     _initAdminNav();
     switchPage('admin');
   } else {
@@ -4498,28 +4553,68 @@ function delClosedItem(id, e){
 }
 
 // ══════════════════════════════════════════════════════
-// ── 管理後台模組 ──
+// ── 主管後台模組 ──
 // ══════════════════════════════════════════════════════
-let _adminData = []; // [{uid, name, email, photoURL, recruitCnt, trackCnt, commCnt, closedCnt, updatedAt}]
-let _adminOpenUid = null; // 展開詳細資料的使用者 uid
-let _adminUserCache = {}; // uid -> {recruit, track, commission, closed}
+let _adminData = [];
+let _adminOpenUid = null;
+let _adminUserCache = {};
+let _supNotes = {}; // 本主管的自訂名稱與備註 {uid: {customName, note}}
+let _supNotesLoaded = false;
 
-// 初始化管理者 UI
+// 載入本主管的筆記（每位主管各自獨立存在 users_index/__supnotes_{uid}）
+async function _loadSupNotes(){
+  if(!window._currentUser) return;
+  const myUid = window._currentUser.uid;
+  try{
+    const ref = window._firebaseIndexRef('__supnotes_' + myUid);
+    const snap = await window._firebaseGetDoc(ref);
+    _supNotes = snap.exists() ? (snap.data().notes || {}) : {};
+    _supNotesLoaded = true;
+  }catch(e){ _supNotes = {}; _supNotesLoaded = true; }
+}
+
+// 儲存本主管的筆記
+async function _saveSupNotes(){
+  if(!window._currentUser) return;
+  const myUid = window._currentUser.uid;
+  try{
+    const ref = window._firebaseIndexRef('__supnotes_' + myUid);
+    await window._firebaseSetDoc(ref, {notes: _supNotes});
+  }catch(e){ console.error('備註儲存失敗', e); }
+}
+
+// 儲存單一員工的自訂名稱/備註
+async function saveSupNote(empUid){
+  const nameEl = document.getElementById('sup-name-' + empUid);
+  const noteEl = document.getElementById('sup-note-' + empUid);
+  _supNotes[empUid] = {
+    customName: (nameEl?.value || '').trim(),
+    note: (noteEl?.value || '').trim()
+  };
+  await _saveSupNotes();
+  const btn = document.getElementById('sup-savebtn-' + empUid);
+  if(btn){ btn.textContent = '✓ 已儲存'; setTimeout(()=>{ if(btn) btn.textContent = '儲存'; }, 1500); }
+}
+
+// 初始化主管 UI
 function _initAdminNav(){
   const btn = document.getElementById('dnav-admin');
   if(btn) btn.style.display = '';
-  PAGE_TITLES['admin'] = '管理後台';
+  PAGE_TITLES['admin'] = '主管後台';
 }
 
-// 載入所有使用者索引
+// 載入所有員工索引
 async function loadAdminData(){
-  if(!window._isAdmin) return;
+  if(!window._isSupervisor) return;
   const updEl = document.getElementById('admin-updated');
   if(updEl) updEl.textContent = '載入中…';
   try{
+    if(!_supNotesLoaded) await _loadSupNotes();
     const snap = await window._firebaseGetDocs(window._firebaseIndexColl());
     _adminData = [];
-    snap.forEach(doc => _adminData.push(doc.data()));
+    snap.forEach(doc => {
+      if(!doc.id.startsWith('__supnotes_')) _adminData.push(doc.data());
+    });
     renderAdminSummary();
     renderAdminTable();
     if(updEl) updEl.textContent = '更新：' + new Date().toLocaleTimeString('zh-TW');
@@ -4539,7 +4634,7 @@ function renderAdminSummary(){
   const sumC = _adminData.reduce((s,u)=>s+(u.commCnt||0),0);
   const sumCl= _adminData.reduce((s,u)=>s+(u.closedCnt||0),0);
   el.innerHTML = `
-    <div class="admin-sc" style="--adm-color:#7c3aed"><div class="asn">${total}</div><div class="asl">使用者人數</div></div>
+    <div class="admin-sc" style="--adm-color:#7c3aed"><div class="asn">${total}</div><div class="asl">員工人數</div></div>
     <div class="admin-sc" style="--adm-color:var(--acc)"><div class="asn">${sumR}</div><div class="asl">募集線合計</div></div>
     <div class="admin-sc" style="--adm-color:var(--grn)"><div class="asn">${sumT}</div><div class="asl">追蹤線合計</div></div>
     <div class="admin-sc" style="--adm-color:#b07800"><div class="asn">${sumC}</div><div class="asl">委託合計</div></div>
@@ -4547,7 +4642,7 @@ function renderAdminSummary(){
   `;
 }
 
-// 渲染使用者列表
+// 渲染員工列表
 function renderAdminTable(){
   const tbody = document.getElementById('admin-tbody');
   if(!tbody) return;
@@ -4557,11 +4652,16 @@ function renderAdminTable(){
   let list = _adminData.filter(u =>
     !kw ||
     (u.name||'').toLowerCase().includes(kw) ||
-    (u.email||'').toLowerCase().includes(kw)
+    (u.email||'').toLowerCase().includes(kw) ||
+    ((_supNotes[u.uid]?.customName)||'').toLowerCase().includes(kw)
   );
 
   list = [...list].sort((a,b)=>{
-    if(sortKey==='name') return (a.name||'').localeCompare(b.name||'','zh-TW');
+    if(sortKey==='name'){
+      const na = _supNotes[a.uid]?.customName || a.name || '';
+      const nb = _supNotes[b.uid]?.customName || b.name || '';
+      return na.localeCompare(nb,'zh-TW');
+    }
     if(sortKey==='recruit')    return (b.recruitCnt||0)-(a.recruitCnt||0);
     if(sortKey==='track')      return (b.trackCnt||0)-(a.trackCnt||0);
     if(sortKey==='commission') return (b.commCnt||0)-(a.commCnt||0);
@@ -4570,22 +4670,41 @@ function renderAdminTable(){
   });
 
   if(!list.length){
-    tbody.innerHTML = `<tr><td class="empty-td" colspan="9">📭 ${kw?'查無符合使用者':'尚無使用者資料，請先重新整理'}</td></tr>`;
+    tbody.innerHTML = `<tr><td class="empty-td" colspan="11">📭 ${kw?'查無符合員工':'尚無員工資料，請先重新整理'}</td></tr>`;
     return;
   }
 
   tbody.innerHTML = list.map(u => {
     const total = (u.recruitCnt||0)+(u.trackCnt||0)+(u.commCnt||0);
     const updTime = u.updatedAt ? new Date(u.updatedAt).toLocaleString('zh-TW',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
-    const isOpen = _adminOpenUid === u.uid;
-    return `<tr onclick="toggleAdminUser('${u.uid}')" style="${isOpen?'background:rgba(124,58,237,.06)':''}">
-      <td>
+    const myNote = _supNotes[u.uid] || {};
+    const displayName = myNote.customName || u.name || '（未命名）';
+    const empRole = u.role || ROLES.STAFF;
+    const isFixed = !!FIXED_ROLES[u.email?.toLowerCase()];
+    // 判斷當前主管能否更動此人的身份組
+    const canEditRole = _canEditRole(empRole);
+    // 身份組欄位
+    const roleCell = isFixed
+      ? `<span class="role-badge" style="background:${ROLE_COLORS[empRole]}">${ROLE_LABELS[empRole]}</span>`
+      : canEditRole
+        ? `<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+            <span class="role-badge" style="background:${ROLE_COLORS[empRole]}">${ROLE_LABELS[empRole]}</span>
+            <select class="role-select" id="role-sel-${u.uid}">
+              <option value="supervisor"${empRole==='supervisor'?' selected':''}>主管</option>
+              <option value="staff"${empRole==='staff'?' selected':''}>員工</option>
+            </select>
+            <button class="role-save-btn" onclick="saveEmpRole('${u.uid}')">更新</button>
+           </div>`
+        : `<span class="role-badge" style="background:${ROLE_COLORS[empRole]}">${ROLE_LABELS[empRole]}</span>`;
+    return `<tr>
+      <td onclick="toggleAdminUser('${u.uid}')" style="cursor:pointer">
         <div style="display:flex;align-items:center;gap:8px">
-          ${u.photoURL?`<img src="${escH(u.photoURL)}" style="width:28px;height:28px;border-radius:50%;flex-shrink:0" referrerpolicy="no-referrer">`:`<div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0">${(u.name||'?')[0]}</div>`}
-          <span style="font-weight:600">${escH(u.name||'（未命名）')}</span>
+          ${u.photoURL?`<img src="${escH(u.photoURL)}" style="width:28px;height:28px;border-radius:50%;flex-shrink:0" referrerpolicy="no-referrer">`:`<div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0">${(displayName)[0]}</div>`}
+          <span style="font-weight:600">${escH(displayName)}</span>
         </div>
       </td>
       <td style="font-size:12px;color:var(--tx2)">${escH(u.email||'')}</td>
+      <td>${roleCell}</td>
       <td style="text-align:center"><span class="admin-cnt-badge admin-cnt-r">${u.recruitCnt||0}</span></td>
       <td style="text-align:center"><span class="admin-cnt-badge admin-cnt-t">${u.trackCnt||0}</span></td>
       <td style="text-align:center"><span class="admin-cnt-badge admin-cnt-c">${u.commCnt||0}</span></td>
@@ -4593,28 +4712,70 @@ function renderAdminTable(){
       <td style="text-align:center;font-weight:700;color:var(--tx)">${total}</td>
       <td style="font-size:11px;color:var(--tx3)">${updTime}</td>
       <td>
-        <button class="btn btn-sm btn-edit" onclick="event.stopPropagation();viewUserDetail('${u.uid}')">📋 詳細</button>
+        <div class="sup-edit-row">
+          <input class="sup-name-input" id="sup-name-${u.uid}" value="${escH(myNote.customName||'')}" placeholder="自訂顯示名稱">
+          <textarea class="sup-note-input" id="sup-note-${u.uid}" rows="2" placeholder="備註…">${escH(myNote.note||'')}</textarea>
+          <button class="sup-save-btn" id="sup-savebtn-${u.uid}" onclick="saveSupNote('${u.uid}')">儲存</button>
+        </div>
+      </td>
+      <td>
+        <button class="btn btn-sm btn-edit" onclick="viewUserDetail('${u.uid}')">📋 詳細</button>
       </td>
     </tr>`;
   }).join('');
 }
 
-// 展開/收起使用者列
+// 判斷當前登入者能否更動某身份組的員工
+function _canEditRole(targetRole){
+  const me = window._myRole;
+  if(me === ROLES.SYSADMIN) return targetRole !== ROLES.SYSADMIN; // 系統管理員：除了自己以外都能改
+  if(me === ROLES.OWNER)    return targetRole !== ROLES.SYSADMIN && targetRole !== ROLES.OWNER; // 老闆：不能改系統管理員和老闆
+  return false; // 主管和員工不能改身份組
+}
+
+// 儲存員工身份組到 Firestore
+async function saveEmpRole(empUid){
+  const sel = document.getElementById('role-sel-' + empUid);
+  if(!sel) return;
+  const newRole = sel.value;
+  const u = _adminData.find(x=>x.uid===empUid);
+  if(!u) return;
+  // 安全檢查
+  if(!_canEditRole(u.role || ROLES.STAFF)){
+    alert('⚠️ 您沒有權限更動此員工的身份組');
+    return;
+  }
+  try{
+    await window._firebaseSetDoc(window._firebaseIndexRef(empUid), {role: newRole}, {merge:true});
+    // 更新本地快取
+    u.role = newRole;
+    renderAdminTable();
+    // 顯示成功提示
+    const btn = document.querySelector(`button[onclick="saveEmpRole('${empUid}')"]`);
+    if(btn){ btn.textContent = '✓ 已更新'; setTimeout(()=>renderAdminTable(), 1500); }
+  }catch(e){
+    alert('⚠️ 更新失敗：' + e.message);
+  }
+}
+
+// 展開/收起員工列
 function toggleAdminUser(uid){
   _adminOpenUid = (_adminOpenUid === uid) ? null : uid;
   renderAdminTable();
 }
 
-// 點擊「詳細」— 載入該使用者完整資料
+// 點擊「詳細」— 載入該員工完整資料
 async function viewUserDetail(uid){
   const area = document.getElementById('admin-user-detail-area');
   if(!area) return;
   const u = _adminData.find(x=>x.uid===uid);
   if(!u) return;
+  const myNote = _supNotes[uid] || {};
+  const displayName = myNote.customName || u.name || u.email;
 
   area.innerHTML = `<div class="admin-user-detail">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-      <div style="font-size:14px;font-weight:700;color:#7c3aed">📋 ${escH(u.name||u.email)} 的詳細資料</div>
+      <div style="font-size:14px;font-weight:700;color:#7c3aed">📋 ${escH(displayName)} 的詳細資料</div>
       <button class="btn btn-sm btn-g" onclick="document.getElementById('admin-user-detail-area').innerHTML=''">✕ 收起</button>
     </div>
     <div style="text-align:center;padding:20px;color:var(--tx3);font-size:13px">⏳ 載入中…</div>
@@ -4628,14 +4789,14 @@ async function viewUserDetail(uid){
       userData = snap.exists() ? snap.data() : {recruit:[],track:[],commission:[],closed:[]};
       _adminUserCache[uid] = userData;
     }
-    _renderUserDetailContent(area, u, userData);
+    _renderUserDetailContent(area, u, userData, displayName);
   }catch(e){
     area.innerHTML = `<div class="admin-user-detail"><div style="color:var(--red);font-size:13px">⚠️ 載入失敗：${e.message}</div></div>`;
   }
 }
 
-// 渲染使用者詳細資料內容
-function _renderUserDetailContent(area, u, data){
+// 渲染員工詳細資料內容
+function _renderUserDetailContent(area, u, data, displayName){
   const rec  = data.recruit    || [];
   const trk  = data.track      || [];
   const comm = data.commission || [];
@@ -4666,13 +4827,14 @@ function _renderUserDetailContent(area, u, data){
     </div>`;
   }
 
+  const myNote = _supNotes[u.uid] || {};
   area.innerHTML = `<div class="admin-user-detail">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
       <div style="display:flex;align-items:center;gap:10px">
         ${u.photoURL?`<img src="${escH(u.photoURL)}" style="width:36px;height:36px;border-radius:50%" referrerpolicy="no-referrer">`:''}
         <div>
-          <div style="font-size:15px;font-weight:700;color:#7c3aed">${escH(u.name||u.email)}</div>
-          <div style="font-size:11px;color:var(--tx3)">${escH(u.email||'')}</div>
+          <div style="font-size:15px;font-weight:700;color:#7c3aed">${escH(displayName)}</div>
+          <div style="font-size:11px;color:var(--tx3)">${escH(u.email||'')}${myNote.note?' ・ '+escH(myNote.note):''}</div>
         </div>
       </div>
       <button class="btn btn-sm btn-g" onclick="document.getElementById('admin-user-detail-area').innerHTML=''">✕ 收起</button>
@@ -4689,6 +4851,7 @@ function _renderUserDetailContent(area, u, data){
     ${section('🏁','已結案',cls.length,'var(--red)',miniList(cls,'cls'))}
   </div>`;
 }
+
 
 
 (function(){
