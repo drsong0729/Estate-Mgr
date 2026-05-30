@@ -756,6 +756,7 @@ th.sortable:not(.asc):not(.desc) .sort-icon::after{content:'⇅'}
     });
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 // Google Maps JS API 載入完成後的 callback
 let gmapsGeocoder = null;
@@ -1101,8 +1102,8 @@ function initGoogleMaps() {
   </div>
 </div>
 
-<input type="file" id="xlsxInput" class="hidden-input" accept=".json,.xlsx,.xls,.csv" onchange="importExcel(event)">
-<input type="file" id="xlsxInput2" class="hidden-input" accept=".json,.xlsx,.xls,.csv" onchange="importExcel(event)">
+<input type="file" id="xlsxInput" class="hidden-input" accept=".xlsx,.json" onchange="importExcel(event)">
+<input type="file" id="xlsxInput2" class="hidden-input" accept=".xlsx,.json" onchange="importExcel(event)">
 
 <div id="drawer-overlay" onclick="toggleDrawer()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000"></div>
 
@@ -2823,110 +2824,227 @@ function goToCommissionDetail(id){
 }
 
 function exportExcel(){
-  // 用 JSON 格式匯出，完整保留 progress 陣列，不受 CSV 換行問題影響
-  const data = {
-    version: 2,
-    exportedAt: new Date().toISOString(),
-    recruit: db.recruit,
-    track: db.track,
-    commission: db.commission
-  };
-  const json = JSON.stringify(data, null, 2);
-  const blob = new Blob([json], {type: 'application/json;charset=utf-8;'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `房仲管理_${nowDate()}.json`;
-  a.click();
+  if(typeof XLSX === 'undefined'){ alert('Excel 套件尚未載入，請稍後再試'); return; }
+
+  const wb = XLSX.utils.book_new();
+
+  // ── 欄位定義 ──
+  function recruitRow(r){
+    const latest = (r.progress||[]).slice().sort((a,b)=>b.date?.localeCompare(a.date||'')||0)[0];
+    const owners = (r.owners||[]).map(o=>`${o.name||''}${o.gender?'('+o.gender+')':''}${o.phone?' '+o.phone:''}`).join('、');
+    return {
+      'ID': r.id||'',
+      '登錄日期': r.date||'', '登錄時間': r.time||'',
+      '屋主': owners || r.ownerName||'',
+      '屋主戶籍地': r.ownerCity||'',
+      '物件縣市': r.propCity||'', '物件行政區': r.propDist||'', '物件地址': r.propAddr||'',
+      '物件類型': r.propType||'', '建案名稱': r.bldg||'',
+      '房': r.rooms||'', '廳': r.halls||'', '衛': r.baths||'',
+      '坪數': r.area||'', '總價(萬)': r.total||'', '單價(萬/坪)': r.unit||'',
+      '物件URL': r.url||'',
+      '來源管道': r.channel||'', '來源細項': r.channelSub||'',
+      '最新進度日期': latest?.date||'', '最新進度': latest?.content||'',
+      '進度JSON': JSON.stringify(r.progress||[])
+    };
+  }
+  function trackRow(r){
+    const latest = (r.progress||[]).slice().sort((a,b)=>b.date?.localeCompare(a.date||'')||0)[0];
+    const owners = (r.owners||[]).map(o=>`${o.name||''}${o.gender?'('+o.gender+')':''}${o.phone?' '+o.phone:''}`).join('、');
+    return {
+      'ID': r.id||'',
+      '轉入日期': r.trackDate||r.date||'',
+      '屋主': owners || r.ownerName||'',
+      '屋主戶籍地': r.ownerCity||'',
+      '物件縣市': r.propCity||'', '物件行政區': r.propDist||'', '物件地址': r.propAddr||'',
+      '物件類型': r.propType||'', '建案名稱': r.bldg||'',
+      '房': r.rooms||'', '廳': r.halls||'', '衛': r.baths||'',
+      '坪數': r.area||'', '總價(萬)': r.total||'', '單價(萬/坪)': r.unit||'',
+      '物件URL': r.url||'',
+      '最新進度日期': latest?.date||'', '最新進度': latest?.content||'',
+      '進度JSON': JSON.stringify(r.progress||[])
+    };
+  }
+  function commRow(r){
+    return {
+      'ID': r.id||'',
+      '委託日期': r.commDate||'', '委託到期': r.commEnd||'',
+      '委託類型': r.commType==='exclusive'?'專任':'一般',
+      '屋主': (r.owners||[]).map(o=>o.name||'').join('、') || r.ownerName||'',
+      '物件縣市': r.propCity||'', '物件行政區': r.propDist||'', '物件地址': r.propAddr||'',
+      '物件類型': r.propType||'', '建案名稱': r.bldg||'',
+      '房': r.rooms||'', '廳': r.halls||'', '衛': r.baths||'',
+      '坪數': r.area||'', '總價(萬)': r.total||'', '單價(萬/坪)': r.unit||'',
+      '服務費(%)': r.commFee||'', '分成(%)': r.commSplit||'',
+      '物件URL': r.url||''
+    };
+  }
+  function closedRow(r){
+    return {
+      'ID': r.id||'',
+      '結案日期': r.closedDate||'',
+      '結案類型': r.closedType==='self'?'自己成交':'他人成交',
+      '成交總價(萬)': r.dealTotal||'', '可得業績(萬)': r.dealProfit||'',
+      '屋主': (r.owners||[]).map(o=>o.name||'').join('、') || r.ownerName||'',
+      '物件縣市': r.propCity||'', '物件行政區': r.propDist||'', '物件地址': r.propAddr||'',
+      '物件類型': r.propType||'', '總價(萬)': r.total||''
+    };
+  }
+
+  // ── 建立工作表 ──
+  const sheets = [
+    { name:'募集線', rows: db.recruit.map(recruitRow) },
+    { name:'追蹤線', rows: db.track.map(trackRow) },
+    { name:'委託',   rows: db.commission.map(commRow) },
+    { name:'已結案', rows: (db.closed||[]).map(closedRow) }
+  ];
+  sheets.forEach(({name, rows}) => {
+    const ws = rows.length
+      ? XLSX.utils.json_to_sheet(rows)
+      : XLSX.utils.json_to_sheet([{}]); // 空工作表也加欄標題
+    XLSX.utils.book_append_sheet(wb, ws, name);
+  });
+
+  // ── 加入「系統資訊」工作表 ──
+  const infoWs = XLSX.utils.json_to_sheet([{
+    '匯出時間': new Date().toLocaleString('zh-TW'),
+    '版本': 3,
+    '募集線筆數': db.recruit.length,
+    '追蹤線筆數': db.track.length,
+    '委託筆數': db.commission.length,
+    '已結案筆數': (db.closed||[]).length
+  }]);
+  XLSX.utils.book_append_sheet(wb, infoWs, '系統資訊');
+
+  XLSX.writeFile(wb, `房仲管理備份_${nowDate()}.xlsx`);
 }
 
 function importExcel(e){
   const file = e.target.files[0]; if(!file) return;
-  const reader = new FileReader();
-  reader.onload = function(ev){
-    try{
-      const raw = ev.target.result.replace(/^\uFEFF/, '');
+  const ext = file.name.split('.').pop().toLowerCase();
 
-      if(raw.trim().startsWith('{')){
+  // ── JSON 格式（舊版相容） ──
+  if(ext === 'json'){
+    const reader = new FileReader();
+    reader.onload = function(ev){
+      try{
+        const raw = ev.target.result.replace(/^\uFEFF/, '');
         const data = JSON.parse(raw);
         ['recruit','track','commission'].forEach(pool => {
-          const incoming = data[pool] || [];
-          incoming.forEach(r => {
+          (data[pool]||[]).forEach(r => {
             if(!r.id) return;
-            const existing = db[pool].find(x => x.id === r.id);
-            if(!existing){
-              if(!r.progress) r.progress = [];
+            if(!db[pool].find(x=>x.id===r.id)){
+              if(!r.progress) r.progress=[];
               db[pool].push(r);
-            } else {
-              // 合併進度（以 progress.id 去重）
-              const existProg = existing.progress || [];
-              const newProg = r.progress || [];
-              newProg.forEach(np => {
-                if(!existProg.find(ep => ep.id && ep.id === np.id))
-                  existProg.push(np);
-              });
-              existing.progress = existProg;
             }
           });
         });
         save(); renderAll(); checkNotifs();
-        alert('匯入成功！（JSON 格式）');
-        e.target.value = '';
-        return;
+        alert('✅ 匯入成功（JSON 格式）');
+      }catch(err){ alert('匯入失敗：'+err.message); }
+      e.target.value='';
+    };
+    reader.readAsText(file,'UTF-8');
+    return;
+  }
+
+  // ── Excel 格式 ──
+  if(typeof XLSX === 'undefined'){ alert('Excel 套件尚未載入，請稍後再試'); return; }
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    try{
+      const wb = XLSX.read(ev.target.result, {type:'array'});
+
+      function sheetToObjects(sheetName){
+        const ws = wb.Sheets[sheetName];
+        if(!ws) return [];
+        return XLSX.utils.sheet_to_json(ws, {defval:''});
       }
 
-      const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
-      let current = null, headers = [];
-      const imp = {recruit:[], track:[], commission:[]};
-      const nameMap = {'募集線':'recruit','追蹤線':'track','委託':'commission'};
-      lines.forEach(line => {
-        if(line.startsWith('=====')){
-          const m = line.match(/=====\s*(.+?)\s*=====/);
-          if(m) current = nameMap[m[1]] || null;
-          headers = []; return;
-        }
-        if(line === '（無資料）') return;
-        // 逐字元 CSV 解析（支援欄位內含逗號）
-        const vals = []; let cur = '', inQ = false;
-        for(let i = 0; i < line.length; i++){
-          const c = line[i];
-          if(c === '"'){ if(inQ && line[i+1] === '"'){cur += '"'; i++;} else inQ = !inQ; }
-          else if(c === ',' && !inQ){ vals.push(cur); cur = ''; }
-          else cur += c;
-        }
-        vals.push(cur);
-        if(!headers.length){ headers = vals; return; }
-        if(!current) return;
-        const obj = {}; headers.forEach((h,i) => obj[h] = vals[i] || '');
-        if(!obj.id) return;
-        // 嘗試還原 JSON 進度欄
-        const progJson = obj['所有進度（JSON）'] || '';
-        delete obj['所有進度（JSON）'];
-        delete obj['最新進度日期'];
-        delete obj['最新進度內容'];
-        try{ obj.progress = progJson ? JSON.parse(progJson) : []; } catch{ obj.progress = []; }
-        imp[current].push(obj);
-      });
-      ['recruit','track','commission'].forEach(pool => {
-        imp[pool].forEach(r => {
-          const existing = db[pool].find(x => x.id === r.id);
-          if(!existing){
-            db[pool].push(r);
-          } else {
-            const existProg = existing.progress || [];
-            const newProg = r.progress || [];
-            newProg.forEach(np => {
-              if(!existProg.find(ep => ep.id && ep.id === np.id)) existProg.push(np);
-            });
-            existing.progress = existProg;
-          }
+      function parseOwners(ownerStr){
+        if(!ownerStr) return [];
+        return ownerStr.split('、').map(s => {
+          const m = s.match(/^(.+?)(?:\(([男女])\))?(?:\s+(\S+))?$/);
+          return m ? {name:m[1]||'', gender:m[2]||'', phone:m[3]||''} : {name:s, gender:'', phone:''};
+        });
+      }
+
+      // 募集線
+      sheetToObjects('募集線').forEach(row => {
+        if(!row['ID']) return;
+        if(db.recruit.find(x=>x.id===row['ID'])) return;
+        let progress = [];
+        try{ progress = row['進度JSON'] ? JSON.parse(row['進度JSON']) : []; }catch{}
+        db.recruit.push({
+          id: row['ID'], date: row['登錄日期']||'', time: row['登錄時間']||'',
+          owners: parseOwners(row['屋主']),
+          ownerCity: row['屋主戶籍地']||'',
+          propCity: row['物件縣市']||'', propDist: row['物件行政區']||'', propAddr: row['物件地址']||'',
+          propType: row['物件類型']||'', bldg: row['建案名稱']||'',
+          rooms: row['房']||'', halls: row['廳']||'', baths: row['衛']||'',
+          area: row['坪數']||'', total: row['總價(萬)']||'', unit: row['單價(萬/坪)']||'',
+          url: row['物件URL']||'',
+          channel: row['來源管道']||'', channelSub: row['來源細項']||'',
+          progress
         });
       });
+
+      // 追蹤線
+      sheetToObjects('追蹤線').forEach(row => {
+        if(!row['ID']) return;
+        if(db.track.find(x=>x.id===row['ID'])) return;
+        let progress = [];
+        try{ progress = row['進度JSON'] ? JSON.parse(row['進度JSON']) : []; }catch{}
+        db.track.push({
+          id: row['ID'], trackDate: row['轉入日期']||'', date: row['轉入日期']||'',
+          owners: parseOwners(row['屋主']),
+          ownerCity: row['屋主戶籍地']||'',
+          propCity: row['物件縣市']||'', propDist: row['物件行政區']||'', propAddr: row['物件地址']||'',
+          propType: row['物件類型']||'', bldg: row['建案名稱']||'',
+          rooms: row['房']||'', halls: row['廳']||'', baths: row['衛']||'',
+          area: row['坪數']||'', total: row['總價(萬)']||'', unit: row['單價(萬/坪)']||'',
+          url: row['物件URL']||'',
+          progress
+        });
+      });
+
+      // 委託
+      sheetToObjects('委託').forEach(row => {
+        if(!row['ID']) return;
+        if(db.commission.find(x=>x.id===row['ID'])) return;
+        db.commission.push({
+          id: row['ID'], commDate: row['委託日期']||'', commEnd: row['委託到期']||'',
+          commType: row['委託類型']==='專任'?'exclusive':'general',
+          owners: parseOwners(row['屋主']),
+          propCity: row['物件縣市']||'', propDist: row['物件行政區']||'', propAddr: row['物件地址']||'',
+          propType: row['物件類型']||'', bldg: row['建案名稱']||'',
+          rooms: row['房']||'', halls: row['廳']||'', baths: row['衛']||'',
+          area: row['坪數']||'', total: row['總價(萬)']||'', unit: row['單價(萬/坪)']||'',
+          commFee: row['服務費(%)']||'', commSplit: row['分成(%)']||'',
+          url: row['物件URL']||''
+        });
+      });
+
+      // 已結案
+      sheetToObjects('已結案').forEach(row => {
+        if(!row['ID']) return;
+        if((db.closed||[]).find(x=>x.id===row['ID'])) return;
+        if(!db.closed) db.closed=[];
+        db.closed.push({
+          id: row['ID'], closedDate: row['結案日期']||'',
+          closedType: row['結案類型']==='自己成交'?'self':'other',
+          dealTotal: row['成交總價(萬)']||'', dealProfit: row['可得業績(萬)']||'',
+          owners: parseOwners(row['屋主']),
+          propCity: row['物件縣市']||'', propDist: row['物件行政區']||'', propAddr: row['物件地址']||'',
+          propType: row['物件類型']||'', total: row['總價(萬)']||''
+        });
+      });
+
       save(); renderAll(); checkNotifs();
-      alert('匯入成功！（CSV 格式）');
-    } catch(err){ alert('匯入失敗：' + err.message); }
-    e.target.value = '';
+      alert('✅ 匯入成功（Excel 格式）');
+    }catch(err){ alert('匯入失敗：'+err.message); }
+    e.target.value='';
   };
-  reader.readAsText(file, 'UTF-8');
+  reader.readAsArrayBuffer(file);
 }
 
 function toggleTheme(){
