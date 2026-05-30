@@ -1999,10 +1999,9 @@ function _syncUserIndex(user){
     trackCnt:    db.track.length,
     commCnt:     db.commission.length,
     closedCnt:   (db.closed||[]).length,
-    updatedAt:   new Date().toISOString()
+    updatedAt:   new Date().toISOString(),
+    role:        fixedRole || window._myRole || ROLES.STAFF
   };
-  // 固定身份組：寫死不讓其他人覆蓋
-  if(fixedRole) payload.role = fixedRole;
   window._firebaseSetDoc(window._firebaseIndexRef(user.uid), payload, {merge:true}).catch(()=>{});
 }
 
@@ -4239,7 +4238,7 @@ window.onFirebaseLogin = async function(user){
 
   // 判斷身份組：先看硬編碼，再查 Firestore 索引
   const fixedRole = FIXED_ROLES[(user.email||'').toLowerCase()];
-  window._myRole = fixedRole || ROLES.STAFF; // 先設預設值，下面會從 Firestore 更新
+  window._myRole = fixedRole || ROLES.STAFF;
 
   await loadFromFirestore(user.uid);
 
@@ -4247,16 +4246,25 @@ window.onFirebaseLogin = async function(user){
   if(!fixedRole){
     try{
       const idxSnap = await window._firebaseGetDoc(window._firebaseIndexRef(user.uid));
-      if(idxSnap.exists()){
-        window._myRole = idxSnap.data().role || ROLES.STAFF;
+      if(idxSnap.exists() && idxSnap.data().role){
+        window._myRole = idxSnap.data().role;
       }
+      // 寫入索引時帶入已確認的 role（不再二次讀取）
+      const payload = {
+        uid: user.uid, name: user.displayName||'', email: user.email||'',
+        photoURL: user.photoURL||'', recruitCnt: db.recruit.length,
+        trackCnt: db.track.length, commCnt: db.commission.length,
+        closedCnt: (db.closed||[]).length, updatedAt: new Date().toISOString(),
+        role: window._myRole
+      };
+      window._firebaseSetDoc(window._firebaseIndexRef(user.uid), payload, {merge:true}).catch(()=>{});
     }catch(e){}
+  } else {
+    // 固定身份組：直接同步（強制寫入正確 role）
+    _syncUserIndex(user);
   }
 
   window._isSupervisor = SUPERVISOR_ROLES.includes(window._myRole);
-
-  // 登入時同步一次索引（確保資料與角色是最新的）
-  _syncUserIndex(user);
 
   // 初始化 UI
   Object.keys(CITIES).forEach(c=>{
