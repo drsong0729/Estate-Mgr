@@ -693,14 +693,21 @@ th.sortable:not(.asc):not(.desc) .sort-icon::after{content:'⇅'}
 .admin-user-detail .dp-grid{margin-bottom:0}
 @media(max-width:600px){.admin-summary{grid-template-columns:1fr 1fr}}
 .sup-note-input{font-family:inherit;font-size:12px;padding:5px 8px;border:1px solid var(--bdr);border-radius:var(--r);background:var(--surf2);color:var(--tx);resize:vertical;width:100%;box-sizing:border-box}
-.sup-name-input{font-family:inherit;font-size:12px;padding:4px 8px;border:1px solid var(--bdr);border-radius:var(--r);background:var(--surf2);color:var(--tx);width:120px}
-.sup-edit-row{display:flex;flex-direction:column;gap:4px;min-width:160px}
 .sup-save-btn{font-size:11px;padding:3px 10px;border:none;border-radius:var(--r);background:var(--acc);color:#fff;cursor:pointer;font-family:inherit;font-weight:600;align-self:flex-start}
 .sup-save-btn:hover{opacity:.85}
 .role-badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700;color:#fff;letter-spacing:.03em}
 .role-select{font-family:inherit;font-size:12px;padding:3px 6px;border:1px solid var(--bdr);border-radius:var(--r);background:var(--surf2);color:var(--tx);cursor:pointer}
 .role-save-btn{font-size:11px;padding:3px 10px;border:none;border-radius:var(--r);background:#7c3aed;color:#fff;cursor:pointer;font-family:inherit;font-weight:600}
 .role-save-btn:hover{opacity:.85}
+/* 更改名稱 Modal */
+#rename-modal{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:none;align-items:center;justify-content:center;padding:20px}
+#rename-modal.open{display:flex}
+.rename-box{background:var(--surf);border-radius:18px;padding:24px;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.rename-box h3{font-size:15px;font-weight:700;color:var(--tx);margin:0 0 6px}
+.rename-box .sub{font-size:12px;color:var(--tx3);margin-bottom:16px}
+.rename-box input{width:100%;box-sizing:border-box;margin-bottom:8px}
+.rename-note-input{width:100%;box-sizing:border-box;font-family:inherit;font-size:13px;padding:8px 10px;border:1.5px solid var(--bdr);border-radius:var(--r);background:var(--surf2);color:var(--tx);resize:vertical;margin-bottom:14px}
+.rename-actions{display:flex;gap:8px;justify-content:flex-end}
 </style>
 <script type="module">
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
@@ -1010,11 +1017,11 @@ function initGoogleMaps() {
 
 </div><!-- /#login-screen -->
 
-<div id="privacy-modal" style="display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.6);align-items:center;justify-content:center;padding:16px" onclick="if(event.target===this)this.style.display='none'">
+<div id="privacy-modal" style="display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.6);align-items:center;justify-content:center;padding:16px">
   <div style="background:#fff;border-radius:16px;max-width:600px;width:100%;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(0,0,0,.4);overflow:hidden">
     <div style="padding:20px 24px 16px;border-bottom:1px solid #e4eaf2;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
       <div style="font-size:16px;font-weight:800;color:#0f519b">🔒 隱私權保護政策</div>
-      <button onclick="document.getElementById('privacy-modal').style.display='none'" style="width:30px;height:30px;border:none;background:#f0f4f8;border-radius:50%;cursor:pointer;font-size:16px;color:#3d526b;display:flex;align-items:center;justify-content:center">✕</button>
+      <span style="font-size:11px;color:#a0b0c8">請閱讀完畢後同意或拒絕</span>
     </div>
     <div style="padding:20px 24px;overflow-y:auto;font-size:13px;color:#1a2332;line-height:1.8">
       <p style="margin-bottom:14px">非常歡迎您光臨「房仲屋主管理系統」（以下簡稱本網站），為了讓您能夠安心使用本網站的各項服務與資訊，特此向您說明本網站的隱私權保護政策，以保障您的權益，請您詳閱下列內容：</p>
@@ -1040,64 +1047,64 @@ function initGoogleMaps() {
         📞 電話：0975711267<br>💬 LINE：dr.song0729
       </div>
     </div>
-    <div style="padding:14px 24px;border-top:1px solid #e4eaf2;flex-shrink:0;text-align:right">
-      <button onclick="document.getElementById('privacy-modal').style.display='none'" style="padding:9px 24px;background:#0f519b;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">我已閱讀並了解</button>
+    <div style="padding:14px 24px;border-top:1px solid #e4eaf2;flex-shrink:0">
+      <label style="display:flex;align-items:center;gap:7px;font-size:12px;color:#5a7090;cursor:pointer;margin-bottom:12px">
+        <input type="checkbox" id="privacy-skip-today" style="width:15px;height:15px;cursor:pointer">
+        今日不再顯示
+      </label>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button onclick="onPrivacyDisagree()" style="padding:9px 20px;background:#f0f4f8;color:#3d526b;border:1px solid #d0dcea;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">❌ 不同意</button>
+        <button onclick="onPrivacyAgree()" style="padding:9px 24px;background:#0f519b;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">✅ 同意並繼續</button>
+      </div>
     </div>
   </div>
 </div>
 
-<div id="consent-modal" style="display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.6);align-items:center;justify-content:center;padding:16px" onclick="if(event.target===this)this.style.display='none'">
+<div id="consent-modal" style="display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.6);align-items:center;justify-content:center;padding:16px">
   <div style="background:#fff;border-radius:16px;max-width:600px;width:100%;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(0,0,0,.4);overflow:hidden">
     <div style="padding:20px 24px 16px;border-bottom:1px solid #e4eaf2;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
       <div style="font-size:16px;font-weight:800;color:#0f519b">📋 個人資料蒐集、處理及利用同意書</div>
-      <button onclick="document.getElementById('consent-modal').style.display='none'" style="width:30px;height:30px;border:none;background:#f0f4f8;border-radius:50%;cursor:pointer;font-size:16px;color:#3d526b;display:flex;align-items:center;justify-content:center">✕</button>
+      <span style="font-size:11px;color:#a0b0c8">請閱讀完畢後同意或拒絕</span>
     </div>
     <div style="padding:20px 24px;overflow-y:auto;font-size:13px;color:#1a2332;line-height:1.9">
-
       <p style="margin-bottom:6px"><strong>蒐集主體：</strong>房仲屋主管理系統</p>
       <p style="margin-bottom:6px"><strong>系統開發者：</strong>吳松儒</p>
       <p style="margin-bottom:16px"><strong>適用法規：</strong>中華民國《個人資料保護法》</p>
-
       <div style="font-weight:700;color:#0f519b;margin:16px 0 6px;font-size:13px">一、蒐集目的</div>
       <p>本系統蒐集個人資料之目的為提供房仲業務管理功能（募集線、追蹤線、委託管理、行程規劃）、帳號驗證與身分識別，以及使用者個人業務資料之雲端同步與備份。</p>
-
       <div style="font-weight:700;color:#0f519b;margin:16px 0 6px;font-size:13px">二、蒐集之個人資料類別</div>
       <p style="margin-bottom:6px"><strong>（一）使用者本人資料（透過 Google 登入自動取得）：</strong>姓名、電子郵件地址、Google 帳號頭像。</p>
       <p style="margin-bottom:6px"><strong>（二）使用者自行輸入之業務資料：</strong>屋主姓氏、性別、聯絡電話、不動產物件地址、屋主戶籍地址、委託類型、委託條件及其他業務相關資訊。</p>
       <p style="margin-bottom:6px;padding:10px 12px;background:#f0f4f8;border-radius:8px;font-size:12px;color:#3d526b">
-        ⚠️ <strong>特別說明：</strong>屋主相關資料（含姓氏、性別、物件地址、戶籍地址）係由使用者自行從政府全國地政電子謄本系統或其他合法管道取得後手動輸入。<strong>本系統不會主動蒐集屋主個人資料</strong>，使用者應確保其蒐集、輸入及利用屋主個人資料之行為符合《個人資料保護法》及相關法規之規定。
+        ⚠️ <strong>特別說明：</strong>屋主相關資料係由使用者自行從合法管道取得後手動輸入。<strong>本系統不會主動蒐集屋主個人資料</strong>，使用者應確保其行為符合《個人資料保護法》及相關法規之規定。
       </p>
-
       <div style="font-weight:700;color:#0f519b;margin:16px 0 6px;font-size:13px">三、利用期間、地區及對象</div>
       <p>資料自使用者登入起保存，至主動要求刪除或本系統終止服務為止。伺服器位於台灣境內（Google Firebase，asia-east1）。資料僅限該 Google 帳號之使用者本人存取，不提供予任何第三人。</p>
-
       <div style="font-weight:700;color:#0f519b;margin:16px 0 6px;font-size:13px">四、多人使用說明</div>
       <p>本系統開放供多位房仲人員使用，各帳號資料彼此完全隔離。若因使用者主動提供帳號密碼、未登出遭他人冒用、裝置遭竊或遭惡意程式入侵等非因本系統技術缺失所致之情形，造成資料外洩，本系統及開發者不負相關法律責任。</p>
-
       <div style="font-weight:700;color:#0f519b;margin:16px 0 6px;font-size:13px">五、資料保護措施</div>
       <p>採 HTTPS/TLS 加密傳輸、Firestore 安全規則限制每人僅能存取自身資料、閒置 10 分鐘自動登出、每次開啟網站須重新登入。</p>
-
       <div style="font-weight:700;color:#0f519b;margin:16px 0 6px;font-size:13px">六、當事人之權利</div>
       <p>依《個人資料保護法》第三條，您得行使查詢、閱覽、製給複製本、補充更正、停止利用及刪除等權利。請聯繫：</p>
       <div style="margin-top:8px;padding:10px 14px;background:#f0f4f8;border-radius:8px;font-size:12px;line-height:2">
         📧 drsong0729@gmail.com　📞 0975711267　💬 LINE：dr.song0729<br>
         <span style="color:#7a90aa">本系統將於接獲請求後 15 個工作日內回覆。</span>
       </div>
-
       <div style="font-weight:700;color:#0f519b;margin:16px 0 6px;font-size:13px">七、免責聲明</div>
       <p>使用者應對其輸入之所有資料內容及其取得方式負完全責任。若涉及違法蒐集或未經當事人同意等情形，相關法律責任由使用者自行承擔，本系統開發者不負連帶責任。</p>
-
       <div style="font-weight:700;color:#0f519b;margin:16px 0 6px;font-size:13px">八、條款變更</div>
       <p>本系統保留隨時修訂本同意書之權利，修訂後之條款將公告於登入頁面。使用者於條款修訂後繼續使用本系統，視為已同意修訂後之內容。</p>
-
-      <div style="margin-top:20px;padding:12px 14px;background:#f0f7ff;border:1px solid #c0d8f0;border-radius:8px;font-size:12px;color:#3d526b">
-        <strong>同意聲明：</strong>使用本系統（包含點擊登入按鈕）即表示您已閱讀、理解並同意本同意書之全部內容。若您不同意任何條款，請勿使用本系統。
-      </div>
-
       <p style="margin-top:14px;font-size:11px;color:#a0b0c8;text-align:right">最後更新日期：2026年5月25日</p>
     </div>
-    <div style="padding:14px 24px;border-top:1px solid #e4eaf2;flex-shrink:0;text-align:right">
-      <button onclick="document.getElementById('consent-modal').style.display='none'" style="padding:9px 24px;background:#0f519b;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">我已閱讀並了解</button>
+    <div style="padding:14px 24px;border-top:1px solid #e4eaf2;flex-shrink:0">
+      <label style="display:flex;align-items:center;gap:7px;font-size:12px;color:#5a7090;cursor:pointer;margin-bottom:12px">
+        <input type="checkbox" id="consent-skip-today" style="width:15px;height:15px;cursor:pointer">
+        今日不再顯示
+      </label>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button onclick="onConsentDisagree()" style="padding:9px 20px;background:#f0f4f8;color:#3d526b;border:1px solid #d0dcea;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">❌ 不同意</button>
+        <button onclick="onConsentAgree()" style="padding:9px 24px;background:#0f519b;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">✅ 同意並登入</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1609,7 +1616,6 @@ function initGoogleMaps() {
           <th style="text-align:center">已結案</th>
           <th style="text-align:center">合計</th>
           <th>最後更新</th>
-          <th>自訂名稱 / 備註</th>
           <th>操作</th>
         </tr>
       </thead>
@@ -4313,9 +4319,23 @@ async function loadFromFirestore(uid){
   }
 }
 
+// ── 條款同意流程 ──
+// localStorage key: 'consent_skip_YYYY-MM-DD' → 'true'
+function _todayKey(){ return 'consent_skip_' + new Date().toLocaleDateString('zh-TW',{timeZone:'Asia/Taipei'}).replace(/\//g,'-'); }
+function _hasSkippedToday(){ try{ return localStorage.getItem(_todayKey()) === 'true'; }catch{ return false; } }
+function _saveSkipToday(type){
+  try{
+    if(document.getElementById(type+'-skip-today')?.checked){
+      localStorage.setItem(_todayKey(), 'true');
+    }
+  }catch{}
+}
+
+// 按下登入按鈕後的進入點
 async function handleSignIn(){
   const btn = document.getElementById('google-signin-btn');
   const errEl = document.getElementById('login-error');
+
   // 等待 Firebase module 初始化完成（最多等 5 秒）
   let waited = 0;
   while(!window._firebaseSignIn && waited < 5000){
@@ -4326,13 +4346,62 @@ async function handleSignIn(){
     if(errEl){ errEl.style.display='block'; errEl.textContent='系統初始化失敗，請重新整理頁面再試。'; }
     return;
   }
+
+  // 若今日已勾選「不再顯示」，直接進行 Google 登入
+  if(_hasSkippedToday()){
+    _doGoogleSignIn();
+    return;
+  }
+
+  // 否則先顯示隱私權政策
+  _showPrivacyModal();
+}
+
+function _showPrivacyModal(){
+  const m = document.getElementById('privacy-modal');
+  m.style.display = 'flex';
+}
+
+function onPrivacyAgree(){
+  _saveSkipToday('privacy');
+  document.getElementById('privacy-modal').style.display = 'none';
+  // 接著顯示個資同意書
+  document.getElementById('consent-modal').style.display = 'flex';
+}
+
+function onPrivacyDisagree(){
+  document.getElementById('privacy-modal').style.display = 'none';
+  _showConsentError('您未同意隱私權保護政策，無法使用本系統。');
+}
+
+function onConsentAgree(){
+  _saveSkipToday('consent');
+  document.getElementById('consent-modal').style.display = 'none';
+  _doGoogleSignIn();
+}
+
+function onConsentDisagree(){
+  document.getElementById('consent-modal').style.display = 'none';
+  _showConsentError('您未同意個人資料蒐集同意條款，無法使用本系統。');
+}
+
+function _showConsentError(msg){
+  const errEl = document.getElementById('login-error');
+  if(errEl){
+    errEl.style.display = 'block';
+    errEl.textContent = '⚠️ ' + msg;
+  }
+}
+
+async function _doGoogleSignIn(){
+  const btn = document.getElementById('google-signin-btn');
+  const errEl = document.getElementById('login-error');
   btn.disabled = true; btn.style.opacity = '.6';
-  errEl.style.display = 'none';
+  if(errEl) errEl.style.display = 'none';
   try{
     await window._firebaseSignIn();
   }catch(e){
-    errEl.style.display = 'block';
-    errEl.textContent = '登入失敗：' + (e.message || '請再試一次');
+    if(errEl){ errEl.style.display='block'; errEl.textContent='登入失敗：'+(e.message||'請再試一次'); }
     btn.disabled = false; btn.style.opacity = '1';
   }
 }
@@ -4709,18 +4778,43 @@ async function _saveSupNotes(){
   }catch(e){ console.error('備註儲存失敗', e); }
 }
 
-// 儲存單一員工的自訂名稱/備註
-async function saveSupNote(empUid){
-  const nameEl = document.getElementById('sup-name-' + empUid);
-  const noteEl = document.getElementById('sup-note-' + empUid);
-  _supNotes[empUid] = {
-    customName: (nameEl?.value || '').trim(),
-    note: (noteEl?.value || '').trim()
-  };
-  await _saveSupNotes();
-  const btn = document.getElementById('sup-savebtn-' + empUid);
-  if(btn){ btn.textContent = '✓ 已儲存'; setTimeout(()=>{ if(btn) btn.textContent = '儲存'; }, 1500); }
+// ── 更改員工顯示名稱 Modal ──
+let _renameTargetUid = null;
+
+function openRenameModal(empUid){
+  _renameTargetUid = empUid;
+  const u = _adminData.find(x=>x.uid===empUid);
+  const myNote = _supNotes[empUid] || {};
+  const subEl = document.getElementById('rename-modal-sub');
+  const inp = document.getElementById('rename-input');
+  const noteInp = document.getElementById('rename-note-input');
+  if(subEl) subEl.textContent = `Google 名稱：${u?.name||''}　Email：${u?.email||''}`;
+  if(inp){ inp.value = myNote.customName || ''; setTimeout(()=>inp.focus(),80); }
+  if(noteInp) noteInp.value = myNote.note || '';
+  document.getElementById('rename-modal').classList.add('open');
 }
+
+function closeRenameModal(){
+  document.getElementById('rename-modal').classList.remove('open');
+  _renameTargetUid = null;
+}
+
+async function confirmRename(){
+  if(!_renameTargetUid) return;
+  const inp = document.getElementById('rename-input');
+  const noteInp = document.getElementById('rename-note-input');
+  const newName = (inp?.value||'').trim();
+  const newNote = (noteInp?.value||'').trim();
+  _supNotes[_renameTargetUid] = { customName: newName, note: newNote };
+  await _saveSupNotes();
+  closeRenameModal();
+  renderAdminTable();
+}
+
+// 按 Esc 關閉 modal
+document.addEventListener('keydown', e => {
+  if(e.key==='Escape') closeRenameModal();
+});
 
 // 初始化主管 UI
 function _initAdminNav(){
@@ -4796,7 +4890,7 @@ function renderAdminTable(){
   });
 
   if(!list.length){
-    tbody.innerHTML = `<tr><td class="empty-td" colspan="11">📭 ${kw?'查無符合員工':'尚無員工資料，請先重新整理'}</td></tr>`;
+    tbody.innerHTML = `<tr><td class="empty-td" colspan="10">📭 ${kw?'查無符合員工':'尚無員工資料，請先重新整理'}</td></tr>`;
     return;
   }
 
@@ -4807,9 +4901,7 @@ function renderAdminTable(){
     const displayName = myNote.customName || u.name || '（未命名）';
     const empRole = u.role || ROLES.STAFF;
     const isFixed = !!FIXED_ROLES[u.email?.toLowerCase()];
-    // 判斷當前主管能否更動此人的身份組
     const canEditRole = _canEditRole(empRole);
-    // 身份組欄位
     const roleCell = isFixed
       ? `<span class="role-badge" style="background:${ROLE_COLORS[empRole]}">${ROLE_LABELS[empRole]}</span>`
       : canEditRole
@@ -4822,11 +4914,17 @@ function renderAdminTable(){
             <button class="role-save-btn" onclick="saveEmpRole('${u.uid}')">更新</button>
            </div>`
         : `<span class="role-badge" style="background:${ROLE_COLORS[empRole]}">${ROLE_LABELS[empRole]}</span>`;
+    const hasNote = myNote.note;
     return `<tr>
-      <td onclick="toggleAdminUser('${u.uid}')" style="cursor:pointer">
-        <div style="display:flex;align-items:center;gap:8px">
-          ${u.photoURL?`<img src="${escH(u.photoURL)}" style="width:28px;height:28px;border-radius:50%;flex-shrink:0" referrerpolicy="no-referrer">`:`<div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0">${(displayName)[0]}</div>`}
-          <span style="font-weight:600">${escH(displayName)}</span>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          ${u.photoURL?`<img src="${escH(u.photoURL)}" style="width:32px;height:32px;border-radius:50%;flex-shrink:0" referrerpolicy="no-referrer">`:`<div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0">${displayName[0]}</div>`}
+          <div>
+            <div style="font-weight:700;font-size:14px">${escH(displayName)}</div>
+            ${myNote.customName?`<div style="font-size:10px;color:var(--tx3)">Google：${escH(u.name||'')}</div>`:''}
+            ${hasNote?`<div style="font-size:11px;color:var(--tx2);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escH(hasNote)}">📝 ${escH(hasNote)}</div>`:''}
+            <button style="margin-top:4px;font-size:10px;padding:2px 8px;border:1px solid var(--bdr);border-radius:20px;background:var(--surf2);color:var(--tx2);cursor:pointer;font-family:inherit" onclick="openRenameModal('${u.uid}')">✏️ 更改名稱</button>
+          </div>
         </div>
       </td>
       <td style="font-size:12px;color:var(--tx2)">${escH(u.email||'')}</td>
@@ -4837,13 +4935,6 @@ function renderAdminTable(){
       <td style="text-align:center"><span class="admin-cnt-badge admin-cnt-cl">${u.closedCnt||0}</span></td>
       <td style="text-align:center;font-weight:700;color:var(--tx)">${total}</td>
       <td style="font-size:11px;color:var(--tx3)">${updTime}</td>
-      <td>
-        <div class="sup-edit-row">
-          <input class="sup-name-input" id="sup-name-${u.uid}" value="${escH(myNote.customName||'')}" placeholder="自訂顯示名稱">
-          <textarea class="sup-note-input" id="sup-note-${u.uid}" rows="2" placeholder="備註…">${escH(myNote.note||'')}</textarea>
-          <button class="sup-save-btn" id="sup-savebtn-${u.uid}" onclick="saveSupNote('${u.uid}')">儲存</button>
-        </div>
-      </td>
       <td>
         <button class="btn btn-sm btn-edit" onclick="viewUserDetail('${u.uid}')">📋 詳細</button>
       </td>
@@ -5017,5 +5108,20 @@ function _renderUserDetailContent(area, u, data, displayName){
   setTimeout(mountLpObs, 150);
 })();
 </script>
+
+<!-- 更改員工顯示名稱 Modal -->
+<div id="rename-modal">
+  <div class="rename-box">
+    <h3>✏️ 更改員工顯示名稱</h3>
+    <div class="sub" id="rename-modal-sub"></div>
+    <input class="fc" id="rename-input" placeholder="自訂顯示名稱（留空則還原 Google 名稱）">
+    <textarea class="rename-note-input" id="rename-note-input" rows="3" placeholder="備註（選填）…"></textarea>
+    <div class="rename-actions">
+      <button class="btn btn-g" onclick="closeRenameModal()">取消</button>
+      <button class="btn btn-edit" onclick="confirmRename()">💾 儲存</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
