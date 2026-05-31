@@ -302,6 +302,19 @@ textarea.fc{resize:vertical;min-height:60px}
 
 .warn-banner{background:#fff3cd;border:1px solid #f0ad00;color:#7a5000;padding:8px 12px;border-radius:var(--r);font-size:12px;font-weight:600;margin-top:8px}
 
+.rec-row{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--rlg);padding:14px;margin-bottom:8px;cursor:pointer;transition:.15s;display:flex;gap:10px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
+.rec-row:hover{border-color:var(--bdr2);box-shadow:var(--sh)}
+.rec-row.open{border-color:var(--acc);background:var(--accl)}
+.rec-main{flex:1;min-width:0}
+.rec-top{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px}
+.rec-name{font-size:15px;font-weight:700;color:var(--tx)}
+.rec-addr{font-size:12px;color:var(--tx2)}
+.rec-meta{font-size:12px;color:var(--tx2);display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.rec-actions{display:flex;gap:5px;flex-wrap:wrap;align-items:flex-start;flex-shrink:0}
+.stat-card{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r);padding:12px 16px;flex:1;min-width:100px}
+.sc-val{font-size:24px;font-weight:700;color:var(--acc);line-height:1}
+.sc-lbl{font-size:11px;color:var(--tx3);margin-top:4px}
+
 a.plink{color:var(--blu);font-size:12px;text-decoration:none}
 a.plink:hover{text-decoration:underline}
 
@@ -783,10 +796,10 @@ function initGoogleMaps() {
 
         <div class="lp-hero">
       <div class="lp-badge">🚀 專為台灣房仲打造</div>
-      <h1 class="lp-hero-title">讓每一筆<span>屋主資料</span><br>都成為成交機會</h1>
-      <p class="lp-hero-sub">整合募集線、追蹤線、委託管理與行程規劃，<br>搭配 Google 雲端同步，電腦手機隨時掌握業績。</p>
+      <h1 class="lp-hero-title">讓每一筆<span>客戶資料</span><br>都成為成交機會</h1>
+      <p class="lp-hero-sub">整合募集線、追蹤線、委託管理、買方配對與行程規劃，<br>搭配 Google 雲端同步，電腦手機隨時掌握業績。</p>
       <div class="lp-stats">
-        <div class="lp-stat"><span class="lp-stat-num">5</span><span class="lp-stat-label">核心功能模組</span></div>
+        <div class="lp-stat"><span class="lp-stat-num">7</span><span class="lp-stat-label">核心功能模組</span></div>
         <div class="lp-stat"><span class="lp-stat-num">∞</span><span class="lp-stat-label">筆資料雲端儲存</span></div>
         <div class="lp-stat"><span class="lp-stat-num">100%</span><span class="lp-stat-label">跨裝置即時同步</span></div>
       </div>
@@ -797,45 +810,57 @@ function initGoogleMaps() {
       <div class="lp-section-inner">
         <div class="lp-fade">
           <div class="lp-label">核心功能</div>
-          <h2 class="lp-title">五大模組，全面掌握業務</h2>
-          <p class="lp-sub">從第一次接觸屋主到委託簽約，完整追蹤每一個業務環節。</p>
+          <h2 class="lp-title">七大模組，全面掌握業務</h2>
+          <p class="lp-sub">從屋主開發、買方配對到委託成交，完整追蹤每一個業務環節，讓機會一筆不漏。</p>
         </div>
         <div class="lp-features">
           <div class="lp-fcard lp-fade">
             <div class="lp-fcard-icon">📋</div>
             <div class="lp-fcard-title">募集線</div>
-            <div class="lp-fcard-desc">記錄從地政謄本或其他管道取得的潛在屋主資訊，包含物件地址、屋主戶籍地、物件類型、格局、總價等完整資料，並可新增拜訪進度紀錄。</div>
+            <div class="lp-fcard-desc">記錄從地政謄本或其他管道取得的潛在屋主資訊，含物件地址、屋主戶籍地、物件類型、格局、總價等，並可新增拜訪進度紀錄。支援多屋主登記。</div>
             <div class="lp-fcard-tags"><span class="lp-tag">多屋主支援</span><span class="lp-tag">進度追蹤</span><span class="lp-tag">快速搜尋</span></div>
           </div>
           <div class="lp-fcard lp-fade">
             <div class="lp-fcard-icon">🔍</div>
             <div class="lp-fcard-title">追蹤線</div>
-            <div class="lp-fcard-desc">將有意願的屋主從募集線轉入追蹤線，持續跟進聯絡紀錄。系統自動保留轉入日期，方便檢視跟進週期與接觸頻率。</div>
+            <div class="lp-fcard-desc">將有意願的屋主從募集線一鍵轉入追蹤線，持續跟進聯絡紀錄。系統自動記錄轉入日期，方便掌握跟進週期與接觸頻率。</div>
             <div class="lp-fcard-tags"><span class="lp-tag">一鍵轉入</span><span class="lp-tag">跟進紀錄</span><span class="lp-tag">日期追蹤</span></div>
           </div>
           <div class="lp-fcard lp-fade">
             <div class="lp-fcard-icon">📝</div>
             <div class="lp-fcard-title">委託管理</div>
-            <div class="lp-fcard-desc">記錄一般委託與專任委託，自動計算委託到期日並顯示警示。支援續約功能，並整合業績達成率圖表呈現每月委託成效。</div>
+            <div class="lp-fcard-desc">記錄一般委託與專任委託，自動計算到期日並顯示警示。支援一鍵續約，整合業績達成率圖表，清楚呈現每月委託成效。</div>
             <div class="lp-fcard-tags"><span class="lp-tag">到期警示</span><span class="lp-tag">一鍵續約</span><span class="lp-tag">業績圖表</span></div>
+          </div>
+          <div class="lp-fcard lp-fade">
+            <div class="lp-fcard-icon">👤</div>
+            <div class="lp-fcard-title">買方管理</div>
+            <div class="lp-fcard-desc">建立買方檔案，記錄預算區間、物件類型、格局、樓層、屋齡與期望地點等需求。一鍵智慧匹配募集線、追蹤線與委託中的物件，並依匹配度百分比排序顯示。</div>
+            <div class="lp-fcard-tags"><span class="lp-tag">智慧匹配</span><span class="lp-tag">生日提醒</span><span class="lp-tag">經營進度</span></div>
           </div>
           <div class="lp-fcard lp-fade">
             <div class="lp-fcard-icon">📍</div>
             <div class="lp-fcard-title">行程規劃</div>
-            <div class="lp-fcard-desc">勾選多筆物件後自動計算距離，依遠近排序規劃最佳拜訪路線。一鍵匯出至 Google Maps 開啟多點導航，出門拜訪更有效率。</div>
+            <div class="lp-fcard-desc">勾選多筆物件後自動計算距離，依遠近排序規劃最佳拜訪路線。一鍵開啟 Google Maps 多點導航，出門拜訪更有效率。</div>
             <div class="lp-fcard-tags"><span class="lp-tag">距離計算</span><span class="lp-tag">Google Maps</span><span class="lp-tag">路線排序</span></div>
+          </div>
+          <div class="lp-fcard lp-fade">
+            <div class="lp-fcard-icon">🏁</div>
+            <div class="lp-fcard-title">已結案</div>
+            <div class="lp-fcard-desc">記錄自己成交與他人成交的結案紀錄，自動計算房仲業績（成交總價 × 服務費 × 業績獎勵分成），累計業績一目瞭然。</div>
+            <div class="lp-fcard-tags"><span class="lp-tag">業績計算</span><span class="lp-tag">成交紀錄</span><span class="lp-tag">累計統計</span></div>
           </div>
           <div class="lp-fcard lp-fade">
             <div class="lp-fcard-icon">📊</div>
             <div class="lp-fcard-title">首頁儀表板</div>
-            <div class="lp-fcard-desc">設定年度與月度委託目標，即時追蹤實際達成進度。全年曲線圖呈現每月目標與實際委託數對比，清楚掌握業績趨勢。</div>
+            <div class="lp-fcard-desc">設定年度與月度委託、業績、成交件數目標，即時追蹤達成率。全年曲線圖雙軌呈現目標 vs 實際，清楚掌握業績趨勢。</div>
             <div class="lp-fcard-tags"><span class="lp-tag">目標設定</span><span class="lp-tag">達成率圖表</span><span class="lp-tag">全年趨勢</span></div>
           </div>
           <div class="lp-fcard lp-fade" style="background:linear-gradient(135deg,#0f519b,#1a6bbf);border-color:transparent">
             <div class="lp-fcard-icon" style="background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.2)">☁️</div>
             <div class="lp-fcard-title" style="color:#fff">雲端同步</div>
-            <div class="lp-fcard-desc" style="color:rgba(255,255,255,.7)">資料儲存於 Google Firebase 台灣伺服器，電腦新增的資料手機立刻看到。每個 Google 帳號資料完全隔離，安全無虞。</div>
-            <div class="lp-fcard-tags"><span class="lp-tag" style="background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.2)">即時同步</span><span class="lp-tag" style="background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.2)">台灣伺服器</span></div>
+            <div class="lp-fcard-desc" style="color:rgba(255,255,255,.7)">資料儲存於 Google Firebase 台灣伺服器，電腦新增的資料手機立刻同步。每個 Google 帳號資料完全隔離，支援 Excel 匯入匯出備份。</div>
+            <div class="lp-fcard-tags"><span class="lp-tag" style="background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.2)">即時同步</span><span class="lp-tag" style="background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.2)">Excel 匯出</span></div>
           </div>
         </div>
       </div>
@@ -845,14 +870,15 @@ function initGoogleMaps() {
       <div class="lp-how-inner">
         <div class="lp-fade">
           <div class="lp-label" style="color:#fece26">使用流程</div>
-          <h2 class="lp-how-title">四步驟，輕鬆上手</h2>
+          <h2 class="lp-how-title">五步驟，輕鬆上手</h2>
           <p class="lp-how-sub">從登入到開始管理業務，只需幾分鐘。</p>
         </div>
         <div class="lp-steps">
           <div class="lp-step lp-fade"><span class="lp-step-icon">🔑</span><div class="lp-step-num">1</div><div class="lp-step-title">Google 帳號登入</div><div class="lp-step-desc">使用您的 Google 帳號一鍵登入，無需另外申請帳號，每次開啟網站需重新登入確保安全。</div></div>
           <div class="lp-step lp-fade"><span class="lp-step-icon">📋</span><div class="lp-step-num">2</div><div class="lp-step-title">建立募集線資料</div><div class="lp-step-desc">將從地政謄本取得的屋主資訊輸入系統，包含物件地址、屋主戶籍、物件詳情，並記錄拜訪進度。</div></div>
           <div class="lp-step lp-fade"><span class="lp-step-icon">🔍</span><div class="lp-step-num">3</div><div class="lp-step-title">轉入追蹤 / 委託</div><div class="lp-step-desc">有意願的屋主一鍵轉入追蹤線持續跟進，成功取得委託後再轉入委託管理，全程不漏接。</div></div>
-          <div class="lp-step lp-fade"><span class="lp-step-icon">📍</span><div class="lp-step-num">4</div><div class="lp-step-title">規劃行程出發</div><div class="lp-step-desc">選取今日拜訪物件，系統自動排序最短路線，一鍵開啟 Google Maps 導航，高效出門拜訪。</div></div>
+          <div class="lp-step lp-fade"><span class="lp-step-icon">👤</span><div class="lp-step-num">4</div><div class="lp-step-title">建檔買方 × 智慧配對</div><div class="lp-step-desc">建立買方需求檔案，一鍵匹配系統內全部物件，依匹配度百分比排序，快速找到最合適的推薦物件。</div></div>
+          <div class="lp-step lp-fade"><span class="lp-step-icon">📍</span><div class="lp-step-num">5</div><div class="lp-step-title">規劃行程出發</div><div class="lp-step-desc">選取今日拜訪物件，系統自動排序最短路線，一鍵開啟 Google Maps 導航，高效出門拜訪。</div></div>
         </div>
       </div>
     </div>
@@ -860,15 +886,16 @@ function initGoogleMaps() {
         <div class="lp-detail">
       <div class="lp-detail-inner">
         <div class="lp-fade">
-          <div class="lp-label">募集線管理</div>
+          <div class="lp-label">屋源開發管理</div>
           <h2 class="lp-title">完整記錄每一筆屋主資料</h2>
-          <p class="lp-sub">支援多屋主、同物件多位所有人的情況，一筆資料可登記多位屋主及各自的戶籍地址。</p>
+          <p class="lp-sub">支援多屋主、同物件多位所有人的情況，一筆資料可登記多位屋主及各自的戶籍地址。募集線→追蹤線→委託，三階段無縫銜接。</p>
           <ul class="lp-detail-list">
             <li><span>✓</span>物件地址、類型、坪數、總價、單價、格局、物件網址</li>
-            <li><span>✓</span>屋主姓氏、性別、聯絡電話、戶籍地址（支援多位屋主）</li>
-            <li><span>✓</span>拜訪進度紀錄，每筆記錄含時間戳記</li>
-            <li><span>✓</span>搜尋、篩選、排序，快速定位特定物件</li>
-            <li><span>✓</span>每頁 10 筆分頁顯示，瀏覽更流暢</li>
+            <li><span>✓</span>屋主姓氏、性別、戶籍地址（支援多位屋主）</li>
+            <li><span>✓</span>拜訪進度紀錄，每筆記錄含時間戳記，支援編輯</li>
+            <li><span>✓</span>關鍵字、地址、物件類型、價格區間多維篩選</li>
+            <li><span>✓</span>每頁 10 筆分頁、欄位排序，瀏覽更流暢</li>
+            <li><span>✓</span>Excel 匯出備份 / 匯入還原，資料不怕遺失</li>
           </ul>
         </div>
         <div class="lp-visual lp-fade">
@@ -889,11 +916,12 @@ function initGoogleMaps() {
         <div class="lp-fade">
           <div class="lp-label">業績儀表板</div>
           <h2 class="lp-title">目標清晰，進度一目瞭然</h2>
-          <p class="lp-sub">設定年度和每月委託目標，系統自動計算達成率並以圖表呈現，讓你隨時知道距離目標還有多遠。</p>
+          <p class="lp-sub">設定年度和每月的委託、業績、成交件數目標，系統自動計算達成率並以圖表呈現，讓你隨時知道距離目標還有多遠。</p>
           <ul class="lp-detail-list">
-            <li><span>✓</span>年度委託目標（專任 + 一般自動加總）</li>
+            <li><span>✓</span>年度 / 月度目標：委託件數、業績金額、成交件數三合一</li>
             <li><span>✓</span>月目標支援選擇任意年月瀏覽和設定</li>
             <li><span>✓</span>全年每月目標 vs 實際曲線圖，可切換年份</li>
+            <li><span>✓</span>業績成效分頁：房仲業績、成交件數趨勢圖雙軌呈現</li>
             <li><span>✓</span>每次進入首頁顯示隨機房仲鼓勵語錄</li>
           </ul>
         </div>
@@ -945,6 +973,60 @@ function initGoogleMaps() {
       </div>
     </div>
 
+        <div class="lp-detail lp-surf">
+      <div class="lp-detail-inner lp-rev">
+        <div class="lp-fade">
+          <div class="lp-label">買方管理</div>
+          <h2 class="lp-title">買方需求一鍵智慧配對</h2>
+          <p class="lp-sub">建立買方檔案後，系統自動掃描募集線、追蹤線與委託中的全部物件，依條件符合程度計算匹配度百分比，讓你第一時間推薦最合適的物件。</p>
+          <ul class="lp-detail-list">
+            <li><span>✓</span>記錄買方預算（總價 / 單價區間）、物件類型、格局需求</li>
+            <li><span>✓</span>設定期望樓層範圍、屋齡範圍、縣市行政區</li>
+            <li><span>✓</span>一鍵匹配全庫物件，依匹配度百分比由高到低排序</li>
+            <li><span>✓</span>清楚標示物件來源（募集線 / 追蹤線 / 委託）</li>
+            <li><span>✓</span>買方生日前 3 天系統主動提醒，維繫客戶關係</li>
+            <li><span>✓</span>每位買方可記錄經營進度，完整掌握跟進狀態</li>
+          </ul>
+        </div>
+        <div class="lp-visual lp-fade">
+          <div class="lp-dv-title">🎯 匹配物件 — 王先生</div>
+          <div>
+            <div class="lp-dv-row" style="margin-bottom:6px">
+              <div style="flex:1">
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+                  <span style="background:rgba(26,122,74,.3);color:#4ade80;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:700">委託</span>
+                  <span style="font-size:11px">左營區博愛二路 大樓</span>
+                  <span style="margin-left:auto;font-size:16px;font-weight:800;color:#4ade80">92%</span>
+                </div>
+                <div style="background:rgba(255,255,255,.15);border-radius:3px;height:5px"><div style="background:#4ade80;width:92%;height:100%;border-radius:3px"></div></div>
+              </div>
+            </div>
+            <div class="lp-dv-row" style="margin-bottom:6px">
+              <div style="flex:1">
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+                  <span style="background:rgba(254,206,38,.2);color:#fece26;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:700">追蹤線</span>
+                  <span style="font-size:11px">三民區民族一路 大樓</span>
+                  <span style="margin-left:auto;font-size:16px;font-weight:800;color:#fece26">74%</span>
+                </div>
+                <div style="background:rgba(255,255,255,.15);border-radius:3px;height:5px"><div style="background:#fece26;width:74%;height:100%;border-radius:3px"></div></div>
+              </div>
+            </div>
+            <div class="lp-dv-row" style="margin-bottom:6px">
+              <div style="flex:1">
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+                  <span style="background:rgba(96,165,250,.2);color:#60a5fa;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:700">募集線</span>
+                  <span style="font-size:11px">苓雅區光華一路 大樓</span>
+                  <span style="margin-left:auto;font-size:16px;font-weight:800;color:#60a5fa">51%</span>
+                </div>
+                <div style="background:rgba(255,255,255,.15);border-radius:3px;height:5px"><div style="background:#60a5fa;width:51%;height:100%;border-radius:3px"></div></div>
+              </div>
+            </div>
+          </div>
+          <div style="font-size:10px;color:rgba(255,255,255,.4);margin-top:8px">共 3 筆符合物件，依匹配度排序</div>
+        </div>
+      </div>
+    </div>
+
         <div class="lp-security">
       <div class="lp-security-inner">
         <div class="lp-fade">
@@ -964,7 +1046,7 @@ function initGoogleMaps() {
         <div class="lp-cta">
       <div class="lp-fade">
         <h2 class="lp-cta-title">準備好開始了嗎？</h2>
-        <p class="lp-cta-sub">使用 Google 帳號即可免費開始，無需任何設定。</p>
+        <p class="lp-cta-sub">七大模組、Google 雲端同步，使用 Google 帳號即可免費開始，無需任何設定。</p>
         <button class="lp-cta-btn" onclick="handleSignIn()">🔑 立即登入，免費使用</button>
       </div>
     </div>
@@ -988,7 +1070,7 @@ function initGoogleMaps() {
       <div class="lp-login-body">
         <span class="lp-sys-icon">🏠</span>
         <div class="lp-sys-name">房仲屋主管理系統</div>
-        <div style="font-size:11px;color:#fece26;margin-bottom:8px;font-weight:600">版本更新：2026-05-30 16:31</div>
+        <div style="font-size:11px;color:#fece26;margin-bottom:8px;font-weight:600">版本更新：2026-05-31 20:00</div>
         <div class="lp-sys-hint">請使用 Google 帳號登入<br>以同步您的業務資料</div>
         <button id="google-signin-btn" onclick="handleSignIn()">
           <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.36-8.16 2.36-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
@@ -1152,6 +1234,9 @@ function initGoogleMaps() {
     </button>
     <button class="drawer-nav" id="dnav-closed" onclick="switchPage('closed');toggleDrawer()">
       <span>🏁</span> 已結案 <span class="dnbadge" id="db-closed">0</span>
+    </button>
+    <button class="drawer-nav" id="dnav-buyer" onclick="switchPage('buyer');toggleDrawer()">
+      <span>👤</span> 買方管理 <span class="dnbadge" id="db-buyer">0</span>
     </button>
     <button class="drawer-nav" id="dnav-admin" onclick="switchPage('admin');toggleDrawer()" style="display:none;background:rgba(124,58,237,.25)!important">
       <span>🛡</span> 主管後台
@@ -1574,6 +1659,35 @@ function initGoogleMaps() {
 
 </div>
 
+<!-- PAGE: 買方管理 -->
+<div class="page" id="page-buyer">
+  <div class="ph">
+    <span class="pt">👤 買方管理</span>
+    <button class="btn btn-p" onclick="openBuyerModal(null)">＋ 新增買方</button>
+  </div>
+  <div class="stats" id="stats-buyer"></div>
+  <!-- 搜尋 -->
+  <div class="search-bar" id="search-buyer">
+    <div class="search-quick">
+      <input class="fc" id="sq-buyer-name" placeholder="🔍 搜尋買方姓名 / 備註..." oninput="renderBuyer()">
+      <select class="fc" id="sq-buyer-type" style="max-width:140px" onchange="renderBuyer()">
+        <option value="">全部物件類型</option>
+        <option>大樓</option><option>透天</option><option>透天店面</option>
+        <option>樓店</option><option>商辦</option><option>土地</option>
+      </select>
+      <select class="fc" id="sq-buyer-need" style="max-width:130px" onchange="renderBuyer()">
+        <option value="">全部需求類型</option>
+        <option>自住</option><option>投資</option><option>營業用</option>
+      </select>
+      <button class="btn-clear" onclick="clearBuyerSearch()">✕ 清除</button>
+    </div>
+  </div>
+  <!-- 通知列（生日） -->
+  <div id="buyer-bday-bar" style="display:none;background:var(--grnl);border:1px solid var(--grn);border-radius:var(--r);padding:10px 16px;margin-bottom:12px;font-size:13px;color:var(--grn);display:flex;align-items:center;gap:8px;flex-wrap:wrap"></div>
+  <!-- 列表 -->
+  <div id="buyer-list"></div>
+</div>
+
 <!-- PAGE: 主管後台（僅主管可見） -->
 <div class="page" id="page-admin">
   <div class="admin-topbar">
@@ -1802,9 +1916,9 @@ function initGoogleMaps() {
           <input class="fc" type="number" id="deal-fee" placeholder="%" step="0.1" min="0" max="100" oninput="calcDealProfit()">
         </div>
         <div class="fgp" style="grid-column:1/-1">
-          <label class="lbl" style="color:var(--tx3)">業績獎勵分成（%）</label>
-          <input class="fc" type="number" id="deal-bonus" readonly style="background:var(--bg);color:var(--tx2);cursor:default">
-          <div style="font-size:10px;color:var(--tx3);margin-top:3px">自動帶入委託設定的分成比例</div>
+          <label class="lbl">業績獎勵分成（%）</label>
+          <input class="fc" type="number" id="deal-bonus" placeholder="%" step="0.1" min="0" max="100" oninput="calcDealProfit()">
+          <div style="font-size:10px;color:var(--tx3);margin-top:3px">預設 72%（可手動修改）；若委託已設定分成比例則自動帶入</div>
         </div>
         <div class="fgp" style="grid-column:1/-1">
           <label class="lbl" style="color:var(--acc);font-weight:700">房仲可得業績（萬）</label>
@@ -1849,6 +1963,19 @@ function initGoogleMaps() {
   </div>
 </div></div>
 
+<div class="ov" id="ov-delclosed">
+<div class="modal modal-sm">
+  <div class="mh"><div class="mt" style="color:var(--red)">🗑 確認刪除結案紀錄</div><button class="mc" onclick="closeOv('delclosed')">✕</button></div>
+  <div class="mb">
+    <p style="font-size:13px;color:var(--tx2);margin-bottom:10px">確定要刪除以下結案紀錄？<strong style="color:var(--red)">此操作無法復原。</strong></p>
+    <div id="delclosed-info"></div>
+  </div>
+  <div class="mf">
+    <button class="btn btn-g" onclick="closeOv('delclosed')">取消</button>
+    <button class="btn btn-del" onclick="confirmDelClosed()">確定刪除</button>
+  </div>
+</div></div>
+
 <div class="ov" id="ov-editprog">
 <div class="modal modal-sm">
   <div class="mh"><div class="mt">✏️ 編輯進度記錄</div><button class="mc" onclick="closeOv('editprog')">✕</button></div>
@@ -1862,6 +1989,120 @@ function initGoogleMaps() {
   <div class="mf">
     <button class="btn btn-g" onclick="closeOv('editprog')">取消</button>
     <button class="btn btn-p" onclick="confirmEditProg()">儲存</button>
+  </div>
+</div></div>
+
+<!-- 買方新增/編輯 Modal -->
+<div class="ov" id="ov-buyer">
+<div class="modal" style="max-width:780px">
+  <div class="mh"><div class="mt" id="buyer-modal-title">新增買方</div><button class="mc" onclick="closeOv('buyer')">✕</button></div>
+  <div class="mb">
+    <div class="fsec">
+      <div class="fsec-t">基本資料</div>
+      <div class="fg fg3">
+        <div class="fgp"><label class="lbl">姓名<span class="req">*</span></label>
+          <input class="fc" id="b-name" placeholder="買方姓名"></div>
+        <div class="fgp"><label class="lbl">性別</label>
+          <select class="fc" id="b-gender">
+            <option value="">請選擇</option>
+            <option>先生</option><option>小姐</option>
+          </select></div>
+        <div class="fgp"><label class="lbl">生日</label>
+          <input class="fc" type="date" id="b-birthday"></div>
+      </div>
+    </div>
+    <div class="fsec">
+      <div class="fsec-t">需求資訊</div>
+      <div class="fg fg2">
+        <div class="fgp"><label class="lbl">需求類型</label>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <label class="rrow" style="flex:1;min-width:80px"><input type="radio" name="b-need" value="自住" checked><span>自住</span></label>
+            <label class="rrow" style="flex:1;min-width:80px"><input type="radio" name="b-need" value="投資"><span>投資</span></label>
+            <label class="rrow" style="flex:1;min-width:80px"><input type="radio" name="b-need" value="營業用"><span>營業用</span></label>
+          </div></div>
+        <div class="fgp"><label class="lbl">期望物件類型</label>
+          <select class="fc" id="b-proptype">
+            <option value="">不限</option>
+            <option>大樓</option><option>透天</option><option>透天店面</option>
+            <option>樓店</option><option>商辦</option><option>土地</option>
+          </select></div>
+      </div>
+    </div>
+    <div class="fsec">
+      <div class="fsec-t">總價預算（萬）</div>
+      <div class="fg fg2">
+        <div class="fgp"><label class="lbl">最低總價</label>
+          <input class="fc" type="number" id="b-total-min" placeholder="萬" min="0" step="0.1"></div>
+        <div class="fgp"><label class="lbl">最高總價</label>
+          <input class="fc" type="number" id="b-total-max" placeholder="萬" min="0" step="0.1"></div>
+      </div>
+      <div class="fsec-t" style="margin-top:10px">單價預算（萬/坪）</div>
+      <div class="fg fg2">
+        <div class="fgp"><label class="lbl">最低單價</label>
+          <input class="fc" type="number" id="b-unit-min" placeholder="萬/坪" min="0" step="0.01"></div>
+        <div class="fgp"><label class="lbl">最高單價</label>
+          <input class="fc" type="number" id="b-unit-max" placeholder="萬/坪" min="0" step="0.01"></div>
+      </div>
+    </div>
+    <div class="fsec">
+      <div class="fsec-t">格局與樓層</div>
+      <div class="fg fg3">
+        <div class="fgp"><label class="lbl">希望格局（房）</label>
+          <input class="fc" type="number" id="b-rooms" placeholder="不限" min="0"></div>
+        <div class="fgp"><label class="lbl">希望格局（廳）</label>
+          <input class="fc" type="number" id="b-halls" placeholder="不限" min="0"></div>
+        <div class="fgp"><label class="lbl">希望格局（衛）</label>
+          <input class="fc" type="number" id="b-baths" placeholder="不限" min="0"></div>
+      </div>
+      <div class="fg fg2" style="margin-top:10px">
+        <div class="fgp"><label class="lbl">最低樓層</label>
+          <input class="fc" type="number" id="b-floor-min" placeholder="樓（不限）" min="1"></div>
+        <div class="fgp"><label class="lbl">最高樓層</label>
+          <input class="fc" type="number" id="b-floor-max" placeholder="樓（不限）" min="1"></div>
+      </div>
+    </div>
+    <div class="fsec">
+      <div class="fsec-t">屋齡範圍（年）</div>
+      <div class="fg fg2">
+        <div class="fgp"><label class="lbl">最低屋齡</label>
+          <input class="fc" type="number" id="b-age-min" placeholder="年（不限）" min="0"></div>
+        <div class="fgp"><label class="lbl">最高屋齡</label>
+          <input class="fc" type="number" id="b-age-max" placeholder="年（不限）" min="0"></div>
+      </div>
+    </div>
+    <div class="fsec">
+      <div class="fsec-t">期望地點</div>
+      <div class="fg fg2">
+        <div class="fgp"><label class="lbl">期望縣市</label>
+          <select class="fc" id="b-city" onchange="updateBuyerDist()">
+            <option value="">不限</option>
+          </select></div>
+        <div class="fgp"><label class="lbl">期望行政區</label>
+          <select class="fc" id="b-dist">
+            <option value="">不限</option>
+          </select></div>
+      </div>
+    </div>
+    <div class="fsec">
+      <div class="fsec-t">備註</div>
+      <div class="fgp">
+        <textarea class="fc" id="b-notes" rows="3" placeholder="備註…"></textarea>
+      </div>
+    </div>
+  </div>
+  <div class="mf">
+    <button class="btn btn-g" onclick="closeOv('buyer')">取消</button>
+    <button class="btn btn-p" onclick="saveBuyer()">儲存</button>
+  </div>
+</div></div>
+
+<!-- 買方匹配物件 Modal -->
+<div class="ov" id="ov-buyer-match">
+<div class="modal" style="max-width:820px">
+  <div class="mh"><div class="mt" id="buyer-match-title">🎯 匹配物件</div><button class="mc" onclick="closeOv('buyer-match')">✕</button></div>
+  <div class="mb" id="buyer-match-body" style="min-height:120px"></div>
+  <div class="mf">
+    <button class="btn btn-g" onclick="closeOv('buyer-match')">關閉</button>
   </div>
 </div></div>
 
@@ -1928,7 +2169,7 @@ window._myRole = ROLES.STAFF;
 
 const CITIES={"基隆市":["仁愛區","信義區","中正區","中山區","安樂區","暖暖區","七堵區"],"臺北市":["松山區","信義區","大安區","中山區","中正區","大同區","萬華區","文山區","南港區","內湖區","士林區","北投區"],"新北市":["板橋區","三重區","中和區","永和區","新莊區","新店區","樹林區","鶯歌區","三峽區","淡水區","汐止區","瑞芳區","土城區","蘆洲區","五股區","泰山區","林口區","深坑區","石碇區","坪林區","三芝區","石門區","八里區","平溪區","雙溪區","貢寮區","金山區","萬里區","烏來區"],"桃園市":["桃園區","中壢區","大溪區","楊梅區","蘆竹區","大園區","龜山區","八德區","龍潭區","平鎮區","新屋區","觀音區","復興區"],"新竹市":["東區","北區","香山區"],"新竹縣":["竹北市","湖口鄉","新豐鄉","新埔鎮","關西鎮","芎林鄉","寶山鄉","竹東鎮","五峰鄉","橫山鄉","尖石鄉","北埔鄉","峨眉鄉"],"苗栗縣":["竹南鎮","頭份市","三灣鄉","南庄鄉","獅潭鄉","後龍鎮","通霄鎮","苑裡鎮","苗栗市","造橋鄉","頭屋鄉","公館鄉","大湖鄉","泰安鄉","銅鑼鄉","三義鄉","西湖鄉","卓蘭鎮"],"臺中市":["中區","東區","南區","西區","北區","西屯區","南屯區","北屯區","豐原區","東勢區","大甲區","清水區","沙鹿區","梧棲區","后里區","神岡區","潭子區","大雅區","新社區","石岡區","外埔區","大安區","烏日區","大肚區","龍井區","霧峰區","太平區","大里區","和平區"],"彰化縣":["彰化市","芬園鄉","花壇鄉","秀水鄉","鹿港鎮","福興鄉","線西鄉","和美鎮","伸港鄉","員林市","社頭鄉","永靖鄉","埔心鄉","溪湖鎮","大村鄉","埔鹽鄉","田中鎮","北斗鎮","田尾鄉","埤頭鄉","溪州鄉","竹塘鄉","二林鎮","大城鄉","芳苑鄉","二水鄉"],"南投縣":["南投市","中寮鄉","草屯鎮","國姓鄉","埔里鎮","仁愛鄉","名間鄉","集集鎮","水里鄉","魚池鄉","信義鄉","竹山鎮","鹿谷鄉"],"雲林縣":["斗南鎮","大埤鄉","虎尾鎮","土庫鎮","褒忠鄉","東勢鄉","臺西鄉","崙背鄉","麥寮鄉","斗六市","林內鄉","古坑鄉","莿桐鄉","西螺鎮","二崙鄉","北港鎮","水林鄉","口湖鄉","四湖鄉","元長鄉"],"嘉義市":["東區","西區"],"嘉義縣":["番路鄉","梅山鄉","竹崎鄉","阿里山鄉","中埔鄉","大埔鄉","水上鄉","鹿草鄉","太保市","朴子市","東石鄉","六腳鄉","新港鄉","民雄鄉","大林鎮","溪口鄉","義竹鄉","布袋鎮"],"臺南市":["中西區","東區","南區","北區","安平區","安南區","永康區","歸仁區","新化區","左鎮區","玉井區","楠西區","南化區","仁德區","關廟區","龍崎區","官田區","麻豆區","佳里區","西港區","七股區","將軍區","學甲區","北門區","新營區","後壁區","白河區","東山區","六甲區","下營區","柳營區","鹽水區","善化區","大內區","山上區","新市區","安定區"],"高雄市":["楠梓區","左營區","鼓山區","三民區","鹽埕區","前金區","新興區","苓雅區","前鎮區","旗津區","小港區","鳳山區","林園區","大寮區","大樹區","大社區","仁武區","鳥松區","岡山區","橋頭區","燕巢區","田寮區","阿蓮區","路竹區","湖內區","茄萣區","永安區","彌陀區","梓官區","旗山區","美濃區","六龜區","甲仙區","杉林區","內門區","茂林區","桃源區","那瑪夏區"],"屏東縣":["屏東市","三地門鄉","霧台鄉","瑪家鄉","九如鄉","里港鄉","高樹鄉","鹽埔鄉","長治鄉","麟洛鄉","竹田鄉","內埔鄉","萬丹鄉","潮州鎮","泰武鄉","來義鄉","萬巒鄉","崁頂鄉","新埤鄉","南州鄉","林邊鄉","東港鎮","琉球鄉","佳冬鄉","新園鄉","枋寮鄉","枋山鄉","春日鄉","獅子鄉","車城鄉","牡丹鄉","恆春鎮","滿州鄉"],"宜蘭縣":["宜蘭市","頭城鎮","礁溪鄉","壯圍鄉","員山鄉","羅東鎮","三星鄉","大同鄉","五結鄉","冬山鄉","蘇澳鎮","南澳鄉"],"花蓮縣":["花蓮市","新城鄉","秀林鄉","吉安鄉","壽豐鄉","鳳林鎮","光復鄉","豐濱鄉","瑞穗鄉","萬榮鄉","玉里鎮","卓溪鄉","富里鄉"],"臺東縣":["臺東市","綠島鄉","蘭嶼鄉","延平鄉","卑南鄉","鹿野鄉","關山鎮","海端鄉","池上鄉","東河鄉","成功鎮","長濱鄉","太麻里鄉","金峰鄉","大武鄉","達仁鄉"],"澎湖縣":["馬公市","西嶼鄉","望安鄉","七美鄉","白沙鄉","湖西鄉"],"金門縣":["金城鎮","金湖鎮","金沙鎮","金寧鄉","烈嶼鄉","烏坵鄉"],"連江縣":["南竿鄉","北竿鄉","莒光鄉","東引鄉"]};
 
-let db={recruit:[],track:[],commission:[]};
+let db={recruit:[],track:[],commission:[],buyers:[]};
 let editId=null,pendingId=null,editCommId=null;
 let currentPage='recruit',currentSubTab='general',currentView='desktop';
 let openDetailId={recruit:null,track:null,commission:null,closed:null};
@@ -1982,6 +2223,7 @@ function save(){
     track: db.track,
     commission: db.commission,
     closed: db.closed || [],
+    buyers: db.buyers || [],
     updatedAt: new Date().toISOString()
   }).then(()=>{
     setSyncStatus('☁ 已同步','var(--grn)');
@@ -2094,7 +2336,7 @@ function toggleFilter(pool){
   btn.textContent=open?'⚙ 收起篩選':'⚙ 進階篩選';
 }
 
-const PAGE_TITLES={'recruit':'募集線','track':'追蹤線','commission':'委託管理','stats':'首頁','trip':'行程規劃','closed':'已結案','admin':'管理後台'};
+const PAGE_TITLES={'recruit':'募集線','track':'追蹤線','commission':'委託管理','stats':'首頁','trip':'行程規劃','closed':'已結案','admin':'管理後台','buyer':'買方管理'};
 function switchPage(p){
   currentPage=p;
   document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));
@@ -2109,6 +2351,7 @@ function switchPage(p){
   else if(p==='closed'){renderClosed();}
   else if(p==='trip'){tripInitHCitySelect();renderTripList();renderTripSelected();updateMapsBtn();}
   else if(p==='admin'){loadAdminData();}
+  else if(p==='buyer'){renderBuyer();checkBuyerBirthdays();}
   else renderAll();
 }
 function switchSubTab(t){
@@ -4293,6 +4536,7 @@ async function loadFromFirestore(uid){
       db.track      = data.track      || [];
       db.commission = data.commission || [];
       db.closed      = data.closed      || [];
+      db.buyers      = data.buyers      || [];
     }
     const gsnap = await window._firebaseGetDoc(window._firebaseGoalsRef(uid));
     if(gsnap.exists()){
@@ -4466,12 +4710,15 @@ window.onFirebaseLogin = async function(user){
   if(window._isSupervisor){
     // 主管以上：顯示主管後台，加入導覽按鈕
     _initAdminNav();
+    // 登入時立即載入主管筆記（不等進入後台才載入，確保名稱正確）
+    _loadSupNotes();
     switchPage('admin');
   } else {
     switchPage('stats');
   }
   renderAll();
   checkNotifs();
+  checkBuyerBirthdays();
 
   // 閒置自動登出
   startAutoLogout();
@@ -4506,7 +4753,7 @@ function openDeal(id){
   document.getElementById('deal-total').value = '';
   document.getElementById('deal-unit').value  = '';
   document.getElementById('deal-fee').value   = r.commFee || '';
-  document.getElementById('deal-bonus').value = r.companyBonus || '';
+  document.getElementById('deal-bonus').value = r.companyBonus || 72;
   document.getElementById('deal-profit').value = '';
   document.getElementById('deal-other-total').value = '';
   document.getElementById('deal-other-unit').value  = '';
@@ -4740,11 +4987,459 @@ function renderClosedDetailPanel(r){
   </div>`;
 }
 
+let _delClosedId = null;
 function delClosedItem(id, e){
   if(e) e.stopPropagation();
-  if(!confirm('確定刪除此筆結案紀錄？')) return;
-  db.closed = db.closed.filter(x => x.id !== id);
+  _delClosedId = id;
+  const r = (db.closed||[]).find(x => x.id === id);
+  if(!r) return;
+  const typeLabel = r.closedType === 'self' ? '🏆 自己成交' : '📋 他人成交';
+  const typeColor = r.closedType === 'self' ? 'var(--grn)' : 'var(--org)';
+  document.getElementById('delclosed-info').innerHTML = `<div class="tbox">
+    <div class="row"><span class="k">屋主</span><span class="v">${ownersLabel(r)}</span></div>
+    <div class="row"><span class="k">物件地址</span><span class="v">${escH(fullAddr(r.propCity,r.propDist,r.propAddr))}</span></div>
+    ${r.closedDate?`<div class="row"><span class="k">結案日期</span><span class="v">${r.closedDate}</span></div>`:''}
+    <div class="row"><span class="k">成交方式</span><span class="v" style="color:${typeColor};font-weight:700">${typeLabel}</span></div>
+    ${r.closedType==='self'&&r.dealProfit?`<div class="row"><span class="k">房仲業績</span><span class="v" style="color:var(--grn);font-weight:700">${r.dealProfit} 萬</span></div>`:''}
+  </div>`;
+  openOv('delclosed');
+}
+function confirmDelClosed(){
+  if(!_delClosedId) return;
+  if(openDetailId['closed']===_delClosedId) openDetailId['closed']=null;
+  db.closed = db.closed.filter(x => x.id !== _delClosedId);
+  _delClosedId = null;
   save(); renderClosed();
+  closeOv('delclosed');
+}
+
+// ══════════════════════════════════════════════════════
+// ── 買方管理模組 ──
+// ══════════════════════════════════════════════════════
+let _buyerEditId = null;
+let _buyerOpenId = null;
+let _buyerProgPages = {};
+
+// 初始化縣市下拉（買方 Modal）
+function initBuyerCitySelect(){
+  const sel = document.getElementById('b-city');
+  if(!sel || sel.options.length > 1) return;
+  Object.keys(CITIES).forEach(c=>{
+    const o = document.createElement('option');
+    o.value = o.textContent = c;
+    sel.appendChild(o);
+  });
+}
+function updateBuyerDist(){
+  const city = document.getElementById('b-city').value;
+  const sel = document.getElementById('b-dist');
+  sel.innerHTML = '<option value="">不限</option>';
+  if(CITIES[city]) CITIES[city].forEach(d=>{
+    const o = document.createElement('option');
+    o.value = o.textContent = d;
+    sel.appendChild(o);
+  });
+}
+
+function openBuyerModal(id){
+  _buyerEditId = id;
+  initBuyerCitySelect();
+  document.getElementById('buyer-modal-title').textContent = id ? '編輯買方資料' : '新增買方';
+  const f = id ? (db.buyers||[]).find(x=>x.id===id) : null;
+  // reset
+  ['b-name','b-birthday','b-total-min','b-total-max','b-unit-min','b-unit-max',
+   'b-rooms','b-halls','b-baths','b-floor-min','b-floor-max','b-age-min','b-age-max','b-notes'].forEach(k=>{
+    const el = document.getElementById(k);
+    if(el) el.value = f ? (f[k.replace('b-','').replace('-','_')] || '') : '';
+  });
+  // map field names carefully
+  if(f){
+    document.getElementById('b-name').value = f.name||'';
+    document.getElementById('b-birthday').value = f.birthday||'';
+    document.getElementById('b-gender').value = f.gender||'';
+    document.getElementById('b-proptype').value = f.propType||'';
+    document.getElementById('b-total-min').value = f.totalMin||'';
+    document.getElementById('b-total-max').value = f.totalMax||'';
+    document.getElementById('b-unit-min').value = f.unitMin||'';
+    document.getElementById('b-unit-max').value = f.unitMax||'';
+    document.getElementById('b-rooms').value = f.rooms||'';
+    document.getElementById('b-halls').value = f.halls||'';
+    document.getElementById('b-baths').value = f.baths||'';
+    document.getElementById('b-floor-min').value = f.floorMin||'';
+    document.getElementById('b-floor-max').value = f.floorMax||'';
+    document.getElementById('b-age-min').value = f.ageMin||'';
+    document.getElementById('b-age-max').value = f.ageMax||'';
+    document.getElementById('b-city').value = f.city||'';
+    if(f.city) updateBuyerDist();
+    setTimeout(()=>{ document.getElementById('b-dist').value = f.dist||''; },15);
+    document.getElementById('b-notes').value = f.notes||'';
+    // need type radio
+    const needRad = document.querySelector(`input[name="b-need"][value="${f.needType||'自住'}"]`);
+    if(needRad) needRad.checked = true;
+  } else {
+    document.getElementById('b-gender').value = '';
+    document.getElementById('b-proptype').value = '';
+    document.getElementById('b-city').value = '';
+    document.getElementById('b-dist').innerHTML = '<option value="">不限</option>';
+    const needRad = document.querySelector('input[name="b-need"][value="自住"]');
+    if(needRad) needRad.checked = true;
+  }
+  openOv('buyer');
+}
+
+function saveBuyer(){
+  const name = (document.getElementById('b-name').value||'').trim();
+  if(!name){ alert('請填寫買方姓名'); return; }
+  if(!db.buyers) db.buyers = [];
+  const needRad = document.querySelector('input[name="b-need"]:checked');
+  const entry = {
+    id: _buyerEditId || uid(),
+    name,
+    gender: document.getElementById('b-gender').value||'',
+    birthday: document.getElementById('b-birthday').value||'',
+    propType: document.getElementById('b-proptype').value||'',
+    needType: needRad ? needRad.value : '自住',
+    totalMin: parseFloat(document.getElementById('b-total-min').value)||0,
+    totalMax: parseFloat(document.getElementById('b-total-max').value)||0,
+    unitMin: parseFloat(document.getElementById('b-unit-min').value)||0,
+    unitMax: parseFloat(document.getElementById('b-unit-max').value)||0,
+    rooms: parseInt(document.getElementById('b-rooms').value)||0,
+    halls: parseInt(document.getElementById('b-halls').value)||0,
+    baths: parseInt(document.getElementById('b-baths').value)||0,
+    floorMin: parseInt(document.getElementById('b-floor-min').value)||0,
+    floorMax: parseInt(document.getElementById('b-floor-max').value)||0,
+    ageMin: parseInt(document.getElementById('b-age-min').value)||0,
+    ageMax: parseInt(document.getElementById('b-age-max').value)||0,
+    city: document.getElementById('b-city').value||'',
+    dist: document.getElementById('b-dist').value||'',
+    notes: document.getElementById('b-notes').value||'',
+    date: nowDate(),
+    time: nowTime(),
+    progress: _buyerEditId ? ((db.buyers.find(x=>x.id===_buyerEditId)||{}).progress||[]) : []
+  };
+  if(_buyerEditId){
+    const idx = db.buyers.findIndex(x=>x.id===_buyerEditId);
+    if(idx>=0) db.buyers[idx] = entry;
+  } else {
+    db.buyers.push(entry);
+  }
+  save(); closeOv('buyer'); renderBuyer(); checkBuyerBirthdays();
+}
+
+function delBuyer(id, e){
+  if(e) e.stopPropagation();
+  if(!confirm('確定刪除此買方資料？')) return;
+  db.buyers = (db.buyers||[]).filter(x=>x.id!==id);
+  if(_buyerOpenId===id) _buyerOpenId=null;
+  save(); renderBuyer();
+}
+
+function toggleBuyerDetail(id){
+  _buyerOpenId = (_buyerOpenId===id) ? null : id;
+  renderBuyer();
+  if(_buyerOpenId){
+    setTimeout(()=>{
+      const el = document.getElementById('buyer-dp-'+id);
+      if(el) el.scrollIntoView({behavior:'smooth',block:'start'});
+    },60);
+  }
+}
+
+function addBuyerProgress(id){
+  const ta = document.getElementById('buyer-prog-input-'+id);
+  if(!ta) return;
+  const text = (ta.value||'').trim();
+  if(!text) return;
+  const b = (db.buyers||[]).find(x=>x.id===id);
+  if(!b) return;
+  if(!b.progress) b.progress=[];
+  b.progress.unshift({id:uid(),text,date:nowDate(),time:nowTime()});
+  ta.value='';
+  save(); renderBuyer();
+}
+
+function delBuyerProgress(bid, pid, e){
+  if(e) e.stopPropagation();
+  if(!confirm('確定刪除此筆進度？')) return;
+  const b = (db.buyers||[]).find(x=>x.id===bid);
+  if(b&&b.progress) b.progress = b.progress.filter(p=>p.id!==pid);
+  save(); renderBuyer();
+}
+
+function setBuyerProgPage(id, page){
+  _buyerProgPages[id]=page;
+  renderBuyer();
+}
+
+function filterBuyers(){
+  const nameKw = (document.getElementById('sq-buyer-name')||{value:''}).value.trim().toLowerCase();
+  const typeKw = (document.getElementById('sq-buyer-type')||{value:''}).value;
+  const needKw = (document.getElementById('sq-buyer-need')||{value:''}).value;
+  return (db.buyers||[]).filter(b=>{
+    const matchName = !nameKw || (b.name||'').toLowerCase().includes(nameKw) || (b.notes||'').toLowerCase().includes(nameKw);
+    const matchType = !typeKw || b.propType===typeKw;
+    const matchNeed = !needKw || b.needType===needKw;
+    return matchName && matchType && matchNeed;
+  });
+}
+
+function clearBuyerSearch(){
+  ['sq-buyer-name','sq-buyer-type','sq-buyer-need'].forEach(k=>{
+    const el=document.getElementById(k); if(el) el.value='';
+  });
+  renderBuyer();
+}
+
+function renderBuyer(){
+  if(!db.buyers) db.buyers=[];
+  const buyers = db.buyers;
+  // stats
+  const statsEl=document.getElementById('stats-buyer');
+  if(statsEl){
+    statsEl.innerHTML=`<div class="sc"><div class="sn">${buyers.length}</div><div class="sl">買方總數</div></div>
+    <div class="sc"><div class="sn">${buyers.filter(b=>b.needType==='自住').length}</div><div class="sl">自住需求</div></div>
+    <div class="sc"><div class="sn">${buyers.filter(b=>b.needType==='投資').length}</div><div class="sl">投資需求</div></div>
+    <div class="sc"><div class="sn">${buyers.filter(b=>b.needType==='營業用').length}</div><div class="sl">營業需求</div></div>`;
+  }
+  // badge
+  const badge=document.getElementById('db-buyer');
+  if(badge) badge.textContent=buyers.length;
+  // list
+  const el=document.getElementById('buyer-list');
+  if(!el) return;
+  const filtered=filterBuyers();
+  if(!filtered.length){
+    el.innerHTML='<div style="text-align:center;color:var(--tx3);padding:40px;font-size:14px">📭 尚無符合買方</div>';
+    return;
+  }
+  el.innerHTML = filtered.map(b=>{
+    const isOpen = _buyerOpenId===b.id;
+    const progs = b.progress||[];
+    const pg = _buyerProgPages[b.id]||1;
+    const PER=5;
+    const totalPgs = Math.max(1,Math.ceil(progs.length/PER));
+    const curPg = Math.min(pg,totalPgs);
+    const slice = progs.slice((curPg-1)*PER, curPg*PER);
+    const budgetStr = (b.totalMin||b.totalMax) ?
+      `總價 ${b.totalMin||'—'}～${b.totalMax||'—'} 萬` : '';
+    const unitStr = (b.unitMin||b.unitMax) ?
+      ` 單價 ${b.unitMin||'—'}～${b.unitMax||'—'} 萬/坪` : '';
+    const layoutStr = (b.rooms||b.halls||b.baths) ?
+      `${b.rooms?b.rooms+'房':''}${b.halls?b.halls+'廳':''}${b.baths?b.baths+'衛':''}` : '';
+    const locStr = [b.city,b.dist].filter(Boolean).join('');
+    const needColor = b.needType==='自住'?'var(--acc)':b.needType==='投資'?'var(--grn)':'var(--org)';
+    const needBg = b.needType==='自住'?'var(--accl)':b.needType==='投資'?'var(--grnl)':'var(--orgl)';
+    const bdayWarn = _buyerBdayAlert(b);
+    return `<div class="rec-row ${isOpen?'open':''}" onclick="toggleBuyerDetail('${b.id}')">
+      <div class="rec-main">
+        <div class="rec-top">
+          <span class="rec-name">${escH(b.name)}${b.gender?` <span style="font-size:11px;color:var(--tx3)">${escH(b.gender)}</span>`:''}</span>
+          <span style="background:${needBg};color:${needColor};padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600">${escH(b.needType||'')}</span>
+          ${b.propType?`<span style="background:var(--accl);color:var(--acc);padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600">${escH(b.propType)}</span>`:''}
+          ${bdayWarn?`<span style="background:var(--grnl);color:var(--grn);padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700">🎂 ${bdayWarn}</span>`:''}
+        </div>
+        <div class="rec-addr" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px">
+          ${locStr?`<span>📍 ${escH(locStr)}</span>`:''}
+          ${budgetStr?`<span>💰 ${escH(budgetStr)}${unitStr?escH(unitStr):''}</span>`:''}
+          ${layoutStr?`<span>🏠 ${escH(layoutStr)}</span>`:''}
+        </div>
+        ${progs.length?`<div class="card-progress" style="margin-top:6px"><span style="font-size:10px;color:var(--tx3)">最新進度：</span>${escH(progs[0].text)}</div>`:''}
+      </div>
+      <div class="rec-actions" onclick="event.stopPropagation()">
+        <button class="btn btn-sm btn-edit" onclick="openBuyerModal('${b.id}')">✏️ 編輯</button>
+        <button class="btn btn-sm" style="background:var(--gldl);color:var(--gld);border:1px solid var(--gld)" onclick="openBuyerMatch('${b.id}')">🎯 匹配物件</button>
+        <button class="btn btn-sm btn-del" onclick="delBuyer('${b.id}',event)">🗑</button>
+      </div>
+    </div>
+    ${isOpen?`<div id="buyer-dp-${b.id}" class="detail-panel" style="margin-bottom:16px">
+      <div class="dp-header">
+        <div class="dp-title">👤 ${escH(b.name)}${b.gender?' '+escH(b.gender):''} — 買方經營紀錄</div>
+        <div class="dp-actions">
+          <button class="btn btn-sm" style="background:var(--gldl);color:var(--gld);border:1px solid var(--gld)" onclick="openBuyerMatch('${b.id}')">🎯 匹配物件</button>
+          <button class="btn btn-sm btn-edit" onclick="openBuyerModal('${b.id}')">✏️ 編輯</button>
+          <button class="btn btn-sm btn-g" onclick="toggleBuyerDetail('${b.id}')">✕ 收起</button>
+        </div>
+      </div>
+      <div class="dp-body">
+        <div class="dp-grid">
+          ${b.birthday?`<div class="dp-field"><div class="k">生日</div><div class="v">${escH(b.birthday)}</div></div>`:''}
+          ${b.needType?`<div class="dp-field"><div class="k">需求類型</div><div class="v" style="font-weight:700;color:${needColor}">${escH(b.needType)}</div></div>`:''}
+          ${b.propType?`<div class="dp-field"><div class="k">物件類型</div><div class="v">${escH(b.propType)}</div></div>`:''}
+          ${(b.totalMin||b.totalMax)?`<div class="dp-field"><div class="k">總價預算</div><div class="v">${b.totalMin||'—'} ～ ${b.totalMax||'—'} 萬</div></div>`:''}
+          ${(b.unitMin||b.unitMax)?`<div class="dp-field"><div class="k">單價預算</div><div class="v">${b.unitMin||'—'} ～ ${b.unitMax||'—'} 萬/坪</div></div>`:''}
+          ${layoutStr?`<div class="dp-field"><div class="k">希望格局</div><div class="v">${escH(layoutStr)}</div></div>`:''}
+          ${(b.floorMin||b.floorMax)?`<div class="dp-field"><div class="k">樓層範圍</div><div class="v">${b.floorMin||'—'} ～ ${b.floorMax||'—'} 樓</div></div>`:''}
+          ${(b.ageMin||b.ageMax)?`<div class="dp-field"><div class="k">屋齡範圍</div><div class="v">${b.ageMin||'—'} ～ ${b.ageMax||'—'} 年</div></div>`:''}
+          ${locStr?`<div class="dp-field"><div class="k">期望地點</div><div class="v">${escH(locStr)}</div></div>`:''}
+          ${b.notes?`<div class="dp-field" style="grid-column:1/-1"><div class="k">備註</div><div class="v">${escH(b.notes)}</div></div>`:''}
+        </div>
+        <div class="progress-section">
+          <div class="prog-head">
+            <div class="prog-title">📋 經營進度（共 ${progs.length} 筆）</div>
+          </div>
+          <div class="prog-add">
+            <textarea class="fc" id="buyer-prog-input-${b.id}" placeholder="輸入新進度…" rows="2" onclick="event.stopPropagation()"></textarea>
+            <button class="btn btn-p btn-sm" onclick="event.stopPropagation();addBuyerProgress('${b.id}')">新增</button>
+          </div>
+          <div class="prog-list">
+            ${slice.length?slice.map(p=>`<div class="prog-item">
+              <div class="prog-meta"><span>${p.date} ${p.time}</span></div>
+              <div class="prog-text">${escH(p.text)}</div>
+              <button class="prog-del" style="position:absolute;top:8px;right:8px;opacity:1" onclick="delBuyerProgress('${b.id}','${p.id}',event)">✕</button>
+            </div>`).join(''):'<div style="text-align:center;padding:20px;color:var(--tx3);font-size:13px">尚無進度記錄</div>'}
+          </div>
+          ${totalPgs>1?`<div style="display:flex;align-items:center;gap:6px;padding:8px 0;flex-wrap:wrap">
+            <button class="btn btn-sm btn-g" onclick="setBuyerProgPage('${b.id}',${curPg-1})" ${curPg<=1?'disabled':''}>‹</button>
+            <span style="font-size:12px;color:var(--tx3)">${curPg}/${totalPgs}</span>
+            <button class="btn btn-sm btn-g" onclick="setBuyerProgPage('${b.id}',${curPg+1})" ${curPg>=totalPgs?'disabled':''}>›</button>
+          </div>`:''}
+        </div>
+      </div>
+    </div>`:''}`;
+  }).join('');
+}
+
+// ── 生日提醒（生日前3天） ──
+function _buyerBdayAlert(b){
+  if(!b.birthday) return '';
+  try{
+    const today = new Date();
+    const thisYear = today.getFullYear();
+    const bdayParts = b.birthday.split('-');
+    if(bdayParts.length<3) return '';
+    const mm=parseInt(bdayParts[1]), dd=parseInt(bdayParts[2]);
+    let bdayThisYear = new Date(thisYear, mm-1, dd);
+    if(bdayThisYear < today){
+      bdayThisYear = new Date(thisYear+1, mm-1, dd);
+    }
+    const diffDays = Math.ceil((bdayThisYear - today)/86400000);
+    if(diffDays===0) return '今天生日！';
+    if(diffDays<=3) return `${diffDays}天後生日`;
+    return '';
+  }catch{ return ''; }
+}
+
+function checkBuyerBirthdays(){
+  if(!db.buyers||!db.buyers.length) return;
+  const alerts = db.buyers.filter(b=>_buyerBdayAlert(b));
+  const bar = document.getElementById('buyer-bday-bar');
+  if(!bar) return;
+  if(!alerts.length){bar.style.display='none';return;}
+  bar.style.display='flex';
+  bar.innerHTML='🎂 <strong>生日提醒：</strong>' + alerts.map(b=>{
+    const msg=_buyerBdayAlert(b);
+    return `<span style="background:var(--grn);color:#fff;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700">${escH(b.name)} ${msg}</span>`;
+  }).join(' ');
+}
+
+// ── 匹配物件 ──
+function calcMatchScore(buyer, prop){
+  let score=0, total=0;
+  // 物件類型 (20%)
+  if(buyer.propType){
+    total+=20;
+    if(prop.propType===buyer.propType) score+=20;
+  }
+  // 總價 (25%)
+  const propTotal=parseFloat(prop.total)||0;
+  if(buyer.totalMin||buyer.totalMax){
+    total+=25;
+    const mn=buyer.totalMin||0, mx=buyer.totalMax||Infinity;
+    if(propTotal>=mn && propTotal<=mx) score+=25;
+    else if(propTotal>0){
+      // 接近的話給部分分數
+      const range=mx===Infinity?mn*0.5:(mx-mn)||1;
+      const dist=Math.min(Math.abs(propTotal-mn),Math.abs(propTotal-mx));
+      const partial=Math.max(0,1-dist/(range*0.5))*15;
+      score+=partial;
+    }
+  }
+  // 單價 (15%)
+  const propUnit=parseFloat(prop.unit)||0;
+  if(buyer.unitMin||buyer.unitMax){
+    total+=15;
+    const mn=buyer.unitMin||0, mx=buyer.unitMax||Infinity;
+    if(propUnit>=mn && propUnit<=mx) score+=15;
+    else if(propUnit>0){
+      const range=mx===Infinity?mn*0.3:(mx-mn)||0.1;
+      const dist=Math.min(Math.abs(propUnit-mn),Math.abs(propUnit-mx));
+      const partial=Math.max(0,1-dist/(range*0.5))*8;
+      score+=partial;
+    }
+  }
+  // 格局 (15%)
+  if(buyer.rooms){total+=8;if(parseInt(prop.rooms||0)===buyer.rooms)score+=8;else if(Math.abs(parseInt(prop.rooms||0)-buyer.rooms)===1)score+=4;}
+  if(buyer.halls){total+=4;if(parseInt(prop.halls||0)===buyer.halls)score+=4;}
+  if(buyer.baths){total+=3;if(parseInt(prop.baths||0)===buyer.baths)score+=3;}
+  // 地點 (15%)
+  if(buyer.city){
+    total+=10;
+    if(prop.propCity===buyer.city) score+=10;
+  }
+  if(buyer.dist){
+    total+=5;
+    if(prop.propDist===buyer.dist) score+=5;
+  }
+  // 屋齡 (5%)
+  if(buyer.ageMin||buyer.ageMax){
+    if(prop.buildYear){
+      const propAge=new Date().getFullYear()-parseInt(prop.buildYear||0);
+      total+=5;
+      const mn=buyer.ageMin||0, mx=buyer.ageMax||200;
+      if(propAge>=mn&&propAge<=mx) score+=5;
+    }
+  }
+  if(total===0) return 0;
+  return Math.round(Math.min(100,(score/total)*100));
+}
+
+function openBuyerMatch(bid){
+  const buyer=(db.buyers||[]).find(x=>x.id===bid);
+  if(!buyer) return;
+  document.getElementById('buyer-match-title').textContent=`🎯 匹配物件 — ${buyer.name}${buyer.gender?' '+buyer.gender:''}`;
+  // collect all properties
+  const allProps=[
+    ...db.recruit.map(r=>({...r,_src:'募集線',_srcColor:'var(--acc)',_srcBg:'var(--accl)'})),
+    ...db.track.map(r=>({...r,_src:'追蹤線',_srcColor:'var(--grn)',_srcBg:'var(--grnl)'})),
+    ...db.commission.map(r=>({...r,_src:'委託',_srcColor:'var(--gld)',_srcBg:'var(--gldl)'}))
+  ];
+  const scored=allProps.map(p=>({...p,_score:calcMatchScore(buyer,p)}))
+    .filter(p=>p._score>0)
+    .sort((a,b)=>b._score-a._score);
+  const body=document.getElementById('buyer-match-body');
+  if(!scored.length){
+    body.innerHTML='<div style="text-align:center;padding:40px;color:var(--tx3);font-size:14px">目前無符合條件的物件</div>';
+    openOv('buyer-match');return;
+  }
+  body.innerHTML=`<div style="margin-bottom:12px;font-size:13px;color:var(--tx2)">共找到 <strong>${scored.length}</strong> 筆物件，依匹配度排序：</div>`+
+  scored.map(p=>{
+    const scoreColor=p._score>=80?'var(--grn)':p._score>=50?'var(--gld)':'var(--org)';
+    const barW=p._score+'%';
+    const addr=fullAddr(p.propCity,p.propDist,p.propAddr);
+    const ownLabel=p.owners&&p.owners.length?p.owners.map(o=>o.name).join('、'):(p.ownerName||'');
+    return `<div style="background:var(--surf2);border:1px solid var(--bdr);border-radius:10px;padding:12px 14px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+        <span style="background:${p._srcBg};color:${p._srcColor};padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700">${p._src}</span>
+        ${p.propType?`<span style="background:var(--accl);color:var(--acc);padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600">${escH(p.propType)}</span>`:''}
+        <strong style="font-size:14px">${escH(ownLabel||'—')}</strong>
+        <span style="color:var(--tx3);font-size:12px">${escH(addr)}</span>
+        <div style="margin-left:auto;text-align:right">
+          <div style="font-size:20px;font-weight:800;color:${scoreColor}">${p._score}%</div>
+          <div style="font-size:10px;color:var(--tx3)">匹配度</div>
+        </div>
+      </div>
+      <div style="background:var(--bdr);border-radius:4px;height:6px;width:100%;overflow:hidden">
+        <div style="background:${scoreColor};width:${barW};height:100%;border-radius:4px;transition:width .4s"></div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;font-size:12px;color:var(--tx2)">
+        ${p.total?`<span>💰 ${p.total} 萬</span>`:''}
+        ${p.unit?`<span>📐 ${p.unit} 萬/坪</span>`:''}
+        ${(p.rooms||p.halls||p.baths)?`<span>🛏 ${p.rooms?p.rooms+'房':''}${p.halls?p.halls+'廳':''}${p.baths?p.baths+'衛':''}</span>`:''}
+        ${p.area?`<span>📏 ${p.area}坪</span>`:''}
+      </div>
+    </div>`;
+  }).join('');
+  openOv('buyer-match');
 }
 
 // ══════════════════════════════════════════════════════
@@ -4829,7 +5524,8 @@ async function loadAdminData(){
   const updEl = document.getElementById('admin-updated');
   if(updEl) updEl.textContent = '載入中…';
   try{
-    if(!_supNotesLoaded) await _loadSupNotes();
+    // 每次進入主管後台都重新載入筆記，確保取得最新自訂名稱
+    await _loadSupNotes();
     const snap = await window._firebaseGetDocs(window._firebaseIndexColl());
     _adminData = [];
     snap.forEach(doc => {
