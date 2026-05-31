@@ -1384,6 +1384,12 @@ function initGoogleMaps() {
       <div id="quote-sub" style="font-size:11px;color:rgba(255,255,255,.65);margin-top:2px"></div>
     </div>
   </div>
+  <!-- 買方生日提醒（首頁） -->
+  <div id="stats-bday-bar" style="display:none;background:var(--grnl);border:1px solid var(--grn);border-radius:var(--r);padding:10px 16px;margin-bottom:16px;display:none;align-items:center;gap:10px;flex-wrap:wrap">
+    <span style="font-size:16px">🎂</span>
+    <strong style="font-size:13px;color:var(--grn)">買方生日提醒</strong>
+    <div id="stats-bday-list" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+  </div>
   <!-- 目標設定區（含業績、成交件數） -->
   <div class="goal-section">
     <!-- 年度目標 -->
@@ -2012,6 +2018,21 @@ function initGoogleMaps() {
       </div>
     </div>
     <div class="fsec">
+      <div class="fsec-t">聯絡方式</div>
+      <div class="fg fg2">
+        <div class="fgp"><label class="lbl">手機</label>
+          <input class="fc" id="b-phone" placeholder="09XX-XXX-XXX" type="tel"></div>
+        <div class="fgp"><label class="lbl">LINE ID</label>
+          <input class="fc" id="b-line" placeholder="LINE ID"></div>
+      </div>
+      <div class="fg fg2" style="margin-top:10px">
+        <div class="fgp"><label class="lbl">E-mail</label>
+          <input class="fc" id="b-email" placeholder="example@email.com" type="email"></div>
+        <div class="fgp"><label class="lbl">地址</label>
+          <input class="fc" id="b-address" placeholder="聯絡地址"></div>
+      </div>
+    </div>
+    <div class="fsec">
       <div class="fsec-t">需求資訊</div>
       <div class="fg fg2">
         <div class="fgp"><label class="lbl">需求類型</label>
@@ -2347,7 +2368,7 @@ function switchPage(p){
   if(dn) dn.classList.add('active');
   const tb=document.getElementById('topbar-title');
   if(tb)tb.textContent=PAGE_TITLES[p]||'';
-  if(p==='stats'){initStatsYears();renderDailyQuote();renderStats();}
+  if(p==='stats'){initStatsYears();renderDailyQuote();renderStats();checkBuyerBirthdays();}
   else if(p==='closed'){renderClosed();}
   else if(p==='trip'){tripInitHCitySelect();renderTripList();renderTripSelected();updateMapsBtn();}
   else if(p==='admin'){loadAdminData();}
@@ -5046,17 +5067,21 @@ function openBuyerModal(id){
   initBuyerCitySelect();
   document.getElementById('buyer-modal-title').textContent = id ? '編輯買方資料' : '新增買方';
   const f = id ? (db.buyers||[]).find(x=>x.id===id) : null;
-  // reset
-  ['b-name','b-birthday','b-total-min','b-total-max','b-unit-min','b-unit-max',
+  // reset all fields
+  ['b-name','b-birthday','b-phone','b-line','b-email','b-address',
+   'b-total-min','b-total-max','b-unit-min','b-unit-max',
    'b-rooms','b-halls','b-baths','b-floor-min','b-floor-max','b-age-min','b-age-max','b-notes'].forEach(k=>{
     const el = document.getElementById(k);
-    if(el) el.value = f ? (f[k.replace('b-','').replace('-','_')] || '') : '';
+    if(el) el.value = '';
   });
-  // map field names carefully
   if(f){
     document.getElementById('b-name').value = f.name||'';
     document.getElementById('b-birthday').value = f.birthday||'';
     document.getElementById('b-gender').value = f.gender||'';
+    document.getElementById('b-phone').value = f.phone||'';
+    document.getElementById('b-line').value = f.line||'';
+    document.getElementById('b-email').value = f.email||'';
+    document.getElementById('b-address').value = f.address||'';
     document.getElementById('b-proptype').value = f.propType||'';
     document.getElementById('b-total-min').value = f.totalMin||'';
     document.getElementById('b-total-max').value = f.totalMax||'';
@@ -5073,7 +5098,6 @@ function openBuyerModal(id){
     if(f.city) updateBuyerDist();
     setTimeout(()=>{ document.getElementById('b-dist').value = f.dist||''; },15);
     document.getElementById('b-notes').value = f.notes||'';
-    // need type radio
     const needRad = document.querySelector(`input[name="b-need"][value="${f.needType||'自住'}"]`);
     if(needRad) needRad.checked = true;
   } else {
@@ -5097,6 +5121,10 @@ function saveBuyer(){
     name,
     gender: document.getElementById('b-gender').value||'',
     birthday: document.getElementById('b-birthday').value||'',
+    phone: document.getElementById('b-phone').value||'',
+    line: document.getElementById('b-line').value||'',
+    email: document.getElementById('b-email').value||'',
+    address: document.getElementById('b-address').value||'',
     propType: document.getElementById('b-proptype').value||'',
     needType: needRad ? needRad.value : '自住',
     totalMin: parseFloat(document.getElementById('b-total-min').value)||0,
@@ -5265,6 +5293,10 @@ function renderBuyer(){
           ${b.birthday?`<div class="dp-field"><div class="k">生日</div><div class="v">${escH(b.birthday)}</div></div>`:''}
           ${b.needType?`<div class="dp-field"><div class="k">需求類型</div><div class="v" style="font-weight:700;color:${needColor}">${escH(b.needType)}</div></div>`:''}
           ${b.propType?`<div class="dp-field"><div class="k">物件類型</div><div class="v">${escH(b.propType)}</div></div>`:''}
+          ${b.phone?`<div class="dp-field"><div class="k">手機</div><div class="v"><a href="tel:${escH(b.phone)}" style="color:var(--acc);text-decoration:none">${escH(b.phone)}</a></div></div>`:''}
+          ${b.line?`<div class="dp-field"><div class="k">LINE ID</div><div class="v">${escH(b.line)}</div></div>`:''}
+          ${b.email?`<div class="dp-field"><div class="k">E-mail</div><div class="v"><a href="mailto:${escH(b.email)}" style="color:var(--acc);text-decoration:none;word-break:break-all">${escH(b.email)}</a></div></div>`:''}
+          ${b.address?`<div class="dp-field" style="grid-column:1/-1"><div class="k">地址</div><div class="v">${escH(b.address)}</div></div>`:''}
           ${(b.totalMin||b.totalMax)?`<div class="dp-field"><div class="k">總價預算</div><div class="v">${b.totalMin||'—'} ～ ${b.totalMax||'—'} 萬</div></div>`:''}
           ${(b.unitMin||b.unitMax)?`<div class="dp-field"><div class="k">單價預算</div><div class="v">${b.unitMin||'—'} ～ ${b.unitMax||'—'} 萬/坪</div></div>`:''}
           ${layoutStr?`<div class="dp-field"><div class="k">希望格局</div><div class="v">${escH(layoutStr)}</div></div>`:''}
@@ -5320,126 +5352,250 @@ function _buyerBdayAlert(b){
 }
 
 function checkBuyerBirthdays(){
-  if(!db.buyers||!db.buyers.length) return;
+  if(!db.buyers||!db.buyers.length){
+    _hideBdayBars(); return;
+  }
   const alerts = db.buyers.filter(b=>_buyerBdayAlert(b));
-  const bar = document.getElementById('buyer-bday-bar');
-  if(!bar) return;
-  if(!alerts.length){bar.style.display='none';return;}
-  bar.style.display='flex';
-  bar.innerHTML='🎂 <strong>生日提醒：</strong>' + alerts.map(b=>{
-    const msg=_buyerBdayAlert(b);
-    return `<span style="background:var(--grn);color:#fff;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700">${escH(b.name)} ${msg}</span>`;
-  }).join(' ');
+
+  // ── 買方頁面的提醒列 ──
+  const buyerBar = document.getElementById('buyer-bday-bar');
+  if(buyerBar){
+    if(!alerts.length){ buyerBar.style.display='none'; }
+    else {
+      buyerBar.style.display='flex';
+      buyerBar.innerHTML='🎂 <strong style="margin-right:6px">生日提醒：</strong>' + alerts.map(b=>{
+        const msg=_buyerBdayAlert(b);
+        return `<span onclick="toggleBuyerDetail('${b.id}')" style="background:var(--grn);color:#fff;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer">${escH(b.name)} ${msg}</span>`;
+      }).join(' ');
+    }
+  }
+
+  // ── 首頁的提醒列 ──
+  const statsBar = document.getElementById('stats-bday-bar');
+  const statsList = document.getElementById('stats-bday-list');
+  if(statsBar && statsList){
+    if(!alerts.length){ statsBar.style.display='none'; }
+    else {
+      statsBar.style.display='flex';
+      statsList.innerHTML = alerts.map(b=>{
+        const msg=_buyerBdayAlert(b);
+        const isToday = msg==='今天生日！';
+        return `<button onclick="goBuyerDetail('${b.id}')" style="
+          background:${isToday?'var(--grn)':'var(--surf)'};
+          color:${isToday?'#fff':'var(--grn)'};
+          border:1.5px solid var(--grn);
+          padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700;
+          cursor:pointer;font-family:inherit;transition:.15s;display:inline-flex;align-items:center;gap:5px;
+        ">${isToday?'🎉':'🎂'} ${escH(b.name)}${b.gender?' '+escH(b.gender):''} <span style="font-weight:400;font-size:11px">${msg}</span></button>`;
+      }).join('');
+    }
+  }
+}
+
+function _hideBdayBars(){
+  const b1=document.getElementById('buyer-bday-bar');
+  const b2=document.getElementById('stats-bday-bar');
+  if(b1) b1.style.display='none';
+  if(b2) b2.style.display='none';
+}
+
+// 從首頁點擊生日提醒 → 跳到買方管理頁該買方的細項
+function goBuyerDetail(bid){
+  switchPage('buyer');
+  _buyerOpenId = bid;
+  renderBuyer();
+  setTimeout(()=>{
+    const el = document.getElementById('buyer-dp-'+bid);
+    if(el) el.scrollIntoView({behavior:'smooth',block:'start'});
+  }, 120);
 }
 
 // ── 匹配物件 ──
-function calcMatchScore(buyer, prop){
+function calcMatchDetail(buyer, prop){
   let score=0, total=0;
-  // 物件類型 (20%)
+  const matched=[], unmatched=[];
+
+  // 物件類型 (20分)
   if(buyer.propType){
     total+=20;
-    if(prop.propType===buyer.propType) score+=20;
+    if(prop.propType===buyer.propType){ score+=20; matched.push(`物件類型：${prop.propType}`); }
+    else unmatched.push(`物件類型（期望 ${buyer.propType}，實際 ${prop.propType||'未知'}）`);
   }
-  // 總價 (25%)
+
+  // 總價 (25分)
   const propTotal=parseFloat(prop.total)||0;
   if(buyer.totalMin||buyer.totalMax){
     total+=25;
     const mn=buyer.totalMin||0, mx=buyer.totalMax||Infinity;
-    if(propTotal>=mn && propTotal<=mx) score+=25;
-    else if(propTotal>0){
-      // 接近的話給部分分數
+    if(propTotal>=mn && propTotal<=mx){
+      score+=25;
+      matched.push(`總價：${propTotal}萬（符合 ${mn}～${mx===Infinity?'不限':mx}萬）`);
+    } else if(propTotal>0){
       const range=mx===Infinity?mn*0.5:(mx-mn)||1;
       const dist=Math.min(Math.abs(propTotal-mn),Math.abs(propTotal-mx));
       const partial=Math.max(0,1-dist/(range*0.5))*15;
       score+=partial;
+      if(partial>0) matched.push(`總價接近（${propTotal}萬，期望 ${mn}～${mx===Infinity?'不限':mx}萬）`);
+      else unmatched.push(`總價：${propTotal}萬（期望 ${mn}～${mx===Infinity?'不限':mx}萬）`);
+    } else {
+      unmatched.push(`總價未知（期望 ${mn}～${mx===Infinity?'不限':mx}萬）`);
     }
   }
-  // 單價 (15%)
+
+  // 單價 (15分)
   const propUnit=parseFloat(prop.unit)||0;
   if(buyer.unitMin||buyer.unitMax){
     total+=15;
     const mn=buyer.unitMin||0, mx=buyer.unitMax||Infinity;
-    if(propUnit>=mn && propUnit<=mx) score+=15;
-    else if(propUnit>0){
+    if(propUnit>=mn && propUnit<=mx){
+      score+=15;
+      matched.push(`單價：${propUnit}萬/坪（符合 ${mn}～${mx===Infinity?'不限':mx}萬）`);
+    } else if(propUnit>0){
       const range=mx===Infinity?mn*0.3:(mx-mn)||0.1;
       const dist=Math.min(Math.abs(propUnit-mn),Math.abs(propUnit-mx));
       const partial=Math.max(0,1-dist/(range*0.5))*8;
       score+=partial;
+      if(partial>0) matched.push(`單價接近（${propUnit}萬/坪，期望 ${mn}～${mx===Infinity?'不限':mx}萬）`);
+      else unmatched.push(`單價：${propUnit}萬/坪（期望 ${mn}～${mx===Infinity?'不限':mx}萬）`);
+    } else {
+      unmatched.push(`單價未知（期望 ${mn}～${mx===Infinity?'不限':mx}萬）`);
     }
   }
-  // 格局 (15%)
-  if(buyer.rooms){total+=8;if(parseInt(prop.rooms||0)===buyer.rooms)score+=8;else if(Math.abs(parseInt(prop.rooms||0)-buyer.rooms)===1)score+=4;}
-  if(buyer.halls){total+=4;if(parseInt(prop.halls||0)===buyer.halls)score+=4;}
-  if(buyer.baths){total+=3;if(parseInt(prop.baths||0)===buyer.baths)score+=3;}
-  // 地點 (15%)
+
+  // 格局
+  if(buyer.rooms){
+    total+=8;
+    const pr=parseInt(prop.rooms||0);
+    if(pr===buyer.rooms){ score+=8; matched.push(`房數：${pr}房`); }
+    else if(Math.abs(pr-buyer.rooms)===1){ score+=4; matched.push(`房數接近（${pr}房，期望${buyer.rooms}房）`); }
+    else unmatched.push(`房數：${pr}房（期望${buyer.rooms}房）`);
+  }
+  if(buyer.halls){
+    total+=4;
+    const ph=parseInt(prop.halls||0);
+    if(ph===buyer.halls){ score+=4; matched.push(`廳數：${ph}廳`); }
+    else unmatched.push(`廳數：${ph}廳（期望${buyer.halls}廳）`);
+  }
+  if(buyer.baths){
+    total+=3;
+    const pb=parseInt(prop.baths||0);
+    if(pb===buyer.baths){ score+=3; matched.push(`衛數：${pb}衛`); }
+    else unmatched.push(`衛數：${pb}衛（期望${buyer.baths}衛）`);
+  }
+
+  // 地點
   if(buyer.city){
     total+=10;
-    if(prop.propCity===buyer.city) score+=10;
+    if(prop.propCity===buyer.city){ score+=10; matched.push(`縣市：${prop.propCity}`); }
+    else unmatched.push(`縣市：${prop.propCity||'未知'}（期望${buyer.city}）`);
   }
   if(buyer.dist){
     total+=5;
-    if(prop.propDist===buyer.dist) score+=5;
+    if(prop.propDist===buyer.dist){ score+=5; matched.push(`行政區：${prop.propDist}`); }
+    else unmatched.push(`行政區：${prop.propDist||'未知'}（期望${buyer.dist}）`);
   }
-  // 屋齡 (5%)
+
+  // 屋齡
   if(buyer.ageMin||buyer.ageMax){
     if(prop.buildYear){
       const propAge=new Date().getFullYear()-parseInt(prop.buildYear||0);
       total+=5;
       const mn=buyer.ageMin||0, mx=buyer.ageMax||200;
-      if(propAge>=mn&&propAge<=mx) score+=5;
+      if(propAge>=mn&&propAge<=mx){ score+=5; matched.push(`屋齡：${propAge}年（符合 ${mn}～${mx}年）`); }
+      else unmatched.push(`屋齡：${propAge}年（期望 ${mn}～${mx}年）`);
     }
   }
-  if(total===0) return 0;
-  return Math.round(Math.min(100,(score/total)*100));
+
+  const pct = total===0 ? 0 : Math.round(Math.min(100,(score/total)*100));
+  return { score: pct, matched, unmatched };
+}
+
+function calcMatchScore(buyer, prop){
+  return calcMatchDetail(buyer, prop).score;
 }
 
 function openBuyerMatch(bid){
   const buyer=(db.buyers||[]).find(x=>x.id===bid);
   if(!buyer) return;
   document.getElementById('buyer-match-title').textContent=`🎯 匹配物件 — ${buyer.name}${buyer.gender?' '+buyer.gender:''}`;
-  // collect all properties
+
+  const srcMap = {
+    recruit: {label:'募集線', color:'var(--acc)', bg:'var(--accl)', pool:'recruit'},
+    track:   {label:'追蹤線', color:'var(--grn)', bg:'var(--grnl)', pool:'track'},
+    commission:{label:'委託',  color:'var(--gld)', bg:'var(--gldl)', pool:'commission'}
+  };
   const allProps=[
-    ...db.recruit.map(r=>({...r,_src:'募集線',_srcColor:'var(--acc)',_srcBg:'var(--accl)'})),
-    ...db.track.map(r=>({...r,_src:'追蹤線',_srcColor:'var(--grn)',_srcBg:'var(--grnl)'})),
-    ...db.commission.map(r=>({...r,_src:'委託',_srcColor:'var(--gld)',_srcBg:'var(--gldl)'}))
+    ...db.recruit.map(r=>({...r,_srcKey:'recruit'})),
+    ...db.track.map(r=>({...r,_srcKey:'track'})),
+    ...db.commission.map(r=>({...r,_srcKey:'commission'}))
   ];
-  const scored=allProps.map(p=>({...p,_score:calcMatchScore(buyer,p)}))
-    .filter(p=>p._score>0)
-    .sort((a,b)=>b._score-a._score);
+  const scored = allProps.map(p=>{
+    const detail = calcMatchDetail(buyer, p);
+    return {...p, _score:detail.score, _matched:detail.matched, _unmatched:detail.unmatched};
+  }).filter(p=>p._score>0).sort((a,b)=>b._score-a._score);
+
   const body=document.getElementById('buyer-match-body');
   if(!scored.length){
     body.innerHTML='<div style="text-align:center;padding:40px;color:var(--tx3);font-size:14px">目前無符合條件的物件</div>';
-    openOv('buyer-match');return;
+    openOv('buyer-match'); return;
   }
-  body.innerHTML=`<div style="margin-bottom:12px;font-size:13px;color:var(--tx2)">共找到 <strong>${scored.length}</strong> 筆物件，依匹配度排序：</div>`+
+
+  body.innerHTML=`<div style="margin-bottom:12px;font-size:13px;color:var(--tx2)">共找到 <strong>${scored.length}</strong> 筆物件，依匹配度排序，點擊任一物件可跳至對應頁面：</div>`+
   scored.map(p=>{
+    const s = srcMap[p._srcKey];
     const scoreColor=p._score>=80?'var(--grn)':p._score>=50?'var(--gld)':'var(--org)';
-    const barW=p._score+'%';
     const addr=fullAddr(p.propCity,p.propDist,p.propAddr);
     const ownLabel=p.owners&&p.owners.length?p.owners.map(o=>o.name).join('、'):(p.ownerName||'');
-    return `<div style="background:var(--surf2);border:1px solid var(--bdr);border-radius:10px;padding:12px 14px;margin-bottom:10px">
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
-        <span style="background:${p._srcBg};color:${p._srcColor};padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700">${p._src}</span>
+    const matchedHtml = p._matched.length ? p._matched.map(m=>`<span style="background:rgba(26,122,74,.1);color:var(--grn);border:1px solid rgba(26,122,74,.25);padding:2px 8px;border-radius:4px;font-size:11px">✓ ${escH(m)}</span>`).join('') : '';
+    const unmatchedHtml = p._unmatched.length ? p._unmatched.map(m=>`<span style="background:var(--redl);color:var(--red);border:1px solid rgba(192,24,42,.2);padding:2px 8px;border-radius:4px;font-size:11px">✗ ${escH(m)}</span>`).join('') : '';
+    return `<div onclick="goPropDetail('${p._srcKey}','${p.id}')" style="
+      background:var(--surf2);border:1px solid var(--bdr);border-radius:10px;
+      padding:12px 14px;margin-bottom:10px;cursor:pointer;transition:.15s;
+    " onmouseover="this.style.borderColor='var(--acc)';this.style.boxShadow='var(--sh)'" onmouseout="this.style.borderColor='var(--bdr)';this.style.boxShadow='none'">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+        <span style="background:${s.bg};color:${s.color};padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700">${s.label}</span>
         ${p.propType?`<span style="background:var(--accl);color:var(--acc);padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600">${escH(p.propType)}</span>`:''}
         <strong style="font-size:14px">${escH(ownLabel||'—')}</strong>
-        <span style="color:var(--tx3);font-size:12px">${escH(addr)}</span>
-        <div style="margin-left:auto;text-align:right">
-          <div style="font-size:20px;font-weight:800;color:${scoreColor}">${p._score}%</div>
+        <span style="color:var(--tx3);font-size:12px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escH(addr)}</span>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:22px;font-weight:900;color:${scoreColor};line-height:1">${p._score}%</div>
           <div style="font-size:10px;color:var(--tx3)">匹配度</div>
         </div>
       </div>
-      <div style="background:var(--bdr);border-radius:4px;height:6px;width:100%;overflow:hidden">
-        <div style="background:${scoreColor};width:${barW};height:100%;border-radius:4px;transition:width .4s"></div>
+      <div style="background:var(--bdr);border-radius:4px;height:5px;width:100%;overflow:hidden;margin-bottom:8px">
+        <div style="background:${scoreColor};width:${p._score}%;height:100%;border-radius:4px"></div>
       </div>
-      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;font-size:12px;color:var(--tx2)">
-        ${p.total?`<span>💰 ${p.total} 萬</span>`:''}
-        ${p.unit?`<span>📐 ${p.unit} 萬/坪</span>`:''}
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">
+        ${matchedHtml}${unmatchedHtml}
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:var(--tx2);border-top:1px solid var(--bdr);padding-top:6px;margin-top:2px">
+        ${p.total?`<span>💰 ${p.total}萬</span>`:''}
+        ${p.unit?`<span>📐 ${p.unit}萬/坪</span>`:''}
         ${(p.rooms||p.halls||p.baths)?`<span>🛏 ${p.rooms?p.rooms+'房':''}${p.halls?p.halls+'廳':''}${p.baths?p.baths+'衛':''}</span>`:''}
         ${p.area?`<span>📏 ${p.area}坪</span>`:''}
+        <span style="margin-left:auto;font-size:11px;color:var(--acc);font-weight:600">點擊查看 →</span>
       </div>
     </div>`;
   }).join('');
   openOv('buyer-match');
+}
+
+// 從匹配視窗跳到該物件所在頁面並展開細項
+function goPropDetail(pool, id){
+  closeOv('buyer-match');
+  // 若當前在買方頁面，先關閉展開的買方細項避免畫面雜亂
+  const pageMap = {recruit:'recruit', track:'track', commission:'commission'};
+  const targetPage = pageMap[pool] || pool;
+  switchPage(targetPage);
+  // 展開對應物件細項
+  openDetailId[pool] = id;
+  renderAll();
+  setTimeout(()=>{
+    const detailEl = document.getElementById(pool===('commission')?'commission-detail':`${pool}-detail`);
+    const dpEl = document.getElementById('dp-'+id);
+    const target = dpEl || detailEl;
+    if(target) target.scrollIntoView({behavior:'smooth', block:'start'});
+  }, 120);
 }
 
 // ══════════════════════════════════════════════════════
