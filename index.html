@@ -774,6 +774,11 @@ th.sortable:not(.asc):not(.desc) .sort-icon::after{content:'⇅'}
           window._currentUser = null;
           document.getElementById('login-screen').classList.add('lp-show');
           document.getElementById('app-content').style.display = 'none';
+          // 重設登入按鈕（登出後 disabled 要清除）
+          const _btn = document.getElementById('google-signin-btn');
+          if(_btn){ _btn.disabled = false; _btn.style.opacity = '1'; }
+          const _err = document.getElementById('login-error');
+          if(_err) _err.style.display = 'none';
         }
       });
     });
