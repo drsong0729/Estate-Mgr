@@ -2298,11 +2298,15 @@ function _syncUserIndex(user){
   if(!window._firebaseIndexRef) return;
   const fixedRole = FIXED_ROLES[(user.email||'').toLowerCase()];
   const now = new Date().toISOString();
-  // lastLoginAt 每次登入都更新；firstLoginAt 用 merge:true 若已存在則 Firestore 不覆蓋
-  // 先讀取是否已有 firstLoginAt，若無則設定
   const ref = window._firebaseIndexRef(user.uid);
   window._firebaseGetDoc(ref).then(snap=>{
     const existing = snap.exists() ? snap.data() : {};
+    // 顯示名稱：優先用 customName
+    const shownName = existing.customName || user.displayName || '使用者';
+    const dName = document.getElementById('drawer-name');
+    if(dName) dName.textContent = shownName;
+    window._myCustomName = existing.customName || null;
+    // payload 不含 customName，merge:true 自動保留 Firestore 上已有的值
     const payload = {
       uid:          user.uid,
       name:         user.displayName || '',
@@ -4740,7 +4744,6 @@ window.onFirebaseLogin = async function(user){
   const dName   = document.getElementById('drawer-name');
   const dEmail  = document.getElementById('drawer-email');
   if(user.photoURL && dAvatar){ dAvatar.src = user.photoURL; dAvatar.style.display = 'inline'; }
-  if(dName)  dName.textContent  = user.displayName || '使用者';
   if(dEmail) dEmail.textContent = user.email || '';
 
   // 判斷身份組：先看硬編碼，再查 Firestore 索引
@@ -4749,29 +4752,34 @@ window.onFirebaseLogin = async function(user){
 
   await loadFromFirestore(user.uid);
 
-  // 從 users_index 讀取實際身份組（非固定身份組的人）
-  if(!fixedRole){
-    try{
-      const idxSnap = await window._firebaseGetDoc(window._firebaseIndexRef(user.uid));
-      if(idxSnap.exists() && idxSnap.data().role){
-        window._myRole = idxSnap.data().role;
-      }
-      // 寫入索引時帶入已確認的 role（不再二次讀取）
-      const now2 = new Date().toISOString();
-      const payload = {
-        uid: user.uid, name: user.displayName||'', email: user.email||'',
-        photoURL: user.photoURL||'', recruitCnt: db.recruit.length,
-        trackCnt: db.track.length, commCnt: db.commission.length,
-        closedCnt: (db.closed||[]).length, updatedAt: now2,
-        lastLoginAt: now2,
-        firstLoginAt: idxSnap.exists() && idxSnap.data().firstLoginAt ? idxSnap.data().firstLoginAt : now2,
-        role: window._myRole
-      };
-      window._firebaseSetDoc(window._firebaseIndexRef(user.uid), payload, {merge:true}).catch(()=>{});
-    }catch(e){}
-  } else {
-    // 固定身份組：直接同步（強制寫入正確 role）
-    _syncUserIndex(user);
+  // 從 users_index 讀取身份組 + customName（所有身份組統一走這裡）
+  try{
+    const idxSnap = await window._firebaseGetDoc(window._firebaseIndexRef(user.uid));
+    const idxData = idxSnap.exists() ? idxSnap.data() : {};
+
+    // 身份組：非固定身份組才從 Firestore 讀取
+    if(!fixedRole && idxData.role) window._myRole = idxData.role;
+
+    // 顯示名稱：優先用 customName（由管理者設定），否則用 Google 名稱
+    const shownName = idxData.customName || user.displayName || '使用者';
+    if(dName) dName.textContent = shownName;
+    window._myCustomName = idxData.customName || null;
+
+    // 寫回索引（不帶 customName，merge:true 自動保留 Firestore 上已有的值）
+    const now2 = new Date().toISOString();
+    const payload = {
+      uid: user.uid, name: user.displayName||'', email: user.email||'',
+      photoURL: user.photoURL||'', recruitCnt: db.recruit.length,
+      trackCnt: db.track.length, commCnt: db.commission.length,
+      closedCnt: (db.closed||[]).length, updatedAt: now2,
+      lastLoginAt: now2,
+      firstLoginAt: idxData.firstLoginAt || now2,
+      role: fixedRole || window._myRole
+    };
+    window._firebaseSetDoc(window._firebaseIndexRef(user.uid), payload, {merge:true}).catch(()=>{});
+  }catch(e){
+    // 讀取失敗時至少顯示 Google 名稱
+    if(dName) dName.textContent = user.displayName || '使用者';
   }
 
   window._isSupervisor = SUPERVISOR_ROLES.includes(window._myRole);
@@ -5721,11 +5729,12 @@ async function confirmRename(){
   // 1. 寫入本人的 supNotes（本機快取 + 個人偏好）
   _supNotes[_renameTargetUid] = { customName: newName, note: newNote };
   await _saveSupNotes();
-  // 2. 同時將 customName 寫回被編輯者的 users_index，讓其他有權限的人也看到同一個名稱
+  // 2. 將 customName 寫回被編輯者的 users_index
+  //    空字串表示「清除自訂名稱，還原 Google 名稱」；merge:true 讓其他欄位不受影響
   try{
     await window._firebaseSetDoc(
       window._firebaseIndexRef(_renameTargetUid),
-      { customName: newName },
+      { customName: newName },   // 空字串 = 清除自訂名（登入時會 fallback 到 displayName）
       { merge: true }
     );
     // 更新本地 _adminData 快取
