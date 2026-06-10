@@ -2730,7 +2730,10 @@ function openRecruitModal(id,pool){
   const list = isComm ? db.commission : (editPool==='track'?db.track:db.recruit);
   const f=id?list.find(r=>r.id===id):null;
   // clear fixed fields
-  ['p-city','p-dist','p-addr','f-bldg','f-casename','f-proptype','f-area','f-total','f-unit','f-rooms','f-halls','f-baths','f-url','f-notes'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
+  ['p-city','p-dist','p-addr','f-bldg','f-casename','f-proptype','f-area','f-total','f-unit','f-rooms','f-halls','f-baths','f-url','f-notes','ec2-casename','ec2-fee','ec2-start','ec2-end','ec2-bonus'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
+  // 委託類型 radio 重置
+  const defRadio=document.querySelector('input[name="ec2type"][value="general"]');
+  if(defRadio) defRadio.checked=true;
   // clear owners
   document.getElementById('owners-list').innerHTML='';
   ownerCount=0;
