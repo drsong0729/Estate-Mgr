@@ -2379,10 +2379,10 @@ function toggleDetail(pool,id){
   if(openDetailId[pool]===id){openDetailId[pool]=null;renderAll();return;}
   openDetailId[pool]=id;
   renderAll();
-  // scroll detail panel into view
+  // 滾動到展開的卡片下方的明細
   setTimeout(()=>{
-    const dc=document.getElementById(pool==='recruit'?'recruit-detail':'track-detail');
-    if(dc&&dc.firstChild){dc.scrollIntoView({behavior:'smooth',block:'start'});}
+    const dp = document.getElementById('dp-'+id);
+    if(dp){dp.scrollIntoView({behavior:'smooth',block:'nearest'});}
   },60);
 }
 function _buildDetailPanelHtml(pool,id){
@@ -2467,7 +2467,7 @@ function _buildDetailPanelHtml(pool,id){
       </div>
     </div>
   </div>`;
-  if(container)return html;
+  return html;
 }
 function renderDetailPanel(pool,id){
   const container=document.getElementById(pool==='recruit'?'recruit-detail':pool==='track'?'track-detail':'commission-detail');
