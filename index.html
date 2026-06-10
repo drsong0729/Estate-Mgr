@@ -1911,9 +1911,7 @@ function initGoogleMaps() {
     <!-- 委託專屬欄位（只在 commission 模式顯示）-->
     <div id="ec-extra-section" class="fsec" style="display:none">
       <div class="fsec-t">📝 委託條件</div>
-      <div class="fg fg2">
-        <div class="fgp"><label class="lbl">案名</label>
-          <input class="fc" id="ec2-casename" placeholder="（選填）" oninput="var fc=document.getElementById('f-casename');if(fc)fc.value=this.value"></div>
+      <div class="fg">
         <div class="fgp"><label class="lbl">委託類型</label>
           <div style="display:flex;gap:12px;padding-top:8px">
             <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer"><input type="radio" name="ec2type" value="general" checked><span>一般</span></label>
@@ -2730,7 +2728,7 @@ function openRecruitModal(id,pool){
   const list = isComm ? db.commission : (editPool==='track'?db.track:db.recruit);
   const f=id?list.find(r=>r.id===id):null;
   // clear fixed fields
-  ['p-city','p-dist','p-addr','f-bldg','f-casename','f-proptype','f-area','f-total','f-unit','f-rooms','f-halls','f-baths','f-url','f-notes','ec2-casename','ec2-fee','ec2-start','ec2-end','ec2-bonus'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
+  ['p-city','p-dist','p-addr','f-bldg','f-casename','f-proptype','f-area','f-total','f-unit','f-rooms','f-halls','f-baths','f-url','f-notes','ec2-fee','ec2-start','ec2-end','ec2-bonus'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
   // 委託類型 radio 重置
   const defRadio=document.querySelector('input[name="ec2type"][value="general"]');
   if(defRadio) defRadio.checked=true;
@@ -2758,8 +2756,6 @@ function openRecruitModal(id,pool){
     document.getElementById('f-notes').value=f.notes||'';
     // 委託專屬欄位
     if(isComm){
-      document.getElementById('ec2-casename').value=f.caseName||'';
-      document.getElementById('f-casename').value=f.caseName||'';
       document.getElementById('ec2-fee').value=f.commFee||'';
       document.getElementById('ec2-start').value=f.commStart||'';
       document.getElementById('ec2-end').value=f.commEnd||'';
@@ -2811,10 +2807,7 @@ function saveRecruit(){
     ownerCity:fw.city,ownerDist:fw.dist,ownerAddr:fw.addr,
     owners,
     bldg:document.getElementById('f-bldg').value,
-    // 案名：委託模式從 ec2-casename 讀；一般模式從 f-casename 讀
-    caseName:isComm
-      ? (document.getElementById('ec2-casename')?.value||'').trim()
-      : (document.getElementById('f-casename')?.value||'').trim(),
+    caseName:(document.getElementById('f-casename')?.value||'').trim(),
     propType,
     area:parseFloat(area),total:parseFloat(total),unit,
     rooms:noLayout?'':document.getElementById('f-rooms').value,
