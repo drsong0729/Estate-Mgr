@@ -6950,65 +6950,116 @@ function printWeekReport() {
   const toDate   = new Date(toStr   + 'T00:00:00');
   if (fromDate > toDate) { alert('起始日期不能晚於結束日期'); return; }
 
-  const dowNames = ['日','一','二','三','四','五','六'];
-  const fmt = d => `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`;
+  const fmt    = d => `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`;
   const fmtKey = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
-  // 建立日期列表
-  const dates = [];
+  // 收集範圍內所有日期，dow→Date 對應
+  const allDates = [];
   const cur = new Date(fromDate);
-  while (cur <= toDate) {
-    dates.push(new Date(cur));
-    cur.setDate(cur.getDate() + 1);
+  while (cur <= toDate) { allDates.push(new Date(cur)); cur.setDate(cur.getDate() + 1); }
+  const dowToDate = {};
+  for (const d of allDates) { dowToDate[d.getDay()] = d; }
+
+  // 列順序：星期一(1)～六(6)，再加星期日(0)
+  const rowDows   = [1,2,3,4,5,6,0];
+  const rowLabels = ['星期一','星期二','星期三','星期四','星期五','星期六','星期日'];
+
+  // ── 一般時段（非 special）列表，作為橫向欄位 ──
+  const normalSlots   = CAL_SLOTS.filter(s => !s.special);
+  // 午休和打掃的插入位置（在 normalSlots 中第幾個之後）
+  // 用原始索引判斷：午休在 11~12 之後、打掃在 17~1745 之後
+  const slotKeys      = CAL_SLOTS.map(s => s.key);
+  const lunchIdx      = slotKeys.indexOf('12-14');   // 午休在原始陣列的位置
+  const cleanIdx      = slotKeys.indexOf('1745-1800');
+
+  // 建立欄位（th）：每個一般時段佔兩欄（設定/達成），特殊時段佔一欄
+  // 策略：欄位順序 = 原始 CAL_SLOTS 順序，特殊時段合併成1欄
+  // 對應到 colgroup 寬度
+  // A4 直向可用寬度 ≈ 210mm - 2×10mm = 190mm ≈ 540px @96dpi
+  // 第一欄（星期）固定 44px，剩餘 ~496px 分給各時段欄
+  // normalSlots 6個 × 2子欄 = 12子欄，special 2個 = 2欄，共14欄
+  // 每子欄約 496/14 ≈ 35px；設定欄稍窄（手填），設 設定=38px、達成=38px、special=38px
+
+  // thead：第一列（時段標題，colspan=2），第二列（設定/達成）
+  let thSlot1 = ''; // 時段大標題列
+  let thSlot2 = ''; // 設定/達成子標題列
+  let colWidths = '<col style="width:44px">'; // 星期欄
+
+  for (const slot of CAL_SLOTS) {
+    if (slot.special) {
+      const lbl = slot.label.replace(' – ','~').replace(/:00/g,'');
+      thSlot1 += `<th style="background:#e8e8e8;color:#666;border:1px solid #bbb;padding:3px 2px;font-size:9px;text-align:center">${lbl}</th>`;
+      thSlot2 += `<th style="background:#f0f0f0;color:#aaa;border:1px solid #bbb;padding:2px;font-size:8px;text-align:center">　</th>`;
+      colWidths += '<col style="width:30px">';
+    } else {
+      const lbl = slot.label.replace(' – ','~').replace(/:00/g,'');
+      thSlot1 += `<th colspan="2" style="background:#0f519b;color:#fff;border:1px solid #0d4589;padding:3px 2px;font-size:9px;text-align:center">${lbl}</th>`;
+      thSlot2 += `<th style="background:#dce8f8;color:#0f519b;border:1px solid #bbb;padding:2px;font-size:8px;text-align:center;writing-mode:vertical-rl">設定</th>
+                  <th style="background:#dce8f8;color:#0f519b;border:1px solid #bbb;padding:2px;font-size:8px;text-align:center;writing-mode:vertical-rl">達成</th>`;
+      colWidths += '<col style="width:38px"><col style="width:38px">';
+    }
   }
 
-  // 產生表格 HTML
+  // tbody：每個星期 = 一列（星期日特殊處理）
   let rows = '';
-  for (const date of dates) {
-    const dk = fmtKey(date);
-    const dow = date.getDay();
-    const dayData = calData[dk] || { slots: {} };
-    const isSun = dow === 0, isSat = dow === 6;
-    const dateBg = isSun ? '#fff0f0' : isSat ? '#f0f4ff' : '#fff';
-    const dateColor = isSun ? '#c0182a' : isSat ? '#0f519b' : '#1a2332';
+  for (let ri = 0; ri < rowDows.length; ri++) {
+    const dow   = rowDows[ri];
+    const label = rowLabels[ri];
+    const isSun = dow === 0;
+    const isSat = dow === 6;
+    const d     = dowToDate[dow];
+    const dateStr = d ? `<br><span style="font-size:8px;font-weight:400">${d.getMonth()+1}/${d.getDate()}</span>` : '';
+    const dayBg   = isSun ? '#fff0f0' : isSat ? '#f0f4ff' : '#fff';
+    const dayClr  = isSun ? '#c0182a' : isSat ? '#0f519b' : '#333';
+    const dayHdBg = isSun ? '#c0182a' : isSat ? '#2a5abf' : '#0f519b';
 
-    for (let si = 0; si < CAL_SLOTS.length; si++) {
-      const slot = CAL_SLOTS[si];
-      const todos = (dayData.slots && dayData.slots[slot.key]) || [];
-      const isFirstSlot = si === 0;
-      const slotBg = slot.special ? '#f8f8f8' : '#fff';
-      const todoText = todos.length > 0
-        ? todos.map(t => `<b>${escHtml(t.name)}</b>${t.note ? '：' + escHtml(t.note) : ''}`).join('<br>')
-        : (slot.special ? `<span style="color:#aaa">${slot.specialLabel}</span>` : '');
+    let cells = `<td style="background:${dayHdBg};color:#fff;border:1px solid #bbb;padding:3px 2px;font-size:9px;font-weight:700;text-align:center;vertical-align:middle;white-space:nowrap">${label}${dateStr}</td>`;
 
-      rows += `<tr>
-        ${isFirstSlot ? `<td rowspan="${CAL_SLOTS.length}" style="background:${dateBg};text-align:center;vertical-align:middle;border:1px solid #ccc;padding:6px;font-weight:700;color:${dateColor};white-space:nowrap;font-size:12px">
-          ${fmt(date)}<br><span style="font-size:14px">（${dowNames[dow]}）</span>
-        </td>` : ''}
-        <td style="background:${slotBg};border:1px solid #ccc;padding:5px 8px;font-size:11px;color:#555;white-space:nowrap;width:100px">${slot.label}</td>
-        <td style="background:${slotBg};border:1px solid #ccc;padding:5px 10px;font-size:12px;line-height:1.6">${todoText}</td>
-      </tr>`;
+    if (isSun) {
+      // 星期日：整列合併，顯示公休
+      const totalCols = CAL_SLOTS.reduce((acc,s) => acc + (s.special ? 1 : 2), 0);
+      cells += `<td colspan="${totalCols}" style="background:#fff0f0;border:1px solid #bbb;padding:4px;font-size:9px;color:#c0182a;text-align:center;vertical-align:middle">日勝房屋公休日</td>`;
+    } else {
+      for (const slot of CAL_SLOTS) {
+        if (slot.special) {
+          const specialTxt = slot.specialLabel.replace(/[\u{1F300}-\u{1FFFF}]/gu,'').trim();
+          cells += `<td style="background:#f4f4f4;border:1px solid #bbb;padding:2px 1px;font-size:8px;color:#aaa;text-align:center;vertical-align:middle"><span style="writing-mode:vertical-rl">${specialTxt}</span></td>`;
+        } else {
+          const todos = d ? ((calData[fmtKey(d)]?.slots?.[slot.key]) || []) : [];
+          // 只顯示名稱，不含備註
+          const todoHtml = todos.length > 0
+            ? todos.map(t => `<span style="display:block;font-size:9px;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(t.name)}</span>`).join('')
+            : '';
+          cells += `<td style="background:#fff;border:1px solid #bbb;padding:2px 3px;vertical-align:top">${todoHtml}</td>`;
+          cells += `<td style="background:#fafffe;border:1px solid #bbb;padding:2px 3px;"></td>`;
+        }
+      }
     }
+
+    rows += `<tr style="background:${isSun ? '#fff0f0' : '#fff'}">${cells}</tr>`;
   }
 
   const html = `<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8">
 <title>週報表 ${fromStr} – ${toStr}</title>
 <style>
-  @media print { body{margin:0} @page{margin:15mm 10mm} }
-  body{font-family:'Noto Sans TC',system-ui,sans-serif;color:#1a2332;margin:20px}
-  h1{font-size:16px;font-weight:800;margin-bottom:4px}
-  .sub{font-size:12px;color:#555;margin-bottom:16px}
-  table{width:100%;border-collapse:collapse}
-  th{background:#0f519b;color:#fff;padding:8px 10px;font-size:12px;border:1px solid #0d4589}
+  @media print { body{margin:0} @page{size:A4 portrait;margin:10mm 8mm} }
+  body{font-family:'Noto Sans TC',system-ui,sans-serif;color:#1a2332;margin:12px}
+  h1{font-size:13px;font-weight:800;margin-bottom:2px}
+  .sub{font-size:10px;color:#555;margin-bottom:8px}
+  table{width:100%;border-collapse:collapse;table-layout:fixed}
+  td,th{word-break:break-word;box-sizing:border-box}
 </style></head><body>
 <h1>📋 業務週報表</h1>
 <div class="sub">日期：${fmt(fromDate)} ～ ${fmt(toDate)}　　業務：${escHtml(agent)}</div>
 <table>
-  <thead><tr>
-    <th style="width:100px">日期</th>
-    <th style="width:110px">時段</th>
-    <th>待辦事項</th>
-  </tr></thead>
+  <colgroup>${colWidths}</colgroup>
+  <thead>
+    <tr>
+      <th rowspan="2" style="background:#0f519b;color:#fff;border:1px solid #0d4589;padding:3px;font-size:9px;text-align:center;vertical-align:middle">星期 \\ 時段</th>
+      ${thSlot1}
+    </tr>
+    <tr>${thSlot2}</tr>
+  </thead>
   <tbody>${rows}</tbody>
 </table>
 </body></html>`;
