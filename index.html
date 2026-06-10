@@ -758,6 +758,8 @@ th.sortable:not(.asc):not(.desc) .sort-icon::after{content:'⇅'}
   // 主管：公共索引（每位員工的摘要）
   window._firebaseIndexRef = (uid) => doc(db_fs, 'users_index', uid);
   window._firebaseIndexColl = () => collection(db_fs, 'users_index');
+  window._firebaseInventoryColl = () => collection(db_fs, 'company_inventory');
+  window._firebaseInventoryRef  = (uid) => doc(db_fs, 'company_inventory', uid);
   window._firebaseGetDocs = getDocs;
 
   // 每次開啟網站：先登出 → 設 session persistence → 再監聽
@@ -1246,6 +1248,9 @@ function initGoogleMaps() {
     <button class="drawer-nav" id="dnav-buyer" onclick="switchPage('buyer');toggleDrawer()">
       <span>👤</span> 買方管理 <span class="dnbadge" id="db-buyer">0</span>
     </button>
+    <button class="drawer-nav" id="dnav-inventory" onclick="switchPage('inventory');toggleDrawer()">
+      <span>🏢</span> 公司庫存 <span class="dnbadge" id="db-inventory">0</span>
+    </button>
     <button class="drawer-nav" id="dnav-admin" onclick="switchPage('admin');toggleDrawer()" style="display:none;background:rgba(124,58,237,.25)!important">
       <span id="dnav-admin-icon">🛡</span> <span id="dnav-admin-label">主管後台</span>
     </button>
@@ -1706,6 +1711,35 @@ function initGoogleMaps() {
   <div id="buyer-bday-bar" style="display:none;background:var(--grnl);border:1px solid var(--grn);border-radius:var(--r);padding:10px 16px;margin-bottom:12px;font-size:13px;color:var(--grn);display:flex;align-items:center;gap:8px;flex-wrap:wrap"></div>
   <!-- 列表 -->
   <div id="buyer-list"></div>
+</div>
+
+
+<!-- PAGE: 公司庫存 -->
+<div class="page" id="page-inventory">
+  <!-- 工具列 -->
+  <div class="ph" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+    <input id="inv-search" type="text" placeholder="搜尋屋主/地址/建案…"
+      style="flex:1;min-width:160px;padding:7px 12px;border:1px solid var(--bdr);border-radius:var(--r);background:var(--surf2);color:var(--tx);font-size:13px;font-family:inherit"
+      oninput="renderInventory()">
+    <select id="inv-filter-type" onchange="renderInventory()"
+      style="padding:7px 10px;border:1px solid var(--bdr);border-radius:var(--r);background:var(--surf2);color:var(--tx);font-size:13px;font-family:inherit">
+      <option value="">所有類型</option>
+      <option value="住宅">住宅</option>
+      <option value="店面">店面</option>
+      <option value="辦公室">辦公室</option>
+      <option value="土地">土地</option>
+      <option value="廠房">廠房</option>
+      <option value="農地">農地</option>
+    </select>
+  </div>
+  <!-- 說明 -->
+  <div style="font-size:12px;color:var(--tx3);padding:0 16px 10px;line-height:1.6">
+    💡 公司庫存彙整所有成員的委託物件，新增或修改委託時自動同步。
+  </div>
+  <!-- 統計 -->
+  <div id="inv-stats" style="display:flex;gap:10px;flex-wrap:wrap;padding:0 16px 12px"></div>
+  <!-- 列表 -->
+  <div id="inv-list" style="padding:0 16px 24px"></div>
 </div>
 
 <!-- PAGE: 主管後台（僅主管可見） -->
@@ -2169,6 +2203,22 @@ function initGoogleMaps() {
 <div class="ov" id="ov-buyer-match">
 <div class="modal" style="max-width:820px">
   <div class="mh"><div class="mt" id="buyer-match-title">🎯 匹配物件</div><button class="mc" onclick="closeOv('buyer-match')">✕</button></div>
+  <!-- 來源篩選器 -->
+  <div style="padding:10px 20px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+    <span style="font-size:12px;color:var(--tx3);margin-right:4px">篩選來源：</span>
+    <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;user-select:none">
+      <input type="checkbox" id="match-src-recruit" checked onchange="refreshBuyerMatch()">
+      <span style="background:var(--accl);color:var(--acc);padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700">募集線</span>
+    </label>
+    <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;user-select:none">
+      <input type="checkbox" id="match-src-track" checked onchange="refreshBuyerMatch()">
+      <span style="background:var(--grnl);color:var(--grn);padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700">追蹤線</span>
+    </label>
+    <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;user-select:none">
+      <input type="checkbox" id="match-src-inventory" checked onchange="refreshBuyerMatch()">
+      <span style="background:var(--gldl);color:var(--gld);padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700">公司庫存</span>
+    </label>
+  </div>
   <div class="mb" id="buyer-match-body" style="min-height:120px"></div>
   <div class="mf">
     <button class="btn btn-g" onclick="closeOv('buyer-match')">關閉</button>
@@ -2238,7 +2288,7 @@ window._myRole = ROLES.STAFF;
 
 const CITIES={"基隆市":["仁愛區","信義區","中正區","中山區","安樂區","暖暖區","七堵區"],"臺北市":["松山區","信義區","大安區","中山區","中正區","大同區","萬華區","文山區","南港區","內湖區","士林區","北投區"],"新北市":["板橋區","三重區","中和區","永和區","新莊區","新店區","樹林區","鶯歌區","三峽區","淡水區","汐止區","瑞芳區","土城區","蘆洲區","五股區","泰山區","林口區","深坑區","石碇區","坪林區","三芝區","石門區","八里區","平溪區","雙溪區","貢寮區","金山區","萬里區","烏來區"],"桃園市":["桃園區","中壢區","大溪區","楊梅區","蘆竹區","大園區","龜山區","八德區","龍潭區","平鎮區","新屋區","觀音區","復興區"],"新竹市":["東區","北區","香山區"],"新竹縣":["竹北市","湖口鄉","新豐鄉","新埔鎮","關西鎮","芎林鄉","寶山鄉","竹東鎮","五峰鄉","橫山鄉","尖石鄉","北埔鄉","峨眉鄉"],"苗栗縣":["竹南鎮","頭份市","三灣鄉","南庄鄉","獅潭鄉","後龍鎮","通霄鎮","苑裡鎮","苗栗市","造橋鄉","頭屋鄉","公館鄉","大湖鄉","泰安鄉","銅鑼鄉","三義鄉","西湖鄉","卓蘭鎮"],"臺中市":["中區","東區","南區","西區","北區","西屯區","南屯區","北屯區","豐原區","東勢區","大甲區","清水區","沙鹿區","梧棲區","后里區","神岡區","潭子區","大雅區","新社區","石岡區","外埔區","大安區","烏日區","大肚區","龍井區","霧峰區","太平區","大里區","和平區"],"彰化縣":["彰化市","芬園鄉","花壇鄉","秀水鄉","鹿港鎮","福興鄉","線西鄉","和美鎮","伸港鄉","員林市","社頭鄉","永靖鄉","埔心鄉","溪湖鎮","大村鄉","埔鹽鄉","田中鎮","北斗鎮","田尾鄉","埤頭鄉","溪州鄉","竹塘鄉","二林鎮","大城鄉","芳苑鄉","二水鄉"],"南投縣":["南投市","中寮鄉","草屯鎮","國姓鄉","埔里鎮","仁愛鄉","名間鄉","集集鎮","水里鄉","魚池鄉","信義鄉","竹山鎮","鹿谷鄉"],"雲林縣":["斗南鎮","大埤鄉","虎尾鎮","土庫鎮","褒忠鄉","東勢鄉","臺西鄉","崙背鄉","麥寮鄉","斗六市","林內鄉","古坑鄉","莿桐鄉","西螺鎮","二崙鄉","北港鎮","水林鄉","口湖鄉","四湖鄉","元長鄉"],"嘉義市":["東區","西區"],"嘉義縣":["番路鄉","梅山鄉","竹崎鄉","阿里山鄉","中埔鄉","大埔鄉","水上鄉","鹿草鄉","太保市","朴子市","東石鄉","六腳鄉","新港鄉","民雄鄉","大林鎮","溪口鄉","義竹鄉","布袋鎮"],"臺南市":["中西區","東區","南區","北區","安平區","安南區","永康區","歸仁區","新化區","左鎮區","玉井區","楠西區","南化區","仁德區","關廟區","龍崎區","官田區","麻豆區","佳里區","西港區","七股區","將軍區","學甲區","北門區","新營區","後壁區","白河區","東山區","六甲區","下營區","柳營區","鹽水區","善化區","大內區","山上區","新市區","安定區"],"高雄市":["楠梓區","左營區","鼓山區","三民區","鹽埕區","前金區","新興區","苓雅區","前鎮區","旗津區","小港區","鳳山區","林園區","大寮區","大樹區","大社區","仁武區","鳥松區","岡山區","橋頭區","燕巢區","田寮區","阿蓮區","路竹區","湖內區","茄萣區","永安區","彌陀區","梓官區","旗山區","美濃區","六龜區","甲仙區","杉林區","內門區","茂林區","桃源區","那瑪夏區"],"屏東縣":["屏東市","三地門鄉","霧台鄉","瑪家鄉","九如鄉","里港鄉","高樹鄉","鹽埔鄉","長治鄉","麟洛鄉","竹田鄉","內埔鄉","萬丹鄉","潮州鎮","泰武鄉","來義鄉","萬巒鄉","崁頂鄉","新埤鄉","南州鄉","林邊鄉","東港鎮","琉球鄉","佳冬鄉","新園鄉","枋寮鄉","枋山鄉","春日鄉","獅子鄉","車城鄉","牡丹鄉","恆春鎮","滿州鄉"],"宜蘭縣":["宜蘭市","頭城鎮","礁溪鄉","壯圍鄉","員山鄉","羅東鎮","三星鄉","大同鄉","五結鄉","冬山鄉","蘇澳鎮","南澳鄉"],"花蓮縣":["花蓮市","新城鄉","秀林鄉","吉安鄉","壽豐鄉","鳳林鎮","光復鄉","豐濱鄉","瑞穗鄉","萬榮鄉","玉里鎮","卓溪鄉","富里鄉"],"臺東縣":["臺東市","綠島鄉","蘭嶼鄉","延平鄉","卑南鄉","鹿野鄉","關山鎮","海端鄉","池上鄉","東河鄉","成功鎮","長濱鄉","太麻里鄉","金峰鄉","大武鄉","達仁鄉"],"澎湖縣":["馬公市","西嶼鄉","望安鄉","七美鄉","白沙鄉","湖西鄉"],"金門縣":["金城鎮","金湖鎮","金沙鎮","金寧鄉","烈嶼鄉","烏坵鄉"],"連江縣":["南竿鄉","北竿鄉","莒光鄉","東引鄉"]};
 
-let db={recruit:[],track:[],commission:[],buyers:[]};
+let db={recruit:[],track:[],commission:[],buyers:[],inventory:[]};
 let editId=null,pendingId=null,editCommId=null;
 let currentPage='recruit',currentSubTab='general',currentView='desktop';
 let openDetailId={recruit:null,track:null,commission:null,closed:null};
@@ -2299,10 +2349,29 @@ function save(){
     setTimeout(()=>setSyncStatus(''),2500);
     // 同步更新公共索引（供主管查閱）
     _syncUserIndex(user);
+    // 自動同步委託到公司庫存
+    _autoSyncInventory(user);
   }).catch(e=>{
     setSyncStatus('⚠ 儲存失敗','var(--red)');
     alert('⚠️ 雲端儲存失敗！請確認網路連線。');
   });
+}
+
+// 每次 save() 後靜默同步委託到公司庫存
+function _autoSyncInventory(user){
+  if(!user || !window._firebaseInventoryRef) return;
+  const agentName = window._myCustomName || user.displayName || '未知';
+  const items = db.commission.map(r=>({...r}));
+  window._firebaseSetDoc(
+    window._firebaseInventoryRef(user.uid),
+    { uid: user.uid, agentName, updatedAt: new Date().toISOString(), items },
+    { merge: false }
+  ).then(()=>{
+    // 重新整理公司庫存快取
+    loadInventoryFromFirestore().then(()=>{
+      if(currentPage==='inventory') renderInventory();
+    });
+  }).catch(e=>console.warn('公司庫存自動同步失敗', e));
 }
 
 function _syncUserIndex(user){
@@ -2427,7 +2496,7 @@ function toggleFilter(pool){
   btn.textContent=open?'⚙ 收起篩選':'⚙ 進階篩選';
 }
 
-const PAGE_TITLES={'recruit':'募集線','track':'追蹤線','commission':'委託管理','stats':'首頁','trip':'行程規劃','closed':'已結案','admin':'管理後台','buyer':'買方管理'};
+const PAGE_TITLES={'recruit':'募集線','track':'追蹤線','commission':'委託管理','stats':'首頁','trip':'行程規劃','closed':'已結案','admin':'管理後台','buyer':'買方管理','inventory':'公司庫存'};
 function switchPage(p){
   currentPage=p;
   document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));
@@ -2443,6 +2512,7 @@ function switchPage(p){
   else if(p==='trip'){tripInitHCitySelect();renderTripList();renderTripSelected();updateMapsBtn();_syncTripLocationBar();}
   else if(p==='admin'){loadAdminData();}
   else if(p==='buyer'){renderBuyer();checkBuyerBirthdays();}
+  else if(p==='inventory'){renderInventory();}
   else renderAll();
 }
 function switchSubTab(t){
@@ -4807,6 +4877,8 @@ async function loadFromFirestore(uid){
       if(mg.gen)  document.getElementById('goal-month-gen').value  = mg.gen;
       syncGoalTotal('month');
     }
+    // 登入時載入全公司庫存（靜默，不阻塞）
+    loadInventoryFromFirestore().catch(()=>{});
     setSyncStatus('☁ 已同步','var(--grn)');
     setTimeout(()=>setSyncStatus(''),3000);
   }catch(e){
@@ -5756,21 +5828,46 @@ function calcMatchScore(buyer, prop){
   return calcMatchDetail(buyer, prop).score;
 }
 
+// 目前開啟匹配的買方 id（供篩選器 refresh 用）
+let _currentMatchBid = null;
+
 function openBuyerMatch(bid){
+  _currentMatchBid = bid;
+  // 重設篩選器勾選狀態（預設全選）
+  ['recruit','track','inventory'].forEach(k=>{
+    const el = document.getElementById('match-src-'+k);
+    if(el) el.checked = true;
+  });
+  _renderBuyerMatch(bid);
+  openOv('buyer-match');
+}
+
+function refreshBuyerMatch(){
+  if(_currentMatchBid) _renderBuyerMatch(_currentMatchBid);
+}
+
+function _renderBuyerMatch(bid){
   const buyer=(db.buyers||[]).find(x=>x.id===bid);
   if(!buyer) return;
   document.getElementById('buyer-match-title').textContent=`🎯 匹配物件 — ${buyer.name}${buyer.gender?' '+buyer.gender:''}`;
 
+  // 讀取篩選器狀態
+  const useRecruit   = document.getElementById('match-src-recruit')?.checked !== false;
+  const useTrack     = document.getElementById('match-src-track')?.checked !== false;
+  const useInventory = document.getElementById('match-src-inventory')?.checked !== false;
+
   const srcMap = {
-    recruit: {label:'募集線', color:'var(--acc)', bg:'var(--accl)', pool:'recruit'},
-    track:   {label:'追蹤線', color:'var(--grn)', bg:'var(--grnl)', pool:'track'},
-    commission:{label:'委託',  color:'var(--gld)', bg:'var(--gldl)', pool:'commission'}
+    recruit:   {label:'募集線', color:'var(--acc)', bg:'var(--accl)'},
+    track:     {label:'追蹤線', color:'var(--grn)', bg:'var(--grnl)'},
+    inventory: {label:'公司庫存', color:'var(--gld)', bg:'var(--gldl)'},
   };
-  const allProps=[
-    ...db.recruit.map(r=>({...r,_srcKey:'recruit'})),
-    ...db.track.map(r=>({...r,_srcKey:'track'})),
-    ...db.commission.map(r=>({...r,_srcKey:'commission'}))
-  ];
+
+  // 彙整勾選來源的物件
+  let allProps = [];
+  if(useRecruit)   allProps = allProps.concat(db.recruit.map(r=>({...r,_srcKey:'recruit'})));
+  if(useTrack)     allProps = allProps.concat(db.track.map(r=>({...r,_srcKey:'track'})));
+  if(useInventory) allProps = allProps.concat((db.inventory||[]).map(r=>({...r,_srcKey:'inventory'})));
+
   const scored = allProps.map(p=>{
     const detail = calcMatchDetail(buyer, p);
     return {...p, _score:detail.score, _matched:detail.matched, _unmatched:detail.unmatched};
@@ -5779,10 +5876,10 @@ function openBuyerMatch(bid){
   const body=document.getElementById('buyer-match-body');
   if(!scored.length){
     body.innerHTML='<div style="text-align:center;padding:40px;color:var(--tx3);font-size:14px">目前無符合條件的物件</div>';
-    openOv('buyer-match'); return;
+    return;
   }
 
-  body.innerHTML=`<div style="margin-bottom:12px;font-size:13px;color:var(--tx2)">共找到 <strong>${scored.length}</strong> 筆物件，依匹配度排序，點擊任一物件可跳至對應頁面：</div>`+
+  body.innerHTML=`<div style="margin-bottom:12px;font-size:13px;color:var(--tx2)">共找到 <strong>${scored.length}</strong> 筆物件，依匹配度排序：</div>`+
   scored.map(p=>{
     const s = srcMap[p._srcKey];
     const scoreColor=p._score>=80?'var(--grn)':p._score>=50?'var(--gld)':'var(--org)';
@@ -5790,14 +5887,19 @@ function openBuyerMatch(bid){
     const ownLabel=p.owners&&p.owners.length?p.owners.map(o=>o.name).join('、'):(p.ownerName||'');
     const matchedHtml = p._matched.length ? p._matched.map(m=>`<span style="background:rgba(26,122,74,.1);color:var(--grn);border:1px solid rgba(26,122,74,.25);padding:2px 8px;border-radius:4px;font-size:11px">✓ ${escH(m)}</span>`).join('') : '';
     const unmatchedHtml = p._unmatched.length ? p._unmatched.map(m=>`<span style="background:var(--redl);color:var(--red);border:1px solid rgba(192,24,42,.2);padding:2px 8px;border-radius:4px;font-size:11px">✗ ${escH(m)}</span>`).join('') : '';
-    return `<div onclick="goPropDetail('${p._srcKey}','${p.id}')" style="
+    // 公司庫存物件顯示負責人
+    const agentHtml = p._srcKey==='inventory' && p._agentName
+      ? `<span style="font-size:11px;color:var(--tx3)">👤 ${escH(p._agentName)}</span>` : '';
+    const clickable = p._srcKey !== 'inventory';
+    return `<div ${clickable?`onclick="goPropDetail('${p._srcKey}','${p.id}')" style="cursor:pointer"`:''} style="
       background:var(--surf2);border:1px solid var(--bdr);border-radius:10px;
-      padding:12px 14px;margin-bottom:10px;cursor:pointer;transition:.15s;
+      padding:12px 14px;margin-bottom:10px;transition:.15s;
     " onmouseover="this.style.borderColor='var(--acc)';this.style.boxShadow='var(--sh)'" onmouseout="this.style.borderColor='var(--bdr)';this.style.boxShadow='none'">
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
         <span style="background:${s.bg};color:${s.color};padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700">${s.label}</span>
         ${p.propType?`<span style="background:var(--accl);color:var(--acc);padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600">${escH(p.propType)}</span>`:''}
         <strong style="font-size:14px">${escH(ownLabel||'—')}</strong>
+        ${agentHtml}
         <span style="color:var(--tx3);font-size:12px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escH(addr)}</span>
         <div style="text-align:right;flex-shrink:0">
           <div style="font-size:22px;font-weight:900;color:${scoreColor};line-height:1">${p._score}%</div>
@@ -5815,12 +5917,155 @@ function openBuyerMatch(bid){
         ${p.unit?`<span>📐 ${p.unit}萬/坪</span>`:''}
         ${(p.rooms||p.halls||p.baths)?`<span>🛏 ${p.rooms?p.rooms+'房':''}${p.halls?p.halls+'廳':''}${p.baths?p.baths+'衛':''}</span>`:''}
         ${p.area?`<span>📏 ${p.area}坪</span>`:''}
-        <span style="margin-left:auto;font-size:11px;color:var(--acc);font-weight:600">點擊查看 →</span>
+        ${clickable?`<span style="margin-left:auto;font-size:11px;color:var(--acc);font-weight:600">點擊查看 →</span>`:''}
       </div>
     </div>`;
   }).join('');
-  openOv('buyer-match');
 }
+
+
+// ══════════════════════════════════════════════════════════════════════
+// 公司庫存模組
+// ══════════════════════════════════════════════════════════════════════
+
+// 公司庫存存在 db.inventory（記憶體），從 Firestore company_inventory 集合讀取
+// 每個文件 = 一位使用者上傳的委託快照
+// 文件結構：{ uid, agentName, updatedAt, items:[ ...commission 物件 ] }
+
+async function loadInventoryFromFirestore(){
+  if(!window._firebaseInventoryColl) return;
+  try{
+    const snap = await window._firebaseGetDocs(window._firebaseInventoryColl());
+    const all = [];
+    snap.forEach(doc=>{
+      const d = doc.data();
+      const agentName = d.agentName || d.uid || '未知';
+      (d.items||[]).forEach(item=>{
+        all.push({...item, _agentUid:d.uid, _agentName:agentName, _updatedAt:d.updatedAt||''});
+      });
+    });
+    db.inventory = all;
+    // 更新抽屜徽章
+    const badge = document.getElementById('db-inventory');
+    if(badge) badge.textContent = all.length || '';
+  }catch(e){
+    console.warn('公司庫存載入失敗', e);
+    db.inventory = [];
+  }
+}
+
+async function syncInventoryFromMyCommission(){
+  if(!window._currentUser || !window._firebaseInventoryRef) return;
+  const btn = document.getElementById('btn-inv-sync');
+  if(btn){ btn.disabled=true; btn.textContent='⏳ 同步中…'; }
+  try{
+    const uid = window._currentUser.uid;
+    const agentName = window._myCustomName || window._currentUser.displayName || '未知';
+    const items = db.commission.map(r=>({...r})); // 深拷貝
+    await window._firebaseSetDoc(
+      window._firebaseInventoryRef(uid),
+      { uid, agentName, updatedAt: new Date().toISOString(), items },
+      { merge: false }
+    );
+    // 重新載入
+    await loadInventoryFromFirestore();
+    if(currentPage==='inventory') renderInventory();
+    if(btn){ btn.disabled=false; btn.textContent='✅ 同步完成'; setTimeout(()=>{ if(btn) btn.textContent='🔄 同步我的委託'; },2000); }
+  }catch(e){
+    console.error('同步失敗', e);
+    if(btn){ btn.disabled=false; btn.textContent='⚠️ 同步失敗'; setTimeout(()=>{ if(btn) btn.textContent='🔄 同步我的委託'; },2000); }
+  }
+}
+
+function renderInventory(){
+  const items = db.inventory || [];
+  const q = (document.getElementById('inv-search')?.value||'').trim().toLowerCase();
+  const typeF = document.getElementById('inv-filter-type')?.value||'';
+
+  // 篩選
+  const filtered = items.filter(r=>{
+    if(typeF && r.propType !== typeF) return false;
+    if(q){
+      const addr = fullAddr(r.propCity,r.propDist,r.propAddr);
+      const ownLabel = r.owners&&r.owners.length ? r.owners.map(o=>o.name).join('') : (r.ownerName||'');
+      const hay = (ownLabel+addr+(r.bldgName||'')+(r._agentName||'')).toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  // 統計列
+  const statEl = document.getElementById('inv-stats');
+  if(statEl){
+    // 統計有幾位業務、幾筆物件
+    const agents = [...new Set(items.map(r=>r._agentUid))].length;
+    statEl.innerHTML = `
+      <div style="background:var(--accl);color:var(--acc);border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600">
+        🏢 庫存總筆數：<strong>${items.length}</strong>
+      </div>
+      <div style="background:var(--grnl);color:var(--grn);border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600">
+        👤 上傳成員：<strong>${agents}</strong> 人
+      </div>
+      ${q||typeF?`<div style="background:var(--gldl);color:var(--gld);border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600">🔍 篩選結果：<strong>${filtered.length}</strong> 筆</div>`:''}
+    `;
+  }
+
+  const listEl = document.getElementById('inv-list');
+  if(!listEl) return;
+
+  if(!filtered.length){
+    listEl.innerHTML='<div style="text-align:center;padding:60px 20px;color:var(--tx3);font-size:14px">'
+      + (items.length===0
+        ? '尚無公司庫存資料<br><small style="font-size:12px">請各成員點擊「同步我的委託」上傳資料</small>'
+        : '無符合篩選條件的物件')
+      + '</div>';
+    return;
+  }
+
+  // 依業務分組
+  const groups = {};
+  filtered.forEach(r=>{
+    const key = r._agentUid || '?';
+    if(!groups[key]) groups[key]={agentName:r._agentName, updatedAt:r._updatedAt, items:[]};
+    groups[key].items.push(r);
+  });
+
+  listEl.innerHTML = Object.values(groups).map(g=>{
+    const updAt = g.updatedAt ? new Date(g.updatedAt).toLocaleString('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
+    const cardsHtml = g.items.map(r=>{
+      const addr = fullAddr(r.propCity,r.propDist,r.propAddr);
+      const ownLabel = r.owners&&r.owners.length ? r.owners.map(o=>o.name).join('、') : (r.ownerName||'—');
+      const exTag = r.commType==='exclusive'
+        ? '<span style="background:var(--gldl);color:var(--gld);padding:1px 7px;border-radius:4px;font-size:11px;font-weight:700">專任</span>'
+        : '<span style="background:var(--accl);color:var(--acc);padding:1px 7px;border-radius:4px;font-size:11px;font-weight:700">一般</span>';
+      return `<div style="background:var(--surf);border:1px solid var(--bdr);border-radius:10px;padding:12px 14px;margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+          ${exTag}
+          ${r.propType?`<span style="background:var(--accl);color:var(--acc);padding:1px 7px;border-radius:4px;font-size:11px">${escH(r.propType)}</span>`:''}
+          <strong style="font-size:14px">${escH(ownLabel)}</strong>
+          <span style="font-size:12px;color:var(--tx3)">${escH(addr)}</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:var(--tx2)">
+          ${r.total?`<span>💰 ${r.total}萬</span>`:''}
+          ${r.unit?`<span>📐 ${r.unit}萬/坪</span>`:''}
+          ${(r.rooms||r.halls||r.baths)?`<span>🛏 ${r.rooms?r.rooms+'房':''}${r.halls?r.halls+'廳':''}${r.baths?r.baths+'衛':''}</span>`:''}
+          ${r.area?`<span>📏 ${r.area}坪</span>`:''}
+          ${r.commEnd?`<span>📅 委託到 ${r.commEnd}</span>`:''}
+        </div>
+      </div>`;
+    }).join('');
+    return `<div style="margin-bottom:18px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:8px 0;border-bottom:2px solid var(--bdr)">
+        <span style="font-size:15px;font-weight:700;color:var(--tx)">👤 ${escH(g.agentName)}</span>
+        <span style="font-size:11px;color:var(--tx3)">${g.items.length} 筆委託</span>
+        ${updAt?`<span style="font-size:11px;color:var(--tx3);margin-left:auto">更新：${updAt}</span>`:''}
+      </div>
+      ${cardsHtml}
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════════════════════
 
 // 從匹配視窗跳到該物件所在頁面並展開細項
 function goPropDetail(pool, id){
