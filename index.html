@@ -3125,7 +3125,8 @@ function renderDetailPanel(pool,id){
           `<button class="btn btn-sm btn-track" onclick="event.stopPropagation();openToTrack('${id}')">→ 追蹤線</button>`:
         pool==='track'?
           `<button class="btn btn-sm btn-comm" onclick="event.stopPropagation();openToComm('${id}')">→ 委託</button>`:
-          `<button class="btn btn-sm btn-comm" onclick="event.stopPropagation();openDeal('${id}')">🏆 成交</button>`}
+          `<button class="btn btn-sm btn-comm" onclick="event.stopPropagation();openDeal('${id}')">🏆 成交</button>
+           <button class="btn btn-sm" style="background:var(--redl);color:var(--red);border:1px solid var(--red)" onclick="event.stopPropagation();openEndComm('${id}')">🔴 結束</button>`}
         <button class="btn btn-sm btn-del" onclick="delItem('${pool}','${id}',event)">🗑 刪除</button>
         <button class="btn btn-sm btn-g" onclick="toggleDetail('${pool}','${id}')">✕ 收起</button>
       </div>
