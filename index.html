@@ -215,7 +215,7 @@ tbody td{padding:13px 12px;font-size:13px;vertical-align:middle}
 
 .ov{position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);z-index:600;display:none;align-items:center;justify-content:center;padding:12px;overflow-y:auto}
 .ov.show{display:flex}
-.modal{background:var(--surf);border-radius:var(--rlg);box-shadow:var(--shlg);width:100%;max-width:700px;max-height:92vh;overflow-y:auto;border:1px solid var(--bdr);animation:mi .2s ease;margin:auto}
+.modal{background:var(--surf);border-radius:var(--rlg);box-shadow:var(--shlg);width:100%;max-width:700px;max-height:92vh;overflow-y:hidden;display:flex;flex-direction:column;border:1px solid var(--bdr);animation:mi .2s ease;margin:auto}
 .modal-sm{max-width:480px}
 .modal-md{max-width:580px}
 @keyframes mi{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
@@ -223,8 +223,8 @@ tbody td{padding:13px 12px;font-size:13px;vertical-align:middle}
 .mt{font-size:18px;font-weight:700}
 .mc{width:28px;height:28px;border:none;background:var(--bg2);border-radius:50%;cursor:pointer;font-size:15px;color:var(--tx2);display:flex;align-items:center;justify-content:center;transition:.2s;flex-shrink:0}
 .mc:hover{background:var(--bdr)}
-.mb{padding:18px 20px}
-.mf{padding:10px 20px 18px;display:flex;justify-content:flex-end;gap:8px;border-top:1px solid var(--bdr)}
+.mb{padding:18px 20px;overflow-y:auto;flex:1;min-height:0}
+.mf{padding:10px 20px 18px;display:flex;justify-content:flex-end;gap:8px;border-top:1px solid var(--bdr);flex-shrink:0;background:var(--surf)}
 
 .fg{display:grid;gap:12px}
 .fg2{grid-template-columns:1fr 1fr}
@@ -323,10 +323,10 @@ a.plink:hover{text-decoration:underline}
   main{padding:14px 14px 64px}
   .card-grid{grid-template-columns:1fr}
   .fg2,.fg3{grid-template-columns:1fr}
-  .modal{border-radius:16px 16px 0 0;max-height:92vh;position:fixed;bottom:0;left:0;right:0;margin:0}
-  .mb{padding:16px}
+  .modal{border-radius:16px 16px 0 0;max-height:92vh;position:fixed;bottom:0;left:0;right:0;margin:0;display:flex;flex-direction:column;overflow-y:hidden}
+  .mb{padding:16px;overflow-y:auto;flex:1;min-height:0}
   .mh{padding:16px 16px 12px}
-  .mf{padding:10px 16px 16px}
+  .mf{padding:10px 16px 16px;flex-shrink:0;background:var(--surf)}
   .rrow-wrap{flex-direction:column}
   .tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
   table{min-width:600px}
@@ -3325,7 +3325,10 @@ function renderCommission(){
     return list.map((r,i)=>`<tr onclick="toggleDetail('commission','${r.id}')" style="cursor:pointer;${openDetailId.commission===r.id?'background:var(--accl)':''}">
       <td style="color:var(--tx3);font-size:11px">${prefix}${String(i+1).padStart(3,'0')}</td>
       <td style="font-size:12px">${r.commDate||r.date}</td>
-      <td><span style="font-weight:600">${ownersLabel(r)}</span></td>
+      <td>
+        ${r.caseName?`<div style="font-weight:700;color:var(--acc);font-size:13px">${escH(r.caseName)}</div>`:''}
+        <span style="font-weight:600;font-size:${r.caseName?'11px':'13px'};color:${r.caseName?'var(--tx3)':'var(--tx)'}">${ownersLabel(r)}</span>
+      </td>
       <td style="font-size:12px">${r.propType?`<span style="background:var(--accl);color:var(--acc);padding:1px 6px;border-radius:3px;font-size:10px;font-weight:700;margin-right:4px">${escH(r.propType)}</span>`:''} ${r.bldg?`<span style="color:var(--acc)">${escH(r.bldg)}</span>`:''} ${!r.propType&&!r.bldg?'—':''}</td>
       <td style="font-size:12px">${escH(fullAddr(r.propCity,r.propDist,r.propAddr))}${r.url?` <a class="plink" href="${escH(r.url)}" target="_blank">🔗</a>`:''}</td>
       <td style="max-width:160px;line-height:1.6">${ownersHousehold(r)}</td>
@@ -6492,13 +6495,13 @@ function renderInventory(){
         ? '<span style="background:var(--gldl);color:var(--gld);padding:1px 7px;border-radius:4px;font-size:11px;font-weight:700">專任</span>'
         : '<span style="background:var(--accl);color:var(--acc);padding:1px 7px;border-radius:4px;font-size:11px;font-weight:700">一般</span>';
       return `<div style="background:var(--surf);border:1px solid var(--bdr);border-radius:10px;padding:12px 14px;margin-bottom:8px">
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:${r.caseName?'2':'4'}px">
           ${exTag}
           ${r.propType?`<span style="background:var(--accl);color:var(--acc);padding:1px 7px;border-radius:4px;font-size:11px">${escH(r.propType)}</span>`:''}
           <strong style="font-size:14px;color:${r.caseName?'var(--acc)':'var(--tx)'}">${mainTitle}</strong>
-          ${ownerSub}
-          <span style="font-size:12px;color:var(--tx3);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📍 ${escH(addr)}</span>
         </div>
+        ${r.caseName?`<div style="font-size:12px;color:var(--tx2);margin-bottom:4px">👤 ${escH(ownLabel)}</div>`:''}
+        <div style="font-size:12px;color:var(--tx3);margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📍 ${escH(addr)}</div>
         <div style="display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:var(--tx2)">
           ${r.total?`<span>💰 ${r.total}萬</span>`:''}
           ${r.unit?`<span>📐 ${r.unit}萬/坪</span>`:''}
