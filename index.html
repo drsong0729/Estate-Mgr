@@ -739,6 +739,104 @@ function initGoogleMaps() {
     <strong style="font-size:13px;color:var(--grn)">買方生日提醒</strong>
     <div id="stats-bday-list" style="display:flex;flex-wrap:wrap;gap:6px"></div>
   </div>
+  <!-- ═══════════════════════ 月行事曆 ═══════════════════════ -->
+  <div id="cal-section" style="background:var(--surf);border:1px solid var(--bdr);border-radius:var(--rlg);box-shadow:var(--sh);margin-bottom:20px;overflow:hidden">
+    <!-- 月曆標頭 -->
+    <div style="background:linear-gradient(135deg,var(--acc),#1a6bbf);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <button onclick="calPrevMonth()" style="width:30px;height:30px;border:none;border-radius:50%;background:rgba(255,255,255,.2);color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s" onmouseover="this.style.background='rgba(255,255,255,.35)'" onmouseout="this.style.background='rgba(255,255,255,.2)'">‹</button>
+        <span id="cal-title" style="font-size:16px;font-weight:700;color:#fff;min-width:120px;text-align:center"></span>
+        <button onclick="calNextMonth()" style="width:30px;height:30px;border:none;border-radius:50%;background:rgba(255,255,255,.2);color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s" onmouseover="this.style.background='rgba(255,255,255,.35)'" onmouseout="this.style.background='rgba(255,255,255,.2)'">›</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <select id="cal-year-sel" class="fc" style="width:90px;padding:5px 8px!important;font-size:13px!important;background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.3);color:#fff" onchange="calJumpToSelected()"></select>
+        <select id="cal-month-sel" class="fc" style="width:72px;padding:5px 8px!important;font-size:13px!important;background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.3);color:#fff" onchange="calJumpToSelected()">
+          <option value="0">1月</option><option value="1">2月</option><option value="2">3月</option>
+          <option value="3">4月</option><option value="4">5月</option><option value="5">6月</option>
+          <option value="6">7月</option><option value="7">8月</option><option value="8">9月</option>
+          <option value="9">10月</option><option value="10">11月</option><option value="11">12月</option>
+        </select>
+        <button onclick="calGoToday()" style="padding:5px 12px;border:1.5px solid rgba(255,255,255,.4);border-radius:var(--r);background:transparent;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:.15s" onmouseover="this.style.background='rgba(255,255,255,.2)'" onmouseout="this.style.background='transparent'">今天</button>
+      </div>
+    </div>
+    <!-- 星期標題列 -->
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);background:var(--accl);border-bottom:1px solid var(--bdr)">
+      <div style="text-align:center;padding:8px 4px;font-size:11px;font-weight:700;color:var(--red)">日</div>
+      <div style="text-align:center;padding:8px 4px;font-size:11px;font-weight:700;color:var(--tx2)">一</div>
+      <div style="text-align:center;padding:8px 4px;font-size:11px;font-weight:700;color:var(--tx2)">二</div>
+      <div style="text-align:center;padding:8px 4px;font-size:11px;font-weight:700;color:var(--tx2)">三</div>
+      <div style="text-align:center;padding:8px 4px;font-size:11px;font-weight:700;color:var(--tx2)">四</div>
+      <div style="text-align:center;padding:8px 4px;font-size:11px;font-weight:700;color:var(--tx2)">五</div>
+      <div style="text-align:center;padding:8px 4px;font-size:11px;font-weight:700;color:var(--acc)">六</div>
+    </div>
+    <!-- 月曆格子 -->
+    <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:0"></div>
+    <!-- 列印週報表按鈕 -->
+    <div style="padding:12px 16px;border-top:1px solid var(--bdr);display:flex;justify-content:flex-end">
+      <button onclick="openWeekReportModal()" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:var(--acc);color:#fff;border:none;border-radius:var(--r);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:.15s;box-shadow:0 2px 6px rgba(15,81,155,.25)" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">🖨️ 列印週報表</button>
+    </div>
+  </div>
+
+  <!-- 日程表 Modal -->
+  <div id="schedule-overlay" class="ov" style="z-index:700">
+    <div class="modal modal-md" style="max-width:560px">
+      <div class="mh" style="background:linear-gradient(135deg,var(--acc),#1a6bbf)">
+        <div class="mt" style="color:#fff" id="schedule-modal-title">📅 日程表</div>
+        <button class="mc" onclick="closeScheduleModal()" style="background:rgba(255,255,255,.2);color:#fff">✕</button>
+      </div>
+      <div class="mb" style="padding:0" id="schedule-modal-body"></div>
+    </div>
+  </div>
+
+  <!-- 規劃視窗 Modal（新增待辦） -->
+  <div id="todo-overlay" class="ov" style="z-index:800">
+    <div class="modal modal-sm">
+      <div class="mh">
+        <div class="mt" id="todo-modal-title">✏️ 規劃時段</div>
+        <button class="mc" onclick="closeTodoModal()">✕</button>
+      </div>
+      <div class="mb">
+        <div id="todo-time-label" style="font-size:12px;color:var(--acc);font-weight:600;background:var(--accl);padding:6px 10px;border-radius:var(--r);margin-bottom:14px"></div>
+        <div id="todo-list-area" style="margin-bottom:14px"></div>
+        <button onclick="addTodoItem()" style="width:100%;padding:9px;border:2px dashed var(--acc);border-radius:var(--r);background:var(--accl);color:var(--acc);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:.15s" onmouseover="this.style.background='var(--acc)';this.style.color='#fff'" onmouseout="this.style.background='var(--accl)';this.style.color='var(--acc)'">＋ 新增待辦</button>
+      </div>
+      <div class="mf">
+        <button class="btn btn-g btn-sm" onclick="closeTodoModal()">取消</button>
+        <button class="btn btn-p btn-sm" onclick="saveTodoModal()">💾 儲存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 週報表列印範圍選擇 Modal -->
+  <div id="weekreport-overlay" class="ov" style="z-index:700">
+    <div class="modal modal-sm">
+      <div class="mh">
+        <div class="mt">🖨️ 列印週報表</div>
+        <button class="mc" onclick="closeWeekReportModal()">✕</button>
+      </div>
+      <div class="mb">
+        <div class="fg" style="gap:12px">
+          <div class="fgp">
+            <label class="lbl">日期起</label>
+            <input class="fc" type="date" id="wr-date-from">
+          </div>
+          <div class="fgp">
+            <label class="lbl">日期迄</label>
+            <input class="fc" type="date" id="wr-date-to">
+          </div>
+          <div class="fgp">
+            <label class="lbl">業務姓名</label>
+            <input class="fc" type="text" id="wr-agent-name" placeholder="輸入姓名">
+          </div>
+        </div>
+      </div>
+      <div class="mf">
+        <button class="btn btn-g btn-sm" onclick="closeWeekReportModal()">取消</button>
+        <button class="btn btn-p btn-sm" onclick="printWeekReport()">🖨️ 列印</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 目標設定區（含業績、成交件數） -->
   <div class="goal-section">
     <!-- 年度目標 -->
@@ -6569,5 +6667,403 @@ function _renderUserDetailContent(area, u, data, displayName){
   </div>
 </div>
 
+
+<!-- ═══════════════════ 月行事曆 JavaScript ═══════════════════ -->
+<script>
+// ─── 資料儲存 ───────────────────────────────────────────────────
+// calData[dateKey] = { slots: { slotKey: [{name,note},...] } }
+// dateKey = 'YYYY-MM-DD', slotKey = '09-10' etc.
+const CAL_STORAGE_KEY = 're_calendar_data';
+let calData = {};
+
+function calLoad() {
+  try { calData = JSON.parse(localStorage.getItem(CAL_STORAGE_KEY) || '{}'); } catch(e){ calData={}; }
+}
+function calSave() {
+  localStorage.setItem(CAL_STORAGE_KEY, JSON.stringify(calData));
+}
+calLoad();
+
+// ─── 時段定義 ───────────────────────────────────────────────────
+const CAL_SLOTS = [
+  { key:'09-10',    label:'09:00 – 10:00', special:false },
+  { key:'10-11',    label:'10:00 – 11:00', special:false },
+  { key:'11-12',    label:'11:00 – 12:00', special:false },
+  { key:'12-14',    label:'12:00 – 14:00', special:true,  specialLabel:'🍱 午休時間' },
+  { key:'14-15',    label:'14:00 – 15:00', special:false },
+  { key:'15-16',    label:'15:00 – 16:00', special:false },
+  { key:'16-17',    label:'16:00 – 17:00', special:false },
+  { key:'17-1745',  label:'17:00 – 17:45', special:false },
+  { key:'1745-1800',label:'17:45 – 18:00', special:true,  specialLabel:'🧹 打掃時間' },
+];
+
+// ─── 月曆狀態 ────────────────────────────────────────────────────
+let calYear, calMonth; // 0-based month
+
+function calInit() {
+  const now = new Date();
+  calYear = now.getFullYear();
+  calMonth = now.getMonth();
+
+  // 初始化年份選擇器
+  const ySel = document.getElementById('cal-year-sel');
+  if (!ySel) return;
+  ySel.innerHTML = '';
+  for (let y = now.getFullYear() - 3; y <= now.getFullYear() + 3; y++) {
+    const o = document.createElement('option');
+    o.value = y; o.textContent = y + '年';
+    if (y === calYear) o.selected = true;
+    ySel.appendChild(o);
+  }
+  calRender();
+}
+
+function calRender() {
+  const ySel = document.getElementById('cal-year-sel');
+  const mSel = document.getElementById('cal-month-sel');
+  const titleEl = document.getElementById('cal-title');
+  const grid = document.getElementById('cal-grid');
+  if (!grid) return;
+
+  if (ySel) ySel.value = calYear;
+  if (mSel) mSel.value = calMonth;
+  if (titleEl) titleEl.textContent = calYear + '年 ' + (calMonth+1) + '月';
+
+  const firstDay = new Date(calYear, calMonth, 1).getDay(); // 0=Sun
+  const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+  const today = new Date();
+  const todayKey = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+
+  let html = '';
+  // 前置空格
+  for (let i = 0; i < firstDay; i++) {
+    html += `<div style="min-height:64px;border-right:1px solid var(--bdr);border-bottom:1px solid var(--bdr);background:var(--bg2);opacity:.4"></div>`;
+  }
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateKey = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dow = (firstDay + d - 1) % 7;
+    const isToday = dateKey === todayKey;
+    const isSun = dow === 0, isSat = dow === 6;
+
+    // 計算待辦數
+    const dayData = calData[dateKey];
+    let todoCount = 0;
+    if (dayData && dayData.slots) {
+      for (const k in dayData.slots) {
+        todoCount += (dayData.slots[k] || []).length;
+      }
+    }
+
+    const dayColor = isSun ? 'var(--red)' : isSat ? 'var(--acc)' : 'var(--tx)';
+    const todayStyle = isToday ? 'background:var(--accl);border-color:var(--acc);' : '';
+
+    html += `<div onclick="openScheduleModal('${dateKey}')" style="min-height:64px;padding:6px;border-right:1px solid var(--bdr);border-bottom:1px solid var(--bdr);cursor:pointer;transition:.15s;${todayStyle}" onmouseover="if(!this.dataset.today)this.style.background='var(--surf2)'" onmouseout="if(!this.dataset.today)this.style.background=''" ${isToday ? 'data-today="1"' : ''}>
+      <div style="font-size:13px;font-weight:${isToday?'800':'600'};color:${dayColor};${isToday?'background:var(--acc);color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;':''}">${d}</div>
+      ${todoCount > 0 ? `<div style="margin-top:4px"><span style="font-size:10px;font-weight:700;background:var(--acc);color:#fff;padding:1px 6px;border-radius:20px">${todoCount} 件</span></div>` : ''}
+    </div>`;
+  }
+
+  // 補尾格
+  const totalCells = firstDay + daysInMonth;
+  const rem = (7 - (totalCells % 7)) % 7;
+  for (let i = 0; i < rem; i++) {
+    html += `<div style="min-height:64px;border-right:1px solid var(--bdr);border-bottom:1px solid var(--bdr);background:var(--bg2);opacity:.4"></div>`;
+  }
+
+  grid.innerHTML = html;
+}
+
+function calPrevMonth() {
+  calMonth--;
+  if (calMonth < 0) { calMonth = 11; calYear--; }
+  calRender();
+}
+function calNextMonth() {
+  calMonth++;
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  calRender();
+}
+function calGoToday() {
+  const now = new Date();
+  calYear = now.getFullYear(); calMonth = now.getMonth();
+  calRender();
+}
+function calJumpToSelected() {
+  calYear = parseInt(document.getElementById('cal-year-sel').value);
+  calMonth = parseInt(document.getElementById('cal-month-sel').value);
+  calRender();
+}
+
+// ─── 日程表 Modal ────────────────────────────────────────────────
+let _scheduleDate = '';
+
+function openScheduleModal(dateKey) {
+  _scheduleDate = dateKey;
+  const [y,m,d] = dateKey.split('-');
+  const dow = new Date(parseInt(y), parseInt(m)-1, parseInt(d)).getDay();
+  const dowNames = ['日','一','二','三','四','五','六'];
+  document.getElementById('schedule-modal-title').textContent = `📅 ${y}年${parseInt(m)}月${parseInt(d)}日（${dowNames[dow]}）`;
+  renderScheduleBody();
+  document.getElementById('schedule-overlay').classList.add('show');
+}
+
+function renderScheduleBody() {
+  const body = document.getElementById('schedule-modal-body');
+  const dayData = calData[_scheduleDate] || { slots: {} };
+  let html = '<div style="padding:0 0 8px">';
+
+  for (const slot of CAL_SLOTS) {
+    const todos = (dayData.slots && dayData.slots[slot.key]) || [];
+    const bg = slot.special ? 'background:var(--bg2)' : 'background:var(--surf)';
+    const labelColor = slot.special ? 'color:var(--tx3)' : 'color:var(--acc)';
+
+    html += `<div onclick="openTodoModal('${slot.key}')" style="border-bottom:1px solid var(--bdr);padding:10px 18px;cursor:pointer;transition:.15s;${bg}" onmouseover="this.style.filter='brightness(.97)'" onmouseout="this.style.filter=''">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:${todos.length?'8px':'0'}">
+        <span style="font-size:11px;font-weight:700;${labelColor};min-width:90px">${slot.label}</span>
+        ${slot.special ? `<span style="font-size:11px;color:var(--tx3)">${slot.specialLabel}</span>` : ''}
+        ${!slot.special && todos.length===0 ? '<span style="font-size:11px;color:var(--tx3)">點擊規劃待辦</span>' : ''}
+        <span style="margin-left:auto;font-size:18px;color:var(--acc);opacity:.4">+</span>
+      </div>`;
+
+    if (todos.length > 0) {
+      for (const t of todos) {
+        html += `<div style="display:flex;align-items:flex-start;gap:6px;padding:4px 0">
+          <span style="color:var(--acc);margin-top:1px;font-size:13px">●</span>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--tx)">${escHtml(t.name)}</div>
+            ${t.note ? `<div style="font-size:11px;color:var(--tx3);margin-top:1px">${escHtml(t.note)}</div>` : ''}
+          </div>
+        </div>`;
+      }
+    }
+    html += '</div>';
+  }
+  html += '</div>';
+  body.innerHTML = html;
+}
+
+function closeScheduleModal() {
+  document.getElementById('schedule-overlay').classList.remove('show');
+  calRender(); // 更新月曆待辦數
+}
+
+// ─── 待辦 Modal ──────────────────────────────────────────────────
+let _todoSlotKey = '';
+
+function openTodoModal(slotKey) {
+  _todoSlotKey = slotKey;
+  const slot = CAL_SLOTS.find(s => s.key === slotKey);
+  document.getElementById('todo-modal-title').textContent = '✏️ 規劃時段';
+  document.getElementById('todo-time-label').textContent = '⏰ ' + slot.label + (slot.special ? '　' + slot.specialLabel : '');
+
+  const dayData = calData[_scheduleDate] || { slots: {} };
+  const todos = JSON.parse(JSON.stringify((dayData.slots && dayData.slots[slotKey]) || []));
+  renderTodoList(todos);
+  document.getElementById('todo-overlay').classList.add('show');
+}
+
+function renderTodoList(todos) {
+  const area = document.getElementById('todo-list-area');
+  if (!todos || todos.length === 0) {
+    area.innerHTML = '<div style="text-align:center;color:var(--tx3);font-size:13px;padding:8px 0">尚無待辦事項，請點下方新增</div>';
+    area.dataset.todos = JSON.stringify([]);
+    return;
+  }
+  let html = '';
+  todos.forEach((t, i) => {
+    html += `<div style="background:var(--surf2);border:1px solid var(--bdr);border-radius:var(--r);padding:10px 12px;margin-bottom:8px;position:relative">
+      <button onclick="removeTodo(${i})" style="position:absolute;top:6px;right:8px;border:none;background:var(--redl);color:var(--red);border-radius:50%;width:20px;height:20px;font-size:12px;cursor:pointer;line-height:1">✕</button>
+      <input class="fc" style="font-size:13px;font-weight:600;margin-bottom:6px" value="${escAttr(t.name)}" oninput="updateTodo(${i},'name',this.value)" placeholder="待辦名稱">
+      <textarea class="fc" style="font-size:12px;min-height:48px" oninput="updateTodo(${i},'note',this.value)" placeholder="備註（選填）">${escHtml(t.note||'')}</textarea>
+    </div>`;
+  });
+  area.innerHTML = html;
+  area.dataset.todos = JSON.stringify(todos);
+}
+
+function getTodosFromArea() {
+  try { return JSON.parse(document.getElementById('todo-list-area').dataset.todos || '[]'); } catch(e){ return []; }
+}
+
+function addTodoItem() {
+  const todos = getTodosFromArea();
+  todos.push({ name:'', note:'' });
+  renderTodoList(todos);
+}
+
+function removeTodo(idx) {
+  const todos = getTodosFromArea();
+  todos.splice(idx, 1);
+  renderTodoList(todos);
+}
+
+function updateTodo(idx, field, val) {
+  const todos = getTodosFromArea();
+  if (todos[idx]) todos[idx][field] = val;
+  document.getElementById('todo-list-area').dataset.todos = JSON.stringify(todos);
+}
+
+function saveTodoModal() {
+  const todos = getTodosFromArea().filter(t => t.name.trim());
+  if (!calData[_scheduleDate]) calData[_scheduleDate] = { slots: {} };
+  if (!calData[_scheduleDate].slots) calData[_scheduleDate].slots = {};
+  calData[_scheduleDate].slots[_todoSlotKey] = todos;
+  if (todos.length === 0) delete calData[_scheduleDate].slots[_todoSlotKey];
+  // 清空空日期
+  if (Object.keys(calData[_scheduleDate].slots).length === 0) delete calData[_scheduleDate];
+  calSave();
+  closeTodoModal();
+  renderScheduleBody(); // 更新日程表
+}
+
+function closeTodoModal() {
+  document.getElementById('todo-overlay').classList.remove('show');
+}
+
+// ─── 週報表列印 ───────────────────────────────────────────────────
+function openWeekReportModal() {
+  const now = new Date();
+  // 預設本週一到本週日
+  const dow = now.getDay();
+  const mon = new Date(now); mon.setDate(now.getDate() - (dow === 0 ? 6 : dow - 1));
+  const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+  const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  document.getElementById('wr-date-from').value = fmt(mon);
+  document.getElementById('wr-date-to').value = fmt(sun);
+  // 嘗試從系統取得使用者姓名
+  const u = window._currentUser;
+  document.getElementById('wr-agent-name').value = (u && u.displayName) ? u.displayName : '';
+  document.getElementById('weekreport-overlay').classList.add('show');
+}
+function closeWeekReportModal() {
+  document.getElementById('weekreport-overlay').classList.remove('show');
+}
+
+function printWeekReport() {
+  const fromStr = document.getElementById('wr-date-from').value;
+  const toStr   = document.getElementById('wr-date-to').value;
+  const agent   = document.getElementById('wr-agent-name').value.trim() || '　　　　';
+  if (!fromStr || !toStr) { alert('請選擇日期起迄'); return; }
+
+  const fromDate = new Date(fromStr + 'T00:00:00');
+  const toDate   = new Date(toStr   + 'T00:00:00');
+  if (fromDate > toDate) { alert('起始日期不能晚於結束日期'); return; }
+
+  const dowNames = ['日','一','二','三','四','五','六'];
+  const fmt = d => `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`;
+  const fmtKey = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+  // 建立日期列表
+  const dates = [];
+  const cur = new Date(fromDate);
+  while (cur <= toDate) {
+    dates.push(new Date(cur));
+    cur.setDate(cur.getDate() + 1);
+  }
+
+  // 產生表格 HTML
+  let rows = '';
+  for (const date of dates) {
+    const dk = fmtKey(date);
+    const dow = date.getDay();
+    const dayData = calData[dk] || { slots: {} };
+    const isSun = dow === 0, isSat = dow === 6;
+    const dateBg = isSun ? '#fff0f0' : isSat ? '#f0f4ff' : '#fff';
+    const dateColor = isSun ? '#c0182a' : isSat ? '#0f519b' : '#1a2332';
+
+    for (let si = 0; si < CAL_SLOTS.length; si++) {
+      const slot = CAL_SLOTS[si];
+      const todos = (dayData.slots && dayData.slots[slot.key]) || [];
+      const isFirstSlot = si === 0;
+      const slotBg = slot.special ? '#f8f8f8' : '#fff';
+      const todoText = todos.length > 0
+        ? todos.map(t => `<b>${escHtml(t.name)}</b>${t.note ? '：' + escHtml(t.note) : ''}`).join('<br>')
+        : (slot.special ? `<span style="color:#aaa">${slot.specialLabel}</span>` : '');
+
+      rows += `<tr>
+        ${isFirstSlot ? `<td rowspan="${CAL_SLOTS.length}" style="background:${dateBg};text-align:center;vertical-align:middle;border:1px solid #ccc;padding:6px;font-weight:700;color:${dateColor};white-space:nowrap;font-size:12px">
+          ${fmt(date)}<br><span style="font-size:14px">（${dowNames[dow]}）</span>
+        </td>` : ''}
+        <td style="background:${slotBg};border:1px solid #ccc;padding:5px 8px;font-size:11px;color:#555;white-space:nowrap;width:100px">${slot.label}</td>
+        <td style="background:${slotBg};border:1px solid #ccc;padding:5px 10px;font-size:12px;line-height:1.6">${todoText}</td>
+      </tr>`;
+    }
+  }
+
+  const html = `<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8">
+<title>週報表 ${fromStr} – ${toStr}</title>
+<style>
+  @media print { body{margin:0} @page{margin:15mm 10mm} }
+  body{font-family:'Noto Sans TC',system-ui,sans-serif;color:#1a2332;margin:20px}
+  h1{font-size:16px;font-weight:800;margin-bottom:4px}
+  .sub{font-size:12px;color:#555;margin-bottom:16px}
+  table{width:100%;border-collapse:collapse}
+  th{background:#0f519b;color:#fff;padding:8px 10px;font-size:12px;border:1px solid #0d4589}
+</style></head><body>
+<h1>📋 業務週報表</h1>
+<div class="sub">日期：${fmt(fromDate)} ～ ${fmt(toDate)}　　業務：${escHtml(agent)}</div>
+<table>
+  <thead><tr>
+    <th style="width:100px">日期</th>
+    <th style="width:110px">時段</th>
+    <th>待辦事項</th>
+  </tr></thead>
+  <tbody>${rows}</tbody>
+</table>
+</body></html>`;
+
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => win.print(), 400);
+  closeWeekReportModal();
+}
+
+// ─── 工具 ─────────────────────────────────────────────────────────
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escAttr(s) {
+  return String(s||'').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// ─── 初始化 ──────────────────────────────────────────────────────
+// 等待 DOM 就緒後初始化月曆（在 page-stats 顯示時）
+document.addEventListener('DOMContentLoaded', () => {
+  // 如果月曆元素存在（page-stats 已在 DOM 裡）就直接初始化
+  if (document.getElementById('cal-grid')) calInit();
+});
+
+// 當 page-stats 切換到 active 時也呼叫一次
+const _origSwitchPage = window.switchPage;
+if (typeof window.switchPage === 'function') {
+  window.switchPage = function(page) {
+    _origSwitchPage(page);
+    if (page === 'stats') setTimeout(calInit, 50);
+  };
+} else {
+  // 等 switchPage 定義後再覆蓋
+  window.addEventListener('load', () => {
+    if (typeof window.switchPage === 'function') {
+      const orig = window.switchPage;
+      window.switchPage = function(page) {
+        orig(page);
+        if (page === 'stats') setTimeout(calInit, 50);
+      };
+    }
+    // 登入後也初始化
+    if (typeof window.onFirebaseLogin === 'undefined') {
+      const _orig2 = window.onFirebaseLogin;
+      window.onFirebaseLogin = function(u) {
+        if (_orig2) _orig2(u);
+        setTimeout(calInit, 300);
+      };
+    }
+    setTimeout(calInit, 500);
+  });
+}
+</script>
 </body>
 </html>
