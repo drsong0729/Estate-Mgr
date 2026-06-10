@@ -809,7 +809,7 @@ function initGoogleMaps() {
       <h1 class="lp-hero-title">讓每一筆<span>客戶資料</span><br>都成為成交機會</h1>
       <p class="lp-hero-sub">整合募集線、追蹤線、委託管理、買方配對與行程規劃，<br>搭配 Google 雲端同步，電腦手機隨時掌握業績。</p>
       <div class="lp-stats">
-        <div class="lp-stat"><span class="lp-stat-num">7</span><span class="lp-stat-label">核心功能模組</span></div>
+        <div class="lp-stat"><span class="lp-stat-num">9</span><span class="lp-stat-label">核心功能模組</span></div>
         <div class="lp-stat"><span class="lp-stat-num">∞</span><span class="lp-stat-label">筆資料雲端儲存</span></div>
         <div class="lp-stat"><span class="lp-stat-num">100%</span><span class="lp-stat-label">跨裝置即時同步</span></div>
       </div>
@@ -820,7 +820,7 @@ function initGoogleMaps() {
       <div class="lp-section-inner">
         <div class="lp-fade">
           <div class="lp-label">核心功能</div>
-          <h2 class="lp-title">七大模組，全面掌握業務</h2>
+          <h2 class="lp-title">九大模組，全面掌握業務</h2>
           <p class="lp-sub">從屋主開發、買方配對到委託成交，完整追蹤每一個業務環節，讓機會一筆不漏。</p>
         </div>
         <div class="lp-features">
@@ -2455,7 +2455,7 @@ function save(){
 function _autoSyncInventory(userArg){
   const user = userArg || window._currentUser;
   if(!user || !window._firebaseInventoryRef) return;
-  const agentName = window._myCustomName || user.displayName || '未知';
+  const agentName = window._myCustomName || window._myGoogleName || user.displayName || user.email?.split('@')[0] || '未知';
   const items = db.commission.map(r=>({...r}));
   window._firebaseSetDoc(
     window._firebaseInventoryRef(user.uid),
@@ -2481,6 +2481,7 @@ function _syncUserIndex(user){
     const dName = document.getElementById('drawer-name');
     if(dName) dName.textContent = shownName;
     window._myCustomName = existing.customName || null;
+    window._myGoogleName  = user.displayName || user.email?.split('@')[0] || '未知';
     // payload 不含 customName，merge:true 自動保留 Firestore 上已有的值
     const payload = {
       uid:          user.uid,
@@ -5281,6 +5282,7 @@ window.onFirebaseLogin = async function(user){
     const shownName = idxData.customName || user.displayName || '使用者';
     if(dName) dName.textContent = shownName;
     window._myCustomName = idxData.customName || null;
+    window._myGoogleName  = user.displayName || user.email?.split('@')[0] || '未知';
 
     // 寫回索引（不帶 customName，merge:true 自動保留 Firestore 上已有的值）
     const now2 = new Date().toISOString();
@@ -6237,7 +6239,7 @@ async function syncInventoryFromMyCommission(){
   if(btn){ btn.disabled=true; btn.textContent='⏳ 同步中…'; }
   try{
     const uid = window._currentUser.uid;
-    const agentName = window._myCustomName || window._currentUser.displayName || '未知';
+    const agentName = window._myCustomName || window._myGoogleName || window._currentUser.displayName || window._currentUser.email?.split('@')[0] || '未知';
     const items = db.commission.map(r=>({...r})); // 深拷貝
     await window._firebaseSetDoc(
       window._firebaseInventoryRef(uid),
@@ -6260,7 +6262,7 @@ async function syncInventoryFromMyCommission(){
 // ══════════════════════════════════════════════════════════════════════
 function printThreeTables(){
   const user = window._currentUser;
-  const agentName = window._myCustomName || (user&&user.displayName) || '業務';
+  const agentName = window._myCustomName || window._myGoogleName || (user&&user.displayName) || (user&&user.email?.split('@')[0]) || '業務';
   const today = new Date().toLocaleDateString('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'});
 
   /* ── 共用樣式 ── */
