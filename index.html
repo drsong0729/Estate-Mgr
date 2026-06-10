@@ -1867,9 +1867,11 @@ function initGoogleMaps() {
         <button type="button" class="btn-addowner" onclick="addOwnerRow()">＋ 新增屋主</button>
       </div>
       <div id="owners-list"></div>
-      <div class="fg" style="margin-top:10px">
+      <div class="fg fg2" style="margin-top:10px">
         <div class="fgp"><label class="lbl">建案名稱</label>
           <input class="fc" id="f-bldg" placeholder="（選填）"></div>
+        <div class="fgp"><label class="lbl">案名</label>
+          <input class="fc" id="f-casename" placeholder="例：藏美海揚II（選填）"></div>
       </div>
     </div>
     <div class="fsec">
@@ -2700,7 +2702,7 @@ function openRecruitModal(id,pool){
   const list=editPool==='track'?db.track:db.recruit;
   const f=id?list.find(r=>r.id===id):null;
   // clear fixed fields
-  ['p-city','p-dist','p-addr','f-bldg','f-proptype','f-area','f-total','f-unit','f-rooms','f-halls','f-baths','f-url','f-notes'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
+  ['p-city','p-dist','p-addr','f-bldg','f-casename','f-proptype','f-area','f-total','f-unit','f-rooms','f-halls','f-baths','f-url','f-notes'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
   // clear owners
   document.getElementById('owners-list').innerHTML='';
   ownerCount=0;
@@ -2709,6 +2711,7 @@ function openRecruitModal(id,pool){
     document.getElementById('p-dist').value=f.propDist||'';
     document.getElementById('p-addr').value=f.propAddr||'';
     document.getElementById('f-bldg').value=f.bldg||'';
+    document.getElementById('f-casename').value=f.caseName||'';
     document.getElementById('f-proptype').value=f.propType||'';
     document.getElementById('f-area').value=f.area||'';
     document.getElementById('f-total').value=f.total||'';
@@ -2760,6 +2763,7 @@ function saveRecruit(){
     ownerCity:fw.city,ownerDist:fw.dist,ownerAddr:fw.addr,
     owners,
     bldg:document.getElementById('f-bldg').value,
+    caseName:(document.getElementById('f-casename')?.value||'').trim(),
     propType,
     area:parseFloat(area),total:parseFloat(total),unit,
     rooms:noLayout?'':document.getElementById('f-rooms').value,
@@ -6189,8 +6193,8 @@ function printThreeTables(){
     @page { size: A4; margin: 14mm 12mm 14mm 12mm; }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Noto Sans TC', '微軟正黑體', sans-serif; }
     body { font-size: 10pt; color: #111; background:#fff; }
-    .section { page-break-before: always; padding-top: 4mm; }
-    .section:first-child { page-break-before: avoid; }
+    .section { padding-top: 6mm; margin-top: 2mm; }
+    .section + .section { border-top: 1px dashed #bbb; }
     .section-title {
       font-size: 13pt; font-weight: 700; color: #0f519b;
       border-bottom: 2.5px solid #0f519b; padding-bottom: 4px; margin-bottom: 10px;
