@@ -7066,14 +7066,14 @@ function printWeekReport() {
     }
   }
 
-  const html = `<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8"><title>週報表</title>
+  const html = `<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8"><title>\u9031\u5831\u8868</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-@page{size:A4 portrait;margin:6mm 6mm}
-@media print{body{margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}html,body{height:100%}.wrap{page-break-inside:avoid}}
-html,body{width:100%;height:100%}
-body{font-family:'Noto Sans TC',system-ui,sans-serif;color:#1a2332;display:flex;flex-direction:column;height:100vh}
-.hdr{padding:2px 2px 3px;flex-shrink:0}
+@page{size:A4 portrait;margin:0mm}
+@media print{html,body{width:210mm;height:297mm;overflow:hidden}#page{width:210mm!important;height:297mm!important;transform:none!important;padding:6mm 6mm!important}}
+html,body{margin:0;padding:0;background:#fff;font-family:'Noto Sans TC',system-ui,sans-serif;color:#1a2332;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+#page{width:794px;height:1123px;padding:10px 10px;display:flex;flex-direction:column;overflow:hidden;transform-origin:top left}
+.hdr{flex-shrink:0;padding-bottom:4px}
 .hdr h1{font-size:12px;font-weight:800;display:inline}
 .hdr span{font-size:9px;color:#555;margin-left:8px}
 .wrap{flex:1;min-height:0;overflow:hidden}
@@ -7092,13 +7092,36 @@ td{border:1px solid #ccc;padding:2px 3px;vertical-align:middle;text-align:center
 .row-even .td-data{background:#ffffff}
 .todo-item{display:block;line-height:1.5;padding:1px 0;border-bottom:1px dotted #ccc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .todo-item:last-child{border-bottom:none}
-</style></head><body>
-<div class="hdr"><h1>📋 業務週報表</h1><span>日期：${fmt(fromDate)} ～ ${fmt(toDate)}　業務：${escHtml(agent)}</span></div>
+</style>
+<script>
+(function(){
+  function fit(){
+    var el=document.getElementById('page');
+    if(!el)return;
+    var sw=window.innerWidth,sh=window.innerHeight;
+    var sx=sw/794,sy=sh/1123,s=Math.min(sx,sy,1);
+    el.style.transform='scale('+s+')';
+    document.body.style.width=Math.round(794*s)+'px';
+    document.body.style.height=Math.round(1123*s)+'px';
+  }
+  window.addEventListener('load',fit);
+  window.addEventListener('resize',fit);
+  window.addEventListener('beforeprint',function(){
+    var el=document.getElementById('page');
+    if(el)el.style.transform='none';
+  });
+  window.addEventListener('afterprint',function(){fit();});
+})();
+<\/script>
+</head><body>
+<div id="page">
+<div class="hdr"><h1>\uD83D\uDCCB \u696D\u52D9\u9031\u5831\u8868</h1><span>\u65E5\u671F\uFF1A${fmt(fromDate)} ～ ${fmt(toDate)}\u3000\u696D\u52D9\uFF1A${escHtml(agent)}</span></div>
 <div class="wrap"><table>
 <colgroup>${colWidths}</colgroup>
-<thead><tr><th class="th-slot">時段</th>${thCols}</tr></thead>
+<thead><tr><th class="th-slot">\u6642\u6BB5</th>${thCols}</tr></thead>
 <tbody>${rows}</tbody>
 </table></div>
+</div>
 </body></html>`;
 
   const win = window.open('', '_blank');
