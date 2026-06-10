@@ -772,8 +772,9 @@ function initGoogleMaps() {
     <!-- 月曆格子 -->
     <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:0"></div>
     <!-- 列印週報表按鈕 -->
-    <div style="padding:12px 16px;border-top:1px solid var(--bdr);display:flex;justify-content:flex-end">
-      <button onclick="openWeekReportModal()" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:var(--acc);color:#fff;border:none;border-radius:var(--r);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:.15s;box-shadow:0 2px 6px rgba(15,81,155,.25)" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">🖨️ 列印週報表</button>
+    <div style="padding:12px 16px;border-top:1px solid var(--bdr);display:flex;justify-content:flex-end;gap:8px">
+      <button onclick="openWeekReportModal('print')" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:var(--acc);color:#fff;border:none;border-radius:var(--r);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:.15s;box-shadow:0 2px 6px rgba(15,81,155,.25)" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">🖨️ 列印週報表</button>
+      <button onclick="openWeekReportModal('pdf')" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:var(--grn);color:#fff;border:none;border-radius:var(--r);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:.15s;box-shadow:0 2px 6px rgba(26,122,74,.25)" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">📄 輸出週報表</button>
     </div>
   </div>
 
@@ -811,7 +812,7 @@ function initGoogleMaps() {
   <div id="weekreport-overlay" class="ov" style="z-index:700">
     <div class="modal modal-sm">
       <div class="mh">
-        <div class="mt">🖨️ 列印週報表</div>
+        <div class="mt" id="wr-modal-title">🖨️ 列印週報表</div>
         <button class="mc" onclick="closeWeekReportModal()">✕</button>
       </div>
       <div class="mb">
@@ -832,7 +833,7 @@ function initGoogleMaps() {
       </div>
       <div class="mf">
         <button class="btn btn-g btn-sm" onclick="closeWeekReportModal()">取消</button>
-        <button class="btn btn-p btn-sm" onclick="printWeekReport()">🖨️ 列印</button>
+        <button class="btn btn-p btn-sm" id="wr-action-btn" onclick="printWeekReport()">🖨️ 列印</button>
       </div>
     </div>
   </div>
@@ -6828,11 +6829,21 @@ function renderScheduleBody() {
 
     if (todos.length > 0) {
       for (const t of todos) {
+        const isDone = t.done === true;
+        const isUndone = t.done === false;
+        const dotColor = isDone ? 'var(--grn)' : isUndone ? 'var(--red)' : 'var(--acc)';
+        const nameStyle = isDone ? 'text-decoration:line-through;color:var(--tx3)' : '';
+        const badge = isDone
+          ? `<span style="font-size:10px;background:var(--grnl);color:var(--grn);border-radius:20px;padding:1px 7px;font-weight:600;margin-left:6px">✓ 已完成</span>`
+          : isUndone
+            ? `<span style="font-size:10px;background:var(--redl);color:var(--red);border-radius:20px;padding:1px 7px;font-weight:600;margin-left:6px">✗ 未完成</span>`
+            : '';
         html += `<div style="display:flex;align-items:flex-start;gap:6px;padding:4px 0">
-          <span style="color:var(--acc);margin-top:1px;font-size:13px">●</span>
-          <div>
-            <div style="font-size:13px;font-weight:600;color:var(--tx)">${escHtml(t.name)}</div>
+          <span style="color:${dotColor};margin-top:1px;font-size:13px">●</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600;color:var(--tx);${nameStyle};display:flex;align-items:center;flex-wrap:wrap;gap:4px">${escHtml(t.name)}${badge}</div>
             ${t.note ? `<div style="font-size:11px;color:var(--tx3);margin-top:1px">${escHtml(t.note)}</div>` : ''}
+            ${isUndone && t.undoneReason ? `<div style="font-size:11px;color:var(--red);margin-top:2px;padding:3px 7px;background:var(--redl);border-radius:4px">原因：${escHtml(t.undoneReason)}</div>` : ''}
           </div>
         </div>`;
       }
@@ -6872,14 +6883,46 @@ function renderTodoList(todos) {
   }
   let html = '';
   todos.forEach((t, i) => {
-    html += `<div style="background:var(--surf2);border:1px solid var(--bdr);border-radius:var(--r);padding:10px 12px;margin-bottom:8px;position:relative">
+    const isDone = t.done === true;
+    const isUndone = t.done === false;
+    const statusBorder = isDone ? 'border-color:var(--grn)' : isUndone ? 'border-color:var(--red)' : '';
+    const statusBg = isDone ? 'background:var(--grnl)' : isUndone ? 'background:var(--redl)' : 'background:var(--surf2)';
+    html += `<div style="${statusBg};border:1px solid var(--bdr);${statusBorder};border-radius:var(--r);padding:10px 12px;margin-bottom:8px;position:relative">
       <button onclick="removeTodo(${i})" style="position:absolute;top:6px;right:8px;border:none;background:var(--redl);color:var(--red);border-radius:50%;width:20px;height:20px;font-size:12px;cursor:pointer;line-height:1">✕</button>
-      <input class="fc" style="font-size:13px;font-weight:600;margin-bottom:6px" value="${escAttr(t.name)}" oninput="updateTodo(${i},'name',this.value)" placeholder="待辦名稱">
-      <textarea class="fc" style="font-size:12px;min-height:48px" oninput="updateTodo(${i},'note',this.value)" placeholder="備註（選填）">${escHtml(t.note||'')}</textarea>
+      <input class="fc" style="font-size:13px;font-weight:600;margin-bottom:6px;${isDone?'text-decoration:line-through;color:var(--tx3)':''}" value="${escAttr(t.name)}" oninput="updateTodo(${i},'name',this.value)" placeholder="待辦名稱">
+      <textarea class="fc" style="font-size:12px;min-height:48px;margin-bottom:8px" oninput="updateTodo(${i},'note',this.value)" placeholder="備註（選填）">${escHtml(t.note||'')}</textarea>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <span style="font-size:11px;color:var(--tx3);font-weight:600">完成狀態：</span>
+        <button onclick="setTodoDone(${i},true)" style="padding:4px 12px;border-radius:20px;border:1.5px solid ${isDone?'var(--grn)':'var(--bdr)'};background:${isDone?'var(--grn)':'transparent'};color:${isDone?'#fff':'var(--tx3)'};font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:.15s">✓ 已完成</button>
+        <button onclick="setTodoDone(${i},false)" style="padding:4px 12px;border-radius:20px;border:1.5px solid ${isUndone?'var(--red)':'var(--bdr)'};background:${isUndone?'var(--red)':'transparent'};color:${isUndone?'#fff':'var(--tx3)'};font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:.15s">✗ 未完成</button>
+        <button onclick="clearTodoDone(${i})" style="padding:4px 10px;border-radius:20px;border:1.5px solid var(--bdr);background:transparent;color:var(--tx3);font-size:11px;cursor:pointer;font-family:inherit;transition:.15s">清除</button>
+      </div>
+      ${isUndone ? `<div style="margin-top:8px">
+        <div style="font-size:11px;color:var(--red);font-weight:600;margin-bottom:4px">未完成原因：</div>
+        <textarea class="fc" style="font-size:12px;min-height:40px;border-color:var(--red)" oninput="updateTodo(${i},'undoneReason',this.value)" placeholder="請輸入未完成原因">${escHtml(t.undoneReason||'')}</textarea>
+      </div>` : ''}
     </div>`;
   });
   area.innerHTML = html;
   area.dataset.todos = JSON.stringify(todos);
+}
+
+function setTodoDone(idx, done) {
+  const todos = getTodosFromArea();
+  if (!todos[idx]) return;
+  todos[idx].done = done;
+  if (done) todos[idx].undoneReason = ''; // 已完成時清除原因
+  document.getElementById('todo-list-area').dataset.todos = JSON.stringify(todos);
+  renderTodoList(todos);
+}
+
+function clearTodoDone(idx) {
+  const todos = getTodosFromArea();
+  if (!todos[idx]) return;
+  delete todos[idx].done;
+  todos[idx].undoneReason = '';
+  document.getElementById('todo-list-area').dataset.todos = JSON.stringify(todos);
+  renderTodoList(todos);
 }
 
 function getTodosFromArea() {
@@ -6922,7 +6965,10 @@ function closeTodoModal() {
 }
 
 // ─── 週報表列印 ───────────────────────────────────────────────────
-function openWeekReportModal() {
+let _wrMode = 'print'; // 'print' | 'pdf'
+
+function openWeekReportModal(mode) {
+  _wrMode = mode || 'print';
   const now = new Date();
   // 預設本週一到本週日
   const dow = now.getDay();
@@ -6934,6 +6980,18 @@ function openWeekReportModal() {
   // 嘗試從系統取得使用者姓名
   const u = window._currentUser;
   document.getElementById('wr-agent-name').value = (u && u.displayName) ? u.displayName : '';
+  // 依模式調整 Modal 標題與按鈕
+  if (_wrMode === 'pdf') {
+    document.getElementById('wr-modal-title').textContent = '📄 輸出週報表 PDF';
+    document.getElementById('wr-action-btn').textContent = '📄 輸出 PDF';
+    document.getElementById('wr-action-btn').onclick = exportWeekReportPDF;
+    document.getElementById('wr-action-btn').style.background = 'var(--grn)';
+  } else {
+    document.getElementById('wr-modal-title').textContent = '🖨️ 列印週報表';
+    document.getElementById('wr-action-btn').textContent = '🖨️ 列印';
+    document.getElementById('wr-action-btn').onclick = printWeekReport;
+    document.getElementById('wr-action-btn').style.background = '';
+  }
   document.getElementById('weekreport-overlay').classList.add('show');
 }
 function closeWeekReportModal() {
@@ -6960,108 +7018,87 @@ function printWeekReport() {
   const dowToDate = {};
   for (const d of allDates) { dowToDate[d.getDay()] = d; }
 
-  // 列順序：星期一(1)～六(6)，再加星期日(0)
-  const rowDows   = [1,2,3,4,5,6,0];
-  const rowLabels = ['星期一','星期二','星期三','星期四','星期五','星期六','星期日'];
+  // 欄位順序：星期一(1)～六(6)，再加星期日(0)
+  const colDows   = [1,2,3,4,5,6,0];
+  const colLabels = ['星期一','星期二','星期三','星期四','星期五','星期六','星期日'];
 
-  // ── 一般時段（非 special）列表，作為橫向欄位 ──
-  const normalSlots   = CAL_SLOTS.filter(s => !s.special);
-  // 午休和打掃的插入位置（在 normalSlots 中第幾個之後）
-  // 用原始索引判斷：午休在 11~12 之後、打掃在 17~1745 之後
-  const slotKeys      = CAL_SLOTS.map(s => s.key);
-  const lunchIdx      = slotKeys.indexOf('12-14');   // 午休在原始陣列的位置
-  const cleanIdx      = slotKeys.indexOf('1745-1800');
+  // ── 表頭：第一欄「時段」，後面7欄星期 ──
+  let colWidths = '<col style="width:54px">';
+  const thCols = colDows.map((dow, i) => {
+    const d = dowToDate[dow];
+    const dateStr = d ? `<br><span style="font-size:8px;font-weight:600">${d.getMonth()+1}/${d.getDate()}</span>` : '';
+    const isSun = dow === 0, isSat = dow === 6;
+    const cls = isSun ? 'th-sun' : isSat ? 'th-sat' : 'th-day';
+    colWidths += '<col>';
+    return `<th class="${cls}">${colLabels[i]}${dateStr}</th>`;
+  }).join('');
 
-  // 建立欄位（th）：每個一般時段佔兩欄（設定/達成），特殊時段佔一欄
-  // 策略：欄位順序 = 原始 CAL_SLOTS 順序，特殊時段合併成1欄
-  // 對應到 colgroup 寬度
-  // A4 直向可用寬度 ≈ 210mm - 2×10mm = 190mm ≈ 540px @96dpi
-  // 第一欄（星期）固定 44px，剩餘 ~496px 分給各時段欄
-  // normalSlots 6個 × 2子欄 = 12子欄，special 2個 = 2欄，共14欄
-  // 每子欄約 496/14 ≈ 35px；設定欄稍窄（手填），設 設定=38px、達成=38px、special=38px
-
-  // thead：第一列（時段標題，colspan=2），第二列（設定/達成）
-  let thSlot1 = ''; // 時段大標題列
-  let thSlot2 = ''; // 設定/達成子標題列
-  let colWidths = '<col style="width:44px">'; // 星期欄
-
+  // ── tbody：時段做列、星期做欄 ──
+  let rows = '';
+  let rowIdx = 0; // 用於奇偶交替（僅計一般時段）
   for (const slot of CAL_SLOTS) {
     if (slot.special) {
       const lbl = slot.label.replace(' – ','~').replace(/:00/g,'');
-      thSlot1 += `<th style="background:#e8e8e8;color:#666;border:1px solid #bbb;padding:3px 2px;font-size:9px;text-align:center">${lbl}</th>`;
-      thSlot2 += `<th style="background:#f0f0f0;color:#aaa;border:1px solid #bbb;padding:2px;font-size:8px;text-align:center">　</th>`;
-      colWidths += '<col style="width:30px">';
+      const txt = slot.specialLabel.replace(/[\u{1F300}-\u{1FFFF}]/gu,'').trim();
+      rows += `<tr class="row-special">
+        <td class="td-special-slot">${lbl}</td>
+        <td colspan="7" class="td-special-span">${txt}</td>
+      </tr>`;
     } else {
       const lbl = slot.label.replace(' – ','~').replace(/:00/g,'');
-      thSlot1 += `<th colspan="2" style="background:#0f519b;color:#fff;border:1px solid #0d4589;padding:3px 2px;font-size:9px;text-align:center">${lbl}</th>`;
-      thSlot2 += `<th style="background:#dce8f8;color:#0f519b;border:1px solid #bbb;padding:2px;font-size:8px;text-align:center;writing-mode:vertical-rl">設定</th>
-                  <th style="background:#dce8f8;color:#0f519b;border:1px solid #bbb;padding:2px;font-size:8px;text-align:center;writing-mode:vertical-rl">達成</th>`;
-      colWidths += '<col style="width:38px"><col style="width:38px">';
-    }
-  }
-
-  // tbody：每個星期 = 一列（星期日特殊處理）
-  let rows = '';
-  for (let ri = 0; ri < rowDows.length; ri++) {
-    const dow   = rowDows[ri];
-    const label = rowLabels[ri];
-    const isSun = dow === 0;
-    const isSat = dow === 6;
-    const d     = dowToDate[dow];
-    const dateStr = d ? `<br><span style="font-size:8px;font-weight:400">${d.getMonth()+1}/${d.getDate()}</span>` : '';
-    const dayBg   = isSun ? '#fff0f0' : isSat ? '#f0f4ff' : '#fff';
-    const dayClr  = isSun ? '#c0182a' : isSat ? '#0f519b' : '#333';
-    const dayHdBg = isSun ? '#c0182a' : isSat ? '#2a5abf' : '#0f519b';
-
-    let cells = `<td style="background:${dayHdBg};color:#fff;border:1px solid #bbb;padding:3px 2px;font-size:9px;font-weight:700;text-align:center;vertical-align:middle;white-space:nowrap">${label}${dateStr}</td>`;
-
-    if (isSun) {
-      // 星期日：整列合併，顯示公休
-      const totalCols = CAL_SLOTS.reduce((acc,s) => acc + (s.special ? 1 : 2), 0);
-      cells += `<td colspan="${totalCols}" style="background:#fff0f0;border:1px solid #bbb;padding:4px;font-size:9px;color:#c0182a;text-align:center;vertical-align:middle">日勝房屋公休日</td>`;
-    } else {
-      for (const slot of CAL_SLOTS) {
-        if (slot.special) {
-          const specialTxt = slot.specialLabel.replace(/[\u{1F300}-\u{1FFFF}]/gu,'').trim();
-          cells += `<td style="background:#f4f4f4;border:1px solid #bbb;padding:2px 1px;font-size:8px;color:#aaa;text-align:center;vertical-align:middle"><span style="writing-mode:vertical-rl">${specialTxt}</span></td>`;
+      const rowCls = rowIdx % 2 === 0 ? 'row-even' : 'row-odd';
+      let cells = `<td class="td-slot">${lbl}</td>`;
+      for (const dow of colDows) {
+        const isSun = dow === 0;
+        if (isSun) {
+          cells += `<td class="td-sun">公休</td>`;
         } else {
+          const d = dowToDate[dow];
           const todos = d ? ((calData[fmtKey(d)]?.slots?.[slot.key]) || []) : [];
-          // 只顯示名稱，不含備註
           const todoHtml = todos.length > 0
-            ? todos.map(t => `<span style="display:block;font-size:9px;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(t.name)}</span>`).join('')
+            ? todos.map(t => `<span class="todo-item">${escHtml(t.name)}</span>`).join('')
             : '';
-          cells += `<td style="background:#fff;border:1px solid #bbb;padding:2px 3px;vertical-align:top">${todoHtml}</td>`;
-          cells += `<td style="background:#fafffe;border:1px solid #bbb;padding:2px 3px;"></td>`;
+          cells += `<td class="td-data">${todoHtml}</td>`;
         }
       }
+      rows += `<tr class="${rowCls}">${cells}</tr>`;
+      rowIdx++;
     }
-
-    rows += `<tr style="background:${isSun ? '#fff0f0' : '#fff'}">${cells}</tr>`;
   }
 
-  const html = `<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8">
-<title>週報表 ${fromStr} – ${toStr}</title>
+  const html = `<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8"><title>週報表</title>
 <style>
-  @media print { body{margin:0} @page{size:A4 portrait;margin:10mm 8mm} }
-  body{font-family:'Noto Sans TC',system-ui,sans-serif;color:#1a2332;margin:12px}
-  h1{font-size:13px;font-weight:800;margin-bottom:2px}
-  .sub{font-size:10px;color:#555;margin-bottom:8px}
-  table{width:100%;border-collapse:collapse;table-layout:fixed}
-  td,th{word-break:break-word;box-sizing:border-box}
+*{box-sizing:border-box;margin:0;padding:0}
+@page{size:A4 portrait;margin:8mm 7mm}
+@media print{body{margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+html,body{width:100%;height:100%}
+body{font-family:'Noto Sans TC',system-ui,sans-serif;color:#1a2332;display:flex;flex-direction:column;height:100vh}
+.hdr{padding:2px 2px 3px;flex-shrink:0}
+.hdr h1{font-size:12px;font-weight:800;display:inline}
+.hdr span{font-size:9px;color:#555;margin-left:8px}
+.wrap{flex:1;min-height:0}
+table{width:100%;height:100%;border-collapse:collapse;table-layout:fixed}
+th{font-weight:800;font-size:10px;text-align:center;border:1px solid #888;padding:3px 2px;vertical-align:middle}
+td{border:1px solid #ccc;padding:2px 3px;vertical-align:top;font-size:9px;word-break:break-word}
+.th-slot{background:#0f519b;color:#fff}
+.th-day{background:#1a4fa0;color:#fff}
+.th-sat{background:#2a5abf;color:#fff}
+.th-sun{background:#b01020;color:#fff}
+.td-slot{background:#dce8f8;color:#0f519b;font-weight:800;font-size:9px;text-align:center;vertical-align:middle;white-space:nowrap}
+.td-special-slot{background:#e0e0e0;color:#555;font-weight:800;font-size:9px;text-align:center;vertical-align:middle}
+.td-special-span{background:#ebebeb;color:#999;text-align:center;vertical-align:middle;font-size:9px}
+.td-sun{background:#fdf0f0;text-align:center;vertical-align:middle;color:#c0182a;font-size:8px}
+.row-odd .td-data{background:#f3f6fb}
+.row-even .td-data{background:#ffffff}
+.todo-item{display:block;line-height:1.5;padding:1px 0;border-bottom:1px dotted #ccc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.todo-item:last-child{border-bottom:none}
 </style></head><body>
-<h1>📋 業務週報表</h1>
-<div class="sub">日期：${fmt(fromDate)} ～ ${fmt(toDate)}　　業務：${escHtml(agent)}</div>
-<table>
-  <colgroup>${colWidths}</colgroup>
-  <thead>
-    <tr>
-      <th rowspan="2" style="background:#0f519b;color:#fff;border:1px solid #0d4589;padding:3px;font-size:9px;text-align:center;vertical-align:middle">星期 \\ 時段</th>
-      ${thSlot1}
-    </tr>
-    <tr>${thSlot2}</tr>
-  </thead>
-  <tbody>${rows}</tbody>
-</table>
+<div class="hdr"><h1>📋 業務週報表</h1><span>日期：${fmt(fromDate)} ～ ${fmt(toDate)}　業務：${escHtml(agent)}</span></div>
+<div class="wrap"><table>
+<colgroup>${colWidths}</colgroup>
+<thead><tr><th class="th-slot">時段</th>${thCols}</tr></thead>
+<tbody>${rows}</tbody>
+</table></div>
 </body></html>`;
 
   const win = window.open('', '_blank');
@@ -7069,6 +7106,123 @@ function printWeekReport() {
   win.document.close();
   win.focus();
   setTimeout(() => win.print(), 400);
+  closeWeekReportModal();
+}
+
+function exportWeekReportPDF() {
+  const fromStr = document.getElementById('wr-date-from').value;
+  const toStr   = document.getElementById('wr-date-to').value;
+  const agent   = document.getElementById('wr-agent-name').value.trim() || '　　　　';
+  if (!fromStr || !toStr) { alert('請選擇日期起迄'); return; }
+
+  const fromDate = new Date(fromStr + 'T00:00:00');
+  const toDate   = new Date(toStr   + 'T00:00:00');
+  if (fromDate > toDate) { alert('起始日期不能晚於結束日期'); return; }
+
+  // 重用 printWeekReport 產出相同 html，但改用 iframe+print-to-pdf 觸發另存 PDF
+  // 策略：在隱藏 iframe 中載入內容，加上特殊 script 讓瀏覽器直接跳出「另存為 PDF」對話框
+  const fmt    = d => `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`;
+  const fmtKey = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+  const allDates = [];
+  const cur = new Date(fromDate);
+  while (cur <= toDate) { allDates.push(new Date(cur)); cur.setDate(cur.getDate() + 1); }
+  const dowToDate = {};
+  for (const d of allDates) { dowToDate[d.getDay()] = d; }
+
+  const colDows   = [1,2,3,4,5,6,0];
+  const colLabels = ['星期一','星期二','星期三','星期四','星期五','星期六','星期日'];
+
+  let colWidths = '<col style="width:54px">';
+  const thCols = colDows.map((dow, i) => {
+    const d = dowToDate[dow];
+    const dateStr = d ? `<br><span style="font-size:8px;font-weight:600">${d.getMonth()+1}/${d.getDate()}</span>` : '';
+    const isSun = dow === 0, isSat = dow === 6;
+    const cls = isSun ? 'th-sun' : isSat ? 'th-sat' : 'th-day';
+    colWidths += '<col>';
+    return `<th class="${cls}">${colLabels[i]}${dateStr}</th>`;
+  }).join('');
+
+  let rows = '';
+  let rowIdx = 0;
+  for (const slot of CAL_SLOTS) {
+    if (slot.special) {
+      const lbl = slot.label.replace(' – ','~').replace(/:00/g,'');
+      const txt = slot.specialLabel.replace(/[\u{1F300}-\u{1FFFF}]/gu,'').trim();
+      rows += `<tr class="row-special"><td class="td-special-slot">${lbl}</td><td colspan="7" class="td-special-span">${txt}</td></tr>`;
+    } else {
+      const lbl = slot.label.replace(' – ','~').replace(/:00/g,'');
+      const rowCls = rowIdx % 2 === 0 ? 'row-even' : 'row-odd';
+      let cells = `<td class="td-slot">${lbl}</td>`;
+      for (const dow of colDows) {
+        if (dow === 0) {
+          cells += `<td class="td-sun">公休</td>`;
+        } else {
+          const d = dowToDate[dow];
+          const todos = d ? ((calData[fmtKey(d)]?.slots?.[slot.key]) || []) : [];
+          const todoHtml = todos.length > 0
+            ? todos.map(t => `<span class="todo-item">${escHtml(t.name)}</span>`).join('') : '';
+          cells += `<td class="td-data">${todoHtml}</td>`;
+        }
+      }
+      rows += `<tr class="${rowCls}">${cells}</tr>`;
+      rowIdx++;
+    }
+  }
+
+  const fileName = `週報表_${fromStr}_${toStr}.pdf`;
+
+  const html = `<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8"><title>${fileName}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+@page{size:A4 portrait;margin:8mm 7mm}
+@media print{body{margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+html,body{width:100%;height:100%}
+body{font-family:'Noto Sans TC',system-ui,sans-serif;color:#1a2332;display:flex;flex-direction:column;height:100vh}
+.hdr{padding:2px 2px 3px;flex-shrink:0}
+.hdr h1{font-size:12px;font-weight:800;display:inline}
+.hdr span{font-size:9px;color:#555;margin-left:8px}
+.wrap{flex:1;min-height:0}
+table{width:100%;height:100%;border-collapse:collapse;table-layout:fixed}
+th{font-weight:800;font-size:10px;text-align:center;border:1px solid #888;padding:3px 2px;vertical-align:middle}
+td{border:1px solid #ccc;padding:2px 3px;vertical-align:top;font-size:9px;word-break:break-word}
+.th-slot{background:#0f519b;color:#fff}
+.th-day{background:#1a4fa0;color:#fff}
+.th-sat{background:#2a5abf;color:#fff}
+.th-sun{background:#b01020;color:#fff}
+.td-slot{background:#dce8f8;color:#0f519b;font-weight:800;font-size:9px;text-align:center;vertical-align:middle;white-space:nowrap}
+.td-special-slot{background:#e0e0e0;color:#555;font-weight:800;font-size:9px;text-align:center;vertical-align:middle}
+.td-special-span{background:#ebebeb;color:#999;text-align:center;vertical-align:middle;font-size:9px}
+.td-sun{background:#fdf0f0;text-align:center;vertical-align:middle;color:#c0182a;font-size:8px}
+.row-odd .td-data{background:#f3f6fb}
+.row-even .td-data{background:#ffffff}
+.todo-item{display:block;line-height:1.5;padding:1px 0;border-bottom:1px dotted #ccc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.todo-item:last-child{border-bottom:none}
+</style></head><body>
+<div class="hdr"><h1>📋 業務週報表</h1><span>日期：${fmt(fromDate)} ～ ${fmt(toDate)}　業務：${escHtml(agent)}</span></div>
+<div class="wrap"><table>
+<colgroup>${colWidths}</colgroup>
+<thead><tr><th class="th-slot">時段</th>${thCols}</tr></thead>
+<tbody>${rows}</tbody>
+</table></div>
+<script>
+  // 通知父頁面已載入完成
+  window.onload = function() {
+    window.focus();
+    window.print();
+  };
+<\/script>
+</body></html>`;
+
+  // 用 Blob URL 開新視窗，瀏覽器列印對話框選「另存為 PDF」
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const win  = window.open(url, '_blank');
+  if (!win) { alert('請允許彈跳視窗以使用輸出 PDF 功能'); URL.revokeObjectURL(url); return; }
+  // 視窗關閉後釋放 Blob URL
+  const checkClosed = setInterval(() => {
+    if (win.closed) { clearInterval(checkClosed); URL.revokeObjectURL(url); }
+  }, 1000);
   closeWeekReportModal();
 }
 
