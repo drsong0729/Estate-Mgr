@@ -6674,14 +6674,18 @@ function _renderUserDetailContent(area, u, data, displayName){
 // ─── 資料儲存 ───────────────────────────────────────────────────
 // calData[dateKey] = { slots: { slotKey: [{name,note},...] } }
 // dateKey = 'YYYY-MM-DD', slotKey = '09-10' etc.
-const CAL_STORAGE_KEY = 're_calendar_data';
+// ⚑ 每位使用者獨立 key，以 uid 區隔
+function _calKey() {
+  const uid = window._currentUser && window._currentUser.uid;
+  return uid ? ('re_calendar_data__' + uid) : 're_calendar_data__guest';
+}
 let calData = {};
 
 function calLoad() {
-  try { calData = JSON.parse(localStorage.getItem(CAL_STORAGE_KEY) || '{}'); } catch(e){ calData={}; }
+  try { calData = JSON.parse(localStorage.getItem(_calKey()) || '{}'); } catch(e){ calData={}; }
 }
 function calSave() {
-  localStorage.setItem(CAL_STORAGE_KEY, JSON.stringify(calData));
+  localStorage.setItem(_calKey(), JSON.stringify(calData));
 }
 calLoad();
 
@@ -7320,14 +7324,16 @@ if (typeof window.switchPage === 'function') {
         if (page === 'stats') setTimeout(calInit, 50);
       };
     }
-    // 登入後也初始化
-    if (typeof window.onFirebaseLogin === 'undefined') {
-      const _orig2 = window.onFirebaseLogin;
+    // 登入後重新載入該使用者的行事曆資料
+    (function(){
+      const _origCal = window.onFirebaseLogin;
       window.onFirebaseLogin = function(u) {
-        if (_orig2) _orig2(u);
+        if (_origCal) _origCal(u);
+        // 切換使用者：重新載入對應 localStorage key
+        calLoad();
         setTimeout(calInit, 300);
       };
-    }
+    })();
     setTimeout(calInit, 500);
   });
 }
