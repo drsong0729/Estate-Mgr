@@ -1913,7 +1913,7 @@ function initGoogleMaps() {
       <div class="fsec-t">📝 委託條件</div>
       <div class="fg fg2">
         <div class="fgp"><label class="lbl">案名</label>
-          <input class="fc" id="ec2-casename" placeholder="（選填）"></div>
+          <input class="fc" id="ec2-casename" placeholder="（選填）" oninput="var fc=document.getElementById('f-casename');if(fc)fc.value=this.value"></div>
         <div class="fgp"><label class="lbl">委託類型</label>
           <div style="display:flex;gap:12px;padding-top:8px">
             <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer"><input type="radio" name="ec2type" value="general" checked><span>一般</span></label>
@@ -2756,6 +2756,7 @@ function openRecruitModal(id,pool){
     // 委託專屬欄位
     if(isComm){
       document.getElementById('ec2-casename').value=f.caseName||'';
+      document.getElementById('f-casename').value=f.caseName||'';
       document.getElementById('ec2-fee').value=f.commFee||'';
       document.getElementById('ec2-start').value=f.commStart||'';
       document.getElementById('ec2-end').value=f.commEnd||'';
@@ -2818,7 +2819,7 @@ function saveRecruit(){
   const isComm = editPool==='commission';
   // 委託模式：額外讀取委託欄位
   if(isComm){
-    data.caseName   = (document.getElementById('ec2-casename')?.value||'').trim();
+    data.caseName   = (document.getElementById('ec2-casename')?.value||(document.getElementById('f-casename')?.value)||'').trim();
     data.commFee    = document.getElementById('ec2-fee')?.value||'';
     data.commStart  = document.getElementById('ec2-start')?.value||'';
     data.commEnd    = document.getElementById('ec2-end')?.value||'';
@@ -2834,6 +2835,8 @@ function saveRecruit(){
     db.recruit.push({id:uid(),date:nowDate(),time:nowTime(),progress:[],...data});
   }
   save();renderAll();closeOv('recruit');
+  // 委託模式：儲存後刷新公司庫存頁面（autoSync 是非同步的）
+  if(isComm && currentPage==='inventory') setTimeout(()=>renderInventory(),1500);
   if(noHousehold)setTimeout(()=>alert('⚠️ 提醒：所有屋主戶籍地均未填寫，需調閱電傳！'),200);
 }
 
