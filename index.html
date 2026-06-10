@@ -2801,13 +2801,17 @@ function saveRecruit(){
   const fw=owners[0];
   const propType=document.getElementById('f-proptype').value;
   const noLayout=propType==='土地';
+  const isComm = editPool==='commission';
   const data={
     propCity,propDist,propAddr,
     ownerName:fw.name,ownerGender:fw.gender,
     ownerCity:fw.city,ownerDist:fw.dist,ownerAddr:fw.addr,
     owners,
     bldg:document.getElementById('f-bldg').value,
-    caseName:(document.getElementById('f-casename')?.value||'').trim(),
+    // 案名：委託模式從 ec2-casename 讀；一般模式從 f-casename 讀
+    caseName:isComm
+      ? (document.getElementById('ec2-casename')?.value||'').trim()
+      : (document.getElementById('f-casename')?.value||'').trim(),
     propType,
     area:parseFloat(area),total:parseFloat(total),unit,
     rooms:noLayout?'':document.getElementById('f-rooms').value,
@@ -2816,10 +2820,8 @@ function saveRecruit(){
     url:document.getElementById('f-url').value,
     notes:document.getElementById('f-notes').value
   };
-  const isComm = editPool==='commission';
-  // 委託模式：額外讀取委託欄位
+  // 委託模式：額外讀取委託欄位（caseName 已在 data 物件中設定）
   if(isComm){
-    data.caseName   = (document.getElementById('ec2-casename')?.value||(document.getElementById('f-casename')?.value)||'').trim();
     data.commFee    = document.getElementById('ec2-fee')?.value||'';
     data.commStart  = document.getElementById('ec2-start')?.value||'';
     data.commEnd    = document.getElementById('ec2-end')?.value||'';
@@ -3118,7 +3120,9 @@ function renderDetailPanel(pool,id){
   const latestProg=progs[0];
   const html=`<div class="detail-panel" id="dp-${id}">
     <div class="dp-header">
-      <div class="dp-title">${ownersLabel(r)} — ${escH(fullAddr(r.propCity,r.propDist,r.propAddr))}</div>
+      <div class="dp-title">
+        ${r.caseName?`<span style="color:#ffd966">${escH(r.caseName)}</span> — `:''}${ownersLabel(r)} — ${escH(fullAddr(r.propCity,r.propDist,r.propAddr))}
+      </div>
       <div class="dp-actions">
         <button class="btn btn-sm btn-edit" onclick="event.stopPropagation();openRecruitModal('${id}','${pool}')">✏️ 編輯</button>
         ${pool==='recruit'?
@@ -3133,6 +3137,7 @@ function renderDetailPanel(pool,id){
     <div class="dp-body">
       ${noHousehold?'<div class="warn-banner">⚠️ 屋主戶籍地未填寫，需調閱電傳！</div><br>':''}
       <div class="dp-grid">
+        ${r.caseName?`<div class="dp-field"><div class="k">案名</div><div class="v" style="font-weight:700;color:var(--acc)">${escH(r.caseName)}</div></div>`:''}
         ${r.bldg?`<div class="dp-field"><div class="k">建案名稱</div><div class="v">${escH(r.bldg)}</div></div>`:''}
         <div class="dp-field" style="grid-column:1/-1"><div class="k">屋主</div><div class="v">${(r.owners&&r.owners.length?r.owners:[{name:r.ownerName,gender:r.ownerGender,city:r.ownerCity,dist:r.ownerDist,addr:r.ownerAddr}]).map((o,i)=>`<div style="padding:3px 0;${i>0?'border-top:1px solid var(--bdr);margin-top:3px':''}"><strong>${escH(o.name)}${escH(o.gender)}</strong>${o.city||o.dist||o.addr?' <span style=\'color:var(--tx3);font-size:11px\'>'+(o.city||'')+(o.dist||'')+(o.addr||'')+'</span>':''}</div>`).join('')}</div></div>
         <div class="dp-field"><div class="k">物件地址</div><div class="v">${escH(fullAddr(r.propCity,r.propDist,r.propAddr))}</div></div>
@@ -5553,13 +5558,14 @@ function renderClosedDetailPanel(r){
   const typeLabel = r.closedType === 'self' ? '🏆 自己成交' : '📋 他人成交';
   return `<div class="detail-panel" id="closed-dp-${r.id}">
     <div class="dp-header">
-      <div class="dp-title">${ownersLabel(r)} — ${escH(fullAddr(r.propCity,r.propDist,r.propAddr))}</div>
+      <div class="dp-title">${r.caseName?`<span style="color:#ffd966">${escH(r.caseName)}</span> — `:''} ${ownersLabel(r)} — ${escH(fullAddr(r.propCity,r.propDist,r.propAddr))}</div>
       <div class="dp-actions">
         <button class="btn btn-sm btn-g" onclick="toggleClosedDetail('${r.id}')">✕ 收起</button>
       </div>
     </div>
     <div class="dp-body">
       <div class="dp-grid">
+        ${r.caseName?`<div class="dp-field"><div class="k">案名</div><div class="v" style="font-weight:700;color:var(--acc)">${escH(r.caseName)}</div></div>`:''}
         ${r.bldg?`<div class="dp-field"><div class="k">建案名稱</div><div class="v">${escH(r.bldg)}</div></div>`:''}
         <div class="dp-field" style="grid-column:1/-1"><div class="k">屋主</div><div class="v">${(r.owners&&r.owners.length?r.owners:[{name:r.ownerName,gender:r.ownerGender}]).map(o=>`<span>${escH(o.name)}${escH(o.gender||'')}</span>`).join('、')}</div></div>
         <div class="dp-field"><div class="k">物件地址</div><div class="v">${escH(fullAddr(r.propCity,r.propDist,r.propAddr))}</div></div>
