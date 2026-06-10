@@ -2707,12 +2707,16 @@ function openRecruitModal(id,pool){
   document.getElementById('owners-list').innerHTML='';
   ownerCount=0;
   if(f){
-    document.getElementById('p-city').value=f.propCity||''; updateDistrict('p');
-    document.getElementById('p-dist').value=f.propDist||'';
+    // 物件地址：先設縣市並重建行政區選單，再用 setTimeout 確保 p-dist options 已更新
+    document.getElementById('p-city').value=f.propCity||'';
+    updateDistrict('p');
+    setTimeout(()=>{
+      document.getElementById('p-dist').value=f.propDist||'';
+    }, 10);
     document.getElementById('p-addr').value=f.propAddr||'';
     document.getElementById('f-bldg').value=f.bldg||'';
     document.getElementById('f-casename').value=f.caseName||'';
-    document.getElementById('f-proptype').value=f.propType||'';
+    document.getElementById('f-proptype').value=f.propType||''; onPropTypeChange();
     document.getElementById('f-area').value=f.area||'';
     document.getElementById('f-total').value=f.total||'';
     document.getElementById('f-unit').value=f.unit||'';
