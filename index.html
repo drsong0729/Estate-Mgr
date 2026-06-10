@@ -46,6 +46,7 @@
   window._firebaseSignOut = () => signOut(auth);
   window._firebaseDocRef = (uid) => doc(db_fs, 'users', uid, 'data', 'main');
   window._firebaseGoalsRef = (uid) => doc(db_fs, 'users', uid, 'data', 'goals');
+  window._firebaseCalRef   = (uid) => doc(db_fs, 'users', uid, 'data', 'calendar');
   window._firebaseGetDoc = getDoc;
   window._firebaseSetDoc = setDoc;
   // 主管：公共索引（每位員工的摘要）
@@ -4774,6 +4775,8 @@ async function loadFromFirestore(uid){
     // 登入時載入全公司庫存（靜默，不阻塞）
     loadInventoryFromFirestore().then(()=>_updateAllBadges()).catch(()=>{});
     _updateAllBadges(); // 立即更新已載入的資料徽章
+    // 載入該使用者行事曆（非同步，不阻塞主流程）
+    calLoadFromFirestore().then(()=>{ if(typeof calInit==='function') setTimeout(calInit,100); }).catch(()=>{});
     setSyncStatus('☁ 已同步','var(--grn)');
     setTimeout(()=>setSyncStatus(''),3000);
   }catch(e){
@@ -6674,7 +6677,7 @@ function _renderUserDetailContent(area, u, data, displayName){
 // ─── 資料儲存 ───────────────────────────────────────────────────
 // calData[dateKey] = { slots: { slotKey: [{name,note},...] } }
 // dateKey = 'YYYY-MM-DD', slotKey = '09-10' etc.
-// ⚑ 每位使用者獨立 key，以 uid 區隔
+// ⚑ 每位使用者獨立：主要存 Firestore，localStorage 作快取
 function _calKey() {
   const uid = window._currentUser && window._currentUser.uid;
   return uid ? ('re_calendar_data__' + uid) : 're_calendar_data__guest';
@@ -6682,10 +6685,34 @@ function _calKey() {
 let calData = {};
 
 function calLoad() {
+  // 先從 localStorage 快取讀（離線 / 尚未登入）
   try { calData = JSON.parse(localStorage.getItem(_calKey()) || '{}'); } catch(e){ calData={}; }
 }
+
+async function calLoadFromFirestore() {
+  const user = window._currentUser;
+  if (!user || !window._firebaseCalRef) return;
+  try {
+    const snap = await window._firebaseGetDoc(window._firebaseCalRef(user.uid));
+    if (snap.exists()) {
+      calData = snap.data().calData || {};
+      // 同步更新 localStorage 快取
+      try { localStorage.setItem(_calKey(), JSON.stringify(calData)); } catch(e){}
+    }
+  } catch(e) { /* 離線時靜默 */ }
+}
+
 function calSave() {
-  localStorage.setItem(_calKey(), JSON.stringify(calData));
+  // localStorage 快取（即時）
+  try { localStorage.setItem(_calKey(), JSON.stringify(calData)); } catch(e){}
+  // Firestore 雲端儲存（非同步背景）
+  const user = window._currentUser;
+  if (user && window._firebaseCalRef && window._firebaseSetDoc) {
+    window._firebaseSetDoc(
+      window._firebaseCalRef(user.uid),
+      { calData: calData, updatedAt: new Date().toISOString() }
+    ).catch(()=>{});
+  }
 }
 calLoad();
 
@@ -7324,14 +7351,13 @@ if (typeof window.switchPage === 'function') {
         if (page === 'stats') setTimeout(calInit, 50);
       };
     }
-    // 登入後重新載入該使用者的行事曆資料
+    // 登入後從 Firestore 載入該使用者行事曆，再初始化畫面
     (function(){
       const _origCal = window.onFirebaseLogin;
       window.onFirebaseLogin = function(u) {
         if (_origCal) _origCal(u);
-        // 切換使用者：重新載入對應 localStorage key
-        calLoad();
-        setTimeout(calInit, 300);
+        // loadFromFirestore 內已呼叫 calLoadFromFirestore，此處補保險
+        calLoadFromFirestore().then(()=>setTimeout(calInit,150)).catch(()=>setTimeout(calInit,300));
       };
     })();
     setTimeout(calInit, 500);
