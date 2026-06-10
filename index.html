@@ -2380,53 +2380,65 @@ function setProgPage(pool,rid,page){
 
 function toggleDetail(pool,id){
   const wasOpen = openDetailId[pool]===id;
-
-  // 收合目前展開的（如果有且不同於新的）
   const prevId = openDetailId[pool];
-  if(prevId && prevId!==id){
+  const hasPrev = prevId && prevId !== id;
+
+  // ── 輔助：精確捲動到 B 的明細標題 ──
+  function _scrollToDetail(targetId){
+    const dp = document.getElementById('dp-'+targetId);
+    if(!dp) return;
+    const header = dp.querySelector('.dp-header') || dp;
+    const rect = header.getBoundingClientRect();
+    const appContent = document.getElementById('app-content');
+    if(appContent){
+      // app-content 是捲動容器
+      const containerRect = appContent.getBoundingClientRect();
+      const scrollTop = appContent.scrollTop + (rect.top - containerRect.top) - 62;
+      appContent.scrollTo({top: Math.max(0, scrollTop), behavior:'smooth'});
+    } else {
+      window.scrollTo({top: Math.max(0, window.scrollY + rect.top - 62), behavior:'smooth'});
+    }
+  }
+
+  // ── 收合 A（前一張）──
+  if(hasPrev){
     const prevWrap = document.getElementById('cdw-'+prevId);
     if(prevWrap){
       prevWrap.classList.remove('open');
-      setTimeout(()=>{prevWrap.innerHTML='';},380);
+      setTimeout(()=>{ prevWrap.innerHTML=''; }, 380);
     }
     const prevCard = prevWrap && prevWrap.previousElementSibling;
     if(prevCard) prevCard.classList.remove('card-open');
   }
 
+  // ── 收合目前這張（toggle off）──
   if(wasOpen){
-    // 收合這張
     openDetailId[pool]=null;
     const wrap = document.getElementById('cdw-'+id);
     if(wrap){
       wrap.classList.remove('open');
-      setTimeout(()=>{wrap.innerHTML='';},380);
+      setTimeout(()=>{ wrap.innerHTML=''; }, 380);
     }
     const card = wrap && wrap.previousElementSibling;
     if(card) card.classList.remove('card-open');
     return;
   }
 
-  // 展開這張
+  // ── 展開 B ──
   openDetailId[pool]=id;
   const wrap = document.getElementById('cdw-'+id);
   if(wrap){
-    // 先填入內容
     const html = _buildDetailPanelHtml(pool,id);
     if(html) wrap.innerHTML = html;
-    // 強制 reflow 後加 open class 觸發動畫
-    wrap.offsetHeight;
-    requestAnimationFrame(()=>{
-      wrap.classList.add('open');
-    });
+    wrap.offsetHeight; // force reflow
+    requestAnimationFrame(()=>{ wrap.classList.add('open'); });
   }
   const card = wrap && wrap.previousElementSibling;
   if(card) card.classList.add('card-open');
 
-  // 展開後滾動到明細可見
-  setTimeout(()=>{
-    const dp = document.getElementById('dp-'+id);
-    if(dp) dp.scrollIntoView({behavior:'smooth',block:'nearest'});
-  },200);
+  // ── 捲動定位：等 A 縮回（380ms）後頁面高度穩定，再捲到 B ──
+  const scrollDelay = hasPrev ? 400 : 520;
+  setTimeout(()=>{ _scrollToDetail(id); }, scrollDelay);
 }
 function _buildDetailPanelHtml(pool,id){
   const list=_pool(pool);
