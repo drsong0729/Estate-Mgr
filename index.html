@@ -1350,11 +1350,12 @@ function initGoogleMaps() {
   <div class="subtabs">
     <button class="stab active" id="stab-general" onclick="switchSubTab('general')">一般委託</button>
     <button class="stab" id="stab-exclusive" onclick="switchSubTab('exclusive')">專任委託</button>
+    <button class="stab" id="stab-ended" onclick="switchSubTab('ended')" style="color:var(--tx3)">🔴 已結束 <span id="stab-ended-cnt" style="font-size:11px"></span></button>
   </div>
   <div class="stats" id="stats-commission"></div>
   <div class="search-bar" id="search-commission">
     <div class="search-quick">
-      <input class="fc" id="sq-commission-name" placeholder="🔍 搜尋屋主姓氏 / 建案名稱..." oninput="renderCommission()">
+      <input class="fc" id="sq-commission-name" placeholder="🔍 搜尋案名 / 屋主姓氏 / 建案..." oninput="renderCommission()">
       <button class="btn-filter-toggle" id="filter-toggle-commission" onclick="toggleFilter('commission')">⚙ 進階篩選</button>
       <button class="btn-clear" onclick="clearSearch('commission')">✕ 清除</button>
     </div>
@@ -1380,8 +1381,20 @@ function initGoogleMaps() {
   <div id="commission-detail" style="margin-bottom:16px"></div>
   <div id="stab-general-c"></div>
   <div id="stab-exclusive-c" style="display:none"></div>
+  <div id="stab-ended-c" style="display:none"></div>
 </div>
 <div class="page" id="page-stats">
+  <!-- 列印三表按鈕 -->
+  <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+    <button onclick="printThreeTables()" style="
+      background:var(--acc);color:#fff;border:none;border-radius:var(--r);
+      padding:9px 18px;font-size:13px;font-weight:700;font-family:inherit;
+      cursor:pointer;display:flex;align-items:center;gap:7px;
+      box-shadow:0 2px 8px rgba(15,81,155,.25);transition:.15s
+    " onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+      🖨️ 列印三表
+    </button>
+  </div>
   <!-- 鼓勵短句 -->
   <div id="daily-quote" style="
     margin-bottom:18px;
@@ -1718,7 +1731,7 @@ function initGoogleMaps() {
 <div class="page" id="page-inventory">
   <!-- 工具列 -->
   <div class="ph" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-    <input id="inv-search" type="text" placeholder="搜尋屋主/地址/建案…"
+    <input id="inv-search" type="text" placeholder="搜尋案名 / 屋主 / 地址…"
       style="flex:1;min-width:160px;padding:7px 12px;border:1px solid var(--bdr);border-radius:var(--r);background:var(--surf2);color:var(--tx);font-size:13px;font-family:inherit"
       oninput="renderInventory()">
     <select id="inv-filter-type" onchange="renderInventory()"
@@ -1919,6 +1932,13 @@ function initGoogleMaps() {
   <div class="mb">
     <div class="tbox" id="tocomm-info"></div>
     <div class="fsec">
+      <div class="fsec-t">案名</div>
+      <div class="fg">
+        <div class="fgp"><label class="lbl">案名（選填）</label>
+          <input class="fc" id="c-casename" placeholder="例：藏美海揚II"></div>
+      </div>
+    </div>
+    <div class="fsec">
       <div class="fsec-t">委託類型</div>
       <div class="rrow-wrap">
         <label class="rrow"><input type="radio" name="ctype" value="general" checked><span>一般委託</span></label>
@@ -1934,7 +1954,6 @@ function initGoogleMaps() {
           <input class="fc" type="date" id="c-start"></div>
         <div class="fgp"><label class="lbl">終止日<span class="req">*</span></label>
           <input class="fc" type="date" id="c-end"></div>
-
       </div>
     </div>
   </div>
@@ -1948,6 +1967,13 @@ function initGoogleMaps() {
 <div class="modal modal-sm">
   <div class="mh"><div class="mt">編輯委託資訊</div><button class="mc" onclick="closeOv('editcomm')">✕</button></div>
   <div class="mb">
+    <div class="fsec">
+      <div class="fsec-t">案名</div>
+      <div class="fg">
+        <div class="fgp"><label class="lbl">案名（選填）</label>
+          <input class="fc" id="ec-casename" placeholder="例：藏美海揚II"></div>
+      </div>
+    </div>
     <div class="fsec">
       <div class="fsec-t">委託類型</div>
       <div class="rrow-wrap">
@@ -1972,6 +1998,38 @@ function initGoogleMaps() {
   <div class="mf">
     <button class="btn btn-g" onclick="closeOv('editcomm')">取消</button>
     <button class="btn btn-p" onclick="saveCommEdit()">儲存</button>
+  </div>
+</div></div>
+
+
+<div class="ov" id="ov-endcomm">
+<div class="modal modal-sm">
+  <div class="mh"><div class="mt">🔴 結束委託</div><button class="mc" onclick="closeOv('endcomm')">✕</button></div>
+  <div class="mb">
+    <div class="tbox" id="endcomm-info" style="margin-bottom:14px"></div>
+    <div class="fsec">
+      <div class="fsec-t">結束日期</div>
+      <div class="fg">
+        <div class="fgp"><label class="lbl">結束日期<span class="req">*</span></label>
+          <input class="fc" type="date" id="endcomm-date"></div>
+      </div>
+    </div>
+    <div class="fsec">
+      <div class="fsec-t">結束原因</div>
+      <div class="rrow-wrap" id="endcomm-reason-wrap">
+        <label class="rrow"><input type="radio" name="endcomm-reason" value="委託到期" checked onchange="toggleEndcommOther()"><span>委託到期</span></label>
+        <label class="rrow"><input type="radio" name="endcomm-reason" value="屋主結束委託" onchange="toggleEndcommOther()"><span>屋主結束委託</span></label>
+        <label class="rrow"><input type="radio" name="endcomm-reason" value="同業簽專約" onchange="toggleEndcommOther()"><span>同業簽專約</span></label>
+        <label class="rrow"><input type="radio" name="endcomm-reason" value="other" onchange="toggleEndcommOther()"><span>其他</span></label>
+      </div>
+      <div id="endcomm-other-wrap" style="display:none;margin-top:8px">
+        <input class="fc" id="endcomm-other-text" placeholder="請輸入原因…">
+      </div>
+    </div>
+  </div>
+  <div class="mf">
+    <button class="btn btn-g" onclick="closeOv('endcomm')">取消</button>
+    <button class="btn" style="background:var(--red);color:#fff;border:none" onclick="confirmEndComm()">確認結束</button>
   </div>
 </div></div>
 
@@ -2288,7 +2346,7 @@ window._myRole = ROLES.STAFF;
 
 const CITIES={"基隆市":["仁愛區","信義區","中正區","中山區","安樂區","暖暖區","七堵區"],"臺北市":["松山區","信義區","大安區","中山區","中正區","大同區","萬華區","文山區","南港區","內湖區","士林區","北投區"],"新北市":["板橋區","三重區","中和區","永和區","新莊區","新店區","樹林區","鶯歌區","三峽區","淡水區","汐止區","瑞芳區","土城區","蘆洲區","五股區","泰山區","林口區","深坑區","石碇區","坪林區","三芝區","石門區","八里區","平溪區","雙溪區","貢寮區","金山區","萬里區","烏來區"],"桃園市":["桃園區","中壢區","大溪區","楊梅區","蘆竹區","大園區","龜山區","八德區","龍潭區","平鎮區","新屋區","觀音區","復興區"],"新竹市":["東區","北區","香山區"],"新竹縣":["竹北市","湖口鄉","新豐鄉","新埔鎮","關西鎮","芎林鄉","寶山鄉","竹東鎮","五峰鄉","橫山鄉","尖石鄉","北埔鄉","峨眉鄉"],"苗栗縣":["竹南鎮","頭份市","三灣鄉","南庄鄉","獅潭鄉","後龍鎮","通霄鎮","苑裡鎮","苗栗市","造橋鄉","頭屋鄉","公館鄉","大湖鄉","泰安鄉","銅鑼鄉","三義鄉","西湖鄉","卓蘭鎮"],"臺中市":["中區","東區","南區","西區","北區","西屯區","南屯區","北屯區","豐原區","東勢區","大甲區","清水區","沙鹿區","梧棲區","后里區","神岡區","潭子區","大雅區","新社區","石岡區","外埔區","大安區","烏日區","大肚區","龍井區","霧峰區","太平區","大里區","和平區"],"彰化縣":["彰化市","芬園鄉","花壇鄉","秀水鄉","鹿港鎮","福興鄉","線西鄉","和美鎮","伸港鄉","員林市","社頭鄉","永靖鄉","埔心鄉","溪湖鎮","大村鄉","埔鹽鄉","田中鎮","北斗鎮","田尾鄉","埤頭鄉","溪州鄉","竹塘鄉","二林鎮","大城鄉","芳苑鄉","二水鄉"],"南投縣":["南投市","中寮鄉","草屯鎮","國姓鄉","埔里鎮","仁愛鄉","名間鄉","集集鎮","水里鄉","魚池鄉","信義鄉","竹山鎮","鹿谷鄉"],"雲林縣":["斗南鎮","大埤鄉","虎尾鎮","土庫鎮","褒忠鄉","東勢鄉","臺西鄉","崙背鄉","麥寮鄉","斗六市","林內鄉","古坑鄉","莿桐鄉","西螺鎮","二崙鄉","北港鎮","水林鄉","口湖鄉","四湖鄉","元長鄉"],"嘉義市":["東區","西區"],"嘉義縣":["番路鄉","梅山鄉","竹崎鄉","阿里山鄉","中埔鄉","大埔鄉","水上鄉","鹿草鄉","太保市","朴子市","東石鄉","六腳鄉","新港鄉","民雄鄉","大林鎮","溪口鄉","義竹鄉","布袋鎮"],"臺南市":["中西區","東區","南區","北區","安平區","安南區","永康區","歸仁區","新化區","左鎮區","玉井區","楠西區","南化區","仁德區","關廟區","龍崎區","官田區","麻豆區","佳里區","西港區","七股區","將軍區","學甲區","北門區","新營區","後壁區","白河區","東山區","六甲區","下營區","柳營區","鹽水區","善化區","大內區","山上區","新市區","安定區"],"高雄市":["楠梓區","左營區","鼓山區","三民區","鹽埕區","前金區","新興區","苓雅區","前鎮區","旗津區","小港區","鳳山區","林園區","大寮區","大樹區","大社區","仁武區","鳥松區","岡山區","橋頭區","燕巢區","田寮區","阿蓮區","路竹區","湖內區","茄萣區","永安區","彌陀區","梓官區","旗山區","美濃區","六龜區","甲仙區","杉林區","內門區","茂林區","桃源區","那瑪夏區"],"屏東縣":["屏東市","三地門鄉","霧台鄉","瑪家鄉","九如鄉","里港鄉","高樹鄉","鹽埔鄉","長治鄉","麟洛鄉","竹田鄉","內埔鄉","萬丹鄉","潮州鎮","泰武鄉","來義鄉","萬巒鄉","崁頂鄉","新埤鄉","南州鄉","林邊鄉","東港鎮","琉球鄉","佳冬鄉","新園鄉","枋寮鄉","枋山鄉","春日鄉","獅子鄉","車城鄉","牡丹鄉","恆春鎮","滿州鄉"],"宜蘭縣":["宜蘭市","頭城鎮","礁溪鄉","壯圍鄉","員山鄉","羅東鎮","三星鄉","大同鄉","五結鄉","冬山鄉","蘇澳鎮","南澳鄉"],"花蓮縣":["花蓮市","新城鄉","秀林鄉","吉安鄉","壽豐鄉","鳳林鎮","光復鄉","豐濱鄉","瑞穗鄉","萬榮鄉","玉里鎮","卓溪鄉","富里鄉"],"臺東縣":["臺東市","綠島鄉","蘭嶼鄉","延平鄉","卑南鄉","鹿野鄉","關山鎮","海端鄉","池上鄉","東河鄉","成功鎮","長濱鄉","太麻里鄉","金峰鄉","大武鄉","達仁鄉"],"澎湖縣":["馬公市","西嶼鄉","望安鄉","七美鄉","白沙鄉","湖西鄉"],"金門縣":["金城鎮","金湖鎮","金沙鎮","金寧鄉","烈嶼鄉","烏坵鄉"],"連江縣":["南竿鄉","北竿鄉","莒光鄉","東引鄉"]};
 
-let db={recruit:[],track:[],commission:[],buyers:[],inventory:[]};
+let db={recruit:[],track:[],commission:[],buyers:[],inventory:[],endedCommission:[]};
 let editId=null,pendingId=null,editCommId=null;
 let currentPage='recruit',currentSubTab='general',currentView='desktop';
 let openDetailId={recruit:null,track:null,commission:null,closed:null};
@@ -2343,6 +2401,7 @@ function save(){
     commission: db.commission,
     closed: db.closed || [],
     buyers: db.buyers || [],
+    endedCommission: db.endedCommission || [],
     updatedAt: new Date().toISOString()
   }).then(()=>{
     setSyncStatus('☁ 已同步','var(--grn)');
@@ -2460,10 +2519,11 @@ function filterItems(pool){
   const maxV=parseFloat((document.getElementById('sq-'+pid+'-max')||{value:''}).value)||Infinity;
   return db[pool].filter(r=>{
     const owners2=r.owners&&r.owners.length?r.owners:[{name:r.ownerName||'',city:r.ownerCity||'',dist:r.ownerDist||'',addr:r.ownerAddr||''}];
-    // 屋主姓氏 / 建案
+    // 屋主姓氏 / 建案 / 案名
     const matchName=!nameKw||
       owners2.some(o=>(o.name||'').toLowerCase().includes(nameKw))||
-      (r.bldg||'').toLowerCase().includes(nameKw);
+      (r.bldg||'').toLowerCase().includes(nameKw)||
+      (r.caseName||'').toLowerCase().includes(nameKw);
     // 物件地址
     const propAddrStr=fullAddr(r.propCity,r.propDist,r.propAddr).toLowerCase();
     const matchPropAddr=!propAddrKw||propAddrStr.includes(propAddrKw);
@@ -2514,15 +2574,19 @@ function switchPage(p){
   else if(p==='admin'){loadAdminData();}
   else if(p==='buyer'){renderBuyer();checkBuyerBirthdays();}
   else if(p==='inventory'){renderInventory();}
+  if(p==='commission') _updateEndedBadge();
   else renderAll();
 }
 function switchSubTab(t){
   currentSubTab=t;
-  ['general','exclusive'].forEach(s=>{
-    document.getElementById('stab-'+s).classList.toggle('active',s===t);
-    document.getElementById('stab-'+s+'-c').style.display=s===t?'block':'none';
+  ['general','exclusive','ended'].forEach(s=>{
+    const btn=document.getElementById('stab-'+s);
+    const cont=document.getElementById('stab-'+s+'-c');
+    if(btn) btn.classList.toggle('active',s===t);
+    if(cont) cont.style.display=s===t?'block':'none';
   });
-  renderCommission();
+  if(t==='ended') renderEndedCommission();
+  else renderCommission();
 }
 
 function openOv(id){document.getElementById('ov-'+id).classList.add('show');}
@@ -2731,6 +2795,7 @@ function openToComm(id){
   pendingId=id;
   const r=db.track.find(x=>x.id===id);
   document.getElementById('tocomm-info').innerHTML=infoBox(r);
+  document.getElementById('c-casename').value=r.caseName||r.bldg||'';
   document.getElementById('c-start').value=nowDate();
   document.getElementById('c-end').value='';
   document.getElementById('c-fee').value='';
@@ -2741,10 +2806,11 @@ function confirmToComm(){
   const start=document.getElementById('c-start').value;
   const end=document.getElementById('c-end').value;
   const ctype=document.querySelector('input[name="ctype"]:checked').value;
+  const caseName=(document.getElementById('c-casename')?.value||'').trim();
   const bonus='';
   if(!fee||!start||!end){alert('請填寫服務費、起始日、終止日');return;}
   const r=db.track.find(x=>x.id===pendingId);
-  if(r){r.commDate=nowDate();r.commFee=fee;r.commStart=start;r.commEnd=end;r.commType=ctype;r.companyBonus=bonus;
+  if(r){r.commDate=nowDate();r.commFee=fee;r.commStart=start;r.commEnd=end;r.commType=ctype;r.companyBonus=bonus;r.caseName=caseName;
     db.commission.push({...r});db.track=db.track.filter(x=>x.id!==pendingId);}
   save();renderAll();closeOv('tocomm');checkNotifs();
 }
@@ -2752,6 +2818,7 @@ function confirmToComm(){
 function openEditComm(id){
   editCommId=id;
   const r=db.commission.find(x=>x.id===id);
+  document.getElementById('ec-casename').value=r.caseName||'';
   document.getElementById('ec-fee').value=r.commFee||'';
   document.getElementById('ec-start').value=r.commStart||'';
   document.getElementById('ec-end').value=r.commEnd||'';
@@ -2761,9 +2828,124 @@ function openEditComm(id){
   });
   openOv('editcomm');
 }
+
+// ══════════════════════════════════════════════════════════════════════
+// 結束委託模組
+// ══════════════════════════════════════════════════════════════════════
+
+let _endCommId = null;
+
+function openEndComm(id){
+  _endCommId = id;
+  const r = db.commission.find(x=>x.id===id);
+  if(!r) return;
+  const info = document.getElementById('endcomm-info');
+  const mainLabel = r.caseName || ownersLabel(r);
+  const addr = fullAddr(r.propCity, r.propDist, r.propAddr);
+  info.innerHTML = `<div style="font-weight:700;font-size:14px;margin-bottom:4px">${escH(mainLabel)}</div>
+    <div style="font-size:12px;color:var(--tx2)">📍 ${escH(addr)}</div>
+    <div style="font-size:12px;color:var(--tx2)">📅 委託期間：${r.commStart||'—'} ～ ${r.commEnd||'—'}</div>`;
+  // 預設結束日期為今天
+  document.getElementById('endcomm-date').value = nowDate();
+  // 預設選第一個原因
+  document.querySelector('input[name="endcomm-reason"][value="委託到期"]').checked = true;
+  toggleEndcommOther();
+  openOv('endcomm');
+}
+
+function toggleEndcommOther(){
+  const sel = document.querySelector('input[name="endcomm-reason"]:checked')?.value;
+  const wrap = document.getElementById('endcomm-other-wrap');
+  if(wrap) wrap.style.display = sel==='other' ? 'block' : 'none';
+}
+
+function confirmEndComm(){
+  const endDate = document.getElementById('endcomm-date').value;
+  if(!endDate){ alert('請填寫結束日期'); return; }
+  const selReason = document.querySelector('input[name="endcomm-reason"]:checked')?.value;
+  let reason = selReason;
+  if(selReason === 'other'){
+    reason = (document.getElementById('endcomm-other-text')?.value||'').trim();
+    if(!reason){ alert('請填寫結束原因'); return; }
+  }
+  const r = db.commission.find(x=>x.id===_endCommId);
+  if(!r) return;
+  // 移至 endedCommission
+  if(!db.endedCommission) db.endedCommission = [];
+  db.endedCommission.push({...r, endDate, endReason: reason, endAt: new Date().toISOString()});
+  db.commission = db.commission.filter(x=>x.id!==_endCommId);
+  _endCommId = null;
+  save(); renderCommission(); renderEndedCommission(); closeOv('endcomm'); checkNotifs();
+  // 更新分頁徽章
+  _updateEndedBadge();
+}
+
+function _updateEndedBadge(){
+  const cnt = (db.endedCommission||[]).length;
+  const el = document.getElementById('stab-ended-cnt');
+  if(el) el.textContent = cnt ? `(${cnt})` : '';
+}
+
+function restoreEndedComm(id){
+  const r = (db.endedCommission||[]).find(x=>x.id===id);
+  if(!r) return;
+  // 移回 commission（去除結束相關欄位）
+  const restored = {...r};
+  delete restored.endDate; delete restored.endReason; delete restored.endAt;
+  db.commission.push(restored);
+  db.endedCommission = db.endedCommission.filter(x=>x.id!==id);
+  save(); renderCommission(); renderEndedCommission(); _updateEndedBadge();
+}
+
+function renderEndedCommission(){
+  _updateEndedBadge();
+  const list = db.endedCommission || [];
+  const el = document.getElementById('stab-ended-c');
+  if(!el) return;
+  if(!list.length){
+    el.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--tx3);font-size:14px">尚無已結束的委託</div>';
+    return;
+  }
+  // 依結束日期新到舊排序
+  const sorted = [...list].sort((a,b)=>(b.endDate||'').localeCompare(a.endDate||''));
+  el.innerHTML = `<div style="padding:0 0 8px;font-size:13px;color:var(--tx3)">共 ${sorted.length} 筆，點「恢復」可移回委託分頁</div>` +
+    `<div class="card-grid">` +
+    sorted.map(r=>{
+      const mainTitle = r.caseName
+        ? `<span style="font-weight:700;font-size:15px;color:var(--acc)">${escH(r.caseName)}</span>`
+        : `<span style="font-weight:700;font-size:15px">${escH(ownersLabel(r))}</span>`;
+      const ownerSub = r.caseName
+        ? `<div style="font-size:12px;color:var(--tx2);margin-bottom:2px">👤 ${escH(ownersLabel(r))}</div>` : '';
+      const addr = fullAddr(r.propCity, r.propDist, r.propAddr);
+      const reasonColor = r.endReason==='委託到期'?'var(--tx3)':r.endReason==='同業簽專約'?'var(--red)':'var(--org)';
+      return `<div style="background:var(--surf2);border:1px solid var(--bdr);border-radius:10px;padding:14px;opacity:.9">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+          <div>${mainTitle}</div>
+          <span style="font-size:11px;color:var(--tx3);white-space:nowrap;margin-left:8px">結束 ${r.endDate||'—'}</span>
+        </div>
+        ${ownerSub}
+        <div style="font-size:12px;color:var(--tx3);margin-bottom:6px">📍 ${escH(addr)}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:var(--tx2);margin-bottom:8px">
+          ${r.total?`<span>💰 ${r.total}萬</span>`:''}
+          ${(r.rooms||r.halls||r.baths)?`<span>🛏 ${r.rooms||''}房${r.halls||''}廳${r.baths||''}衛</span>`:''}
+          ${r.commEnd?`<span>📅 委託原到 ${r.commEnd}</span>`:''}
+        </div>
+        <div style="font-size:12px;padding:6px 10px;border-radius:6px;background:var(--redl);color:${reasonColor};margin-bottom:10px;font-weight:600">
+          🔴 結束原因：${escH(r.endReason||'—')}
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-sm" style="background:var(--grnl);color:var(--grn);border:1px solid var(--grn)" onclick="restoreEndedComm('${r.id}')">↩️ 恢復</button>
+        </div>
+      </div>`;
+    }).join('') + '</div>';
+}
+
+// ══════════════════════════════════════════════════════════════════════
+
 function saveCommEdit(){
   const r=db.commission.find(x=>x.id===editCommId);
   if(r){
+    r.caseName=(document.getElementById('ec-casename')?.value||'').trim();
     r.commFee=document.getElementById('ec-fee').value;
     r.commStart=document.getElementById('ec-start').value;
     r.commEnd=document.getElementById('ec-end').value;
@@ -3097,14 +3279,23 @@ function renderCommission(){
       <td><div style="display:flex;gap:4px;flex-wrap:wrap">
         <button class="btn btn-sm btn-edit" onclick="openEditComm('${r.id}')">✏️ 編輯</button>
         <button class="btn btn-sm" style="background:var(--grnl);color:var(--grn);border:1px solid var(--grn)" onclick="openRenewComm('${r.id}')">🔄 續約</button>
+        <button class="btn btn-sm" style="background:var(--redl);color:var(--red);border:1px solid var(--red)" onclick="openEndComm('${r.id}')">🔴 結束</button>
         <button class="btn btn-sm btn-del" onclick="delItem('commission','${r.id}',event)">🗑 刪除</button>
       </div></td>
     </tr>`).join('');
   }
   function commCards(list,prefix){
     if(!list.length)return'<div style="text-align:center;padding:40px;color:var(--tx3)">📭 尚無符合資料</div>';
-    return`<div class="card-grid">${list.map((r,i)=>`<div class="card comm-card-clickable" onclick="toggleDetail('commission','${r.id}')">
-      <div class="card-head"><span class="card-owner">${ownersLabel(r)}</span><span class="card-id">${prefix}${String(i+1).padStart(3,'0')}</span></div>
+    return`<div class="card-grid">${list.map((r,i)=>{
+      const mainTitle = r.caseName
+        ? `<span class="card-owner" style="color:var(--acc)">${escH(r.caseName)}</span>`
+        : `<span class="card-owner">${ownersLabel(r)}</span>`;
+      const ownerSub = r.caseName
+        ? `<div style="font-size:12px;color:var(--tx2);margin-bottom:4px">👤 ${escH(ownersLabel(r))}</div>`
+        : '';
+      return `<div class="card comm-card-clickable" onclick="toggleDetail('commission','${r.id}')">
+      <div class="card-head">${mainTitle}<span class="card-id">${prefix}${String(i+1).padStart(3,'0')}</span></div>
+      ${ownerSub}
       <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px">${r.propType?`<span style="background:var(--accl);color:var(--acc);padding:1px 7px;border-radius:4px;font-size:11px;font-weight:700">${escH(r.propType)}</span>`:''} ${r.bldg?`<span class="card-bldg">🏢 ${escH(r.bldg)}</span>`:''}</div>
       <div class="card-addr">📍 ${escH(fullAddr(r.propCity,r.propDist,r.propAddr))}</div>
       <div class="card-household">${ownersHousehold(r)}</div>
@@ -3114,9 +3305,10 @@ function renderCommission(){
       <div class="card-actions">
         <button class="btn btn-sm btn-edit" onclick="openEditComm('${r.id}')">✏️ 編輯</button>
         <button class="btn btn-sm" style="background:var(--grnl);color:var(--grn);border:1px solid var(--grn)" onclick="openRenewComm('${r.id}')">🔄 續約</button>
+        <button class="btn btn-sm" style="background:var(--redl);color:var(--red);border:1px solid var(--red)" onclick="event.stopPropagation();openEndComm('${r.id}')">🔴 結束</button>
         <button class="btn btn-sm btn-del" onclick="delItem('commission','${r.id}',event)">🗑 刪除</button>
       </div>
-    </div>`).join('')}</div>`;
+    </div>`;}).join('')}</div>`;
   }
   const allComm=filterItems('commission');
   const genAll=sortItems('commission',allComm.filter(r=>r.commType==='general'));
@@ -3152,6 +3344,7 @@ function renderCommission(){
     <div class="sc"><div class="sn">${excAll.length}</div><div class="sl">專任委託</div></div>
     <div class="sc"><div class="sn">${expCount}</div><div class="sl">即將到期</div></div>`;
   document.getElementById('db-commission').textContent=db.commission.length;
+  _updateEndedBadge();
 }
 
 function renderAll(){
@@ -4857,9 +5050,10 @@ async function loadFromFirestore(uid){
       const data = snap.data();
       db.recruit    = data.recruit    || [];
       db.track      = data.track      || [];
-      db.commission = data.commission || [];
-      db.closed      = data.closed      || [];
-      db.buyers      = data.buyers      || [];
+      db.commission        = data.commission        || [];
+      db.closed            = data.closed            || [];
+      db.buyers            = data.buyers            || [];
+      db.endedCommission   = data.endedCommission   || [];
     }
     const gsnap = await window._firebaseGetDoc(window._firebaseGoalsRef(uid));
     if(gsnap.exists()){
@@ -5981,6 +6175,200 @@ async function syncInventoryFromMyCommission(){
   }
 }
 
+
+// ══════════════════════════════════════════════════════════════════════
+// 列印三表
+// ══════════════════════════════════════════════════════════════════════
+function printThreeTables(){
+  const user = window._currentUser;
+  const agentName = window._myCustomName || (user&&user.displayName) || '業務';
+  const today = new Date().toLocaleDateString('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'});
+
+  /* ── 共用樣式 ── */
+  const css = `
+    @page { size: A4; margin: 14mm 12mm 14mm 12mm; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Noto Sans TC', '微軟正黑體', sans-serif; }
+    body { font-size: 10pt; color: #111; background:#fff; }
+    .section { page-break-before: always; padding-top: 4mm; }
+    .section:first-child { page-break-before: avoid; }
+    .section-title {
+      font-size: 13pt; font-weight: 700; color: #0f519b;
+      border-bottom: 2.5px solid #0f519b; padding-bottom: 4px; margin-bottom: 10px;
+      display: flex; justify-content: space-between; align-items: baseline;
+    }
+    .section-title span { font-size: 9pt; color: #555; font-weight: 400; }
+    table { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
+    th { background: #0f519b; color: #fff; padding: 5px 6px; text-align: left; font-weight: 600; white-space: nowrap; }
+    td { padding: 4px 6px; border-bottom: 1px solid #ddd; vertical-align: top; line-height: 1.5; }
+    tr:nth-child(even) td { background: #f5f8ff; }
+    .tag { display:inline-block; padding:1px 5px; border-radius:3px; font-size:7.5pt; font-weight:700; }
+    .tag-excl { background:#fff8e0; color:#b8860b; }
+    .tag-gen  { background:#e8f1fb; color:#0f519b; }
+    .tag-recruit { background:#e8f1fb; color:#0f519b; }
+    .tag-track   { background:#e4f4ec; color:#1a7a4a; }
+    .tag-main { font-weight:700; }
+    .tag-sub  { font-size:8pt; color:#555; }
+    .empty { text-align:center; padding:20px; color:#888; font-size:9pt; }
+    .header-bar {
+      display:flex; justify-content:space-between; align-items:center;
+      margin-bottom:14px; padding-bottom:8px; border-bottom:1px solid #ccc;
+    }
+    .header-bar .title { font-size:15pt; font-weight:900; color:#0f519b; }
+    .header-bar .meta  { font-size:9pt; color:#555; text-align:right; line-height:1.6; }
+  `;
+
+  /* ── 表一：個人募集線 + 追蹤線 ── */
+  function recruitTrackRows(){
+    const all = [
+      ...db.recruit.map(r=>({...r,_pool:'recruit'})),
+      ...db.track.map(r=>({...r,_pool:'track'}))
+    ];
+    if(!all.length) return `<tr><td colspan="7" class="empty">目前無資料</td></tr>`;
+    return all.map((r,i)=>{
+      const poolTag = r._pool==='recruit'
+        ? `<span class="tag tag-recruit">募集</span>`
+        : `<span class="tag tag-track">追蹤</span>`;
+      const owner = ownersLabel(r);
+      const addr  = fullAddr(r.propCity, r.propDist, r.propAddr);
+      const layout_str = r.rooms||r.halls||r.baths
+        ? `${r.rooms||''}房${r.halls||''}廳${r.baths||''}衛` : '—';
+      const price = r.total ? r.total+'萬' : '—';
+      const rDate = r._pool==='track' ? (r.trackDate||r.date||'') : (r.date||'');
+      return `<tr>
+        <td style="white-space:nowrap">${poolTag}</td>
+        <td class="tag-main">${escH(owner)}<br><span class="tag-sub">${escH(r.bldg||r.caseName||'')}</span></td>
+        <td>${escH(addr)}</td>
+        <td>${escH(r.propType||'—')}</td>
+        <td style="white-space:nowrap">${layout_str}</td>
+        <td style="white-space:nowrap">${price}</td>
+        <td style="white-space:nowrap;color:#555">${rDate}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  /* ── 表二：個人買方清單 ── */
+  function buyerRows(){
+    const buyers = db.buyers||[];
+    if(!buyers.length) return `<tr><td colspan="7" class="empty">目前無資料</td></tr>`;
+    return buyers.map(b=>{
+      const needType = b.needType||'—';
+      const budget = (b.totalMin||b.totalMax)
+        ? `${b.totalMin||'0'}～${b.totalMax||'不限'}萬`
+        : '—';
+      const layout_str = b.rooms||b.halls||b.baths
+        ? `${b.rooms||''}房${b.halls||''}廳${b.baths||''}衛` : '—';
+      const area = b.city ? `${b.city}${b.dist||''}` : '—';
+      const contact = b.phone||b.line||b.email||'—';
+      return `<tr>
+        <td class="tag-main">${escH(b.name||'—')}<br><span class="tag-sub">${escH(b.gender||'')}</span></td>
+        <td style="white-space:nowrap">${escH(contact)}</td>
+        <td>${escH(b.propType||'—')}</td>
+        <td style="white-space:nowrap">${budget}</td>
+        <td style="white-space:nowrap">${layout_str}</td>
+        <td>${escH(area)}</td>
+        <td>${escH(needType)}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  /* ── 表三：公司庫存 ── */
+  function inventoryRows(){
+    const inv = db.inventory||[];
+    if(!inv.length) return `<tr><td colspan="7" class="empty">目前無資料</td></tr>`;
+    return inv.map(r=>{
+      const exTag = r.commType==='exclusive'
+        ? `<span class="tag tag-excl">專任</span>`
+        : `<span class="tag tag-gen">一般</span>`;
+      const mainTitle = r.caseName || ownersLabel(r);
+      const ownerSub  = r.caseName ? ownersLabel(r) : '';
+      const addr  = fullAddr(r.propCity, r.propDist, r.propAddr);
+      const layout_str = r.rooms||r.halls||r.baths
+        ? `${r.rooms||''}房${r.halls||''}廳${r.baths||''}衛` : '—';
+      const price = r.total ? r.total+'萬' : '—';
+      return `<tr>
+        <td>${exTag}</td>
+        <td class="tag-main">${escH(mainTitle)}${ownerSub?`<br><span class="tag-sub">👤 ${escH(ownerSub)}</span>`:''}</td>
+        <td>${escH(addr)}</td>
+        <td>${escH(r.propType||'—')}</td>
+        <td style="white-space:nowrap">${layout_str}</td>
+        <td style="white-space:nowrap">${price}</td>
+        <td style="white-space:nowrap;color:#555">${escH(r._agentName||'—')}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  const html = `<!DOCTYPE html>
+<html lang="zh-TW"><head>
+<meta charset="UTF-8">
+<title>三表列印 — ${escH(agentName)} — ${today}</title>
+<style>${css}</style>
+</head><body>
+
+<!-- 頁首 -->
+<div class="header-bar">
+  <div class="title">📋 業務三表</div>
+  <div class="meta">
+    <div>業務：<strong>${escH(agentName)}</strong></div>
+    <div>列印日期：${today}</div>
+  </div>
+</div>
+
+<!-- 表一：募集線 + 追蹤線 -->
+<div class="section">
+  <div class="section-title">
+    一、個人募集線／追蹤線
+    <span>募集 ${db.recruit.length} 筆 ／ 追蹤 ${db.track.length} 筆</span>
+  </div>
+  <table>
+    <thead><tr>
+      <th>類別</th><th>屋主／建案</th><th>物件地址</th>
+      <th>類型</th><th>格局</th><th>總價</th><th>日期</th>
+    </tr></thead>
+    <tbody>${recruitTrackRows()}</tbody>
+  </table>
+</div>
+
+<!-- 表二：買方清單 -->
+<div class="section">
+  <div class="section-title">
+    二、個人買方清單
+    <span>共 ${(db.buyers||[]).length} 筆</span>
+  </div>
+  <table>
+    <thead><tr>
+      <th>買方姓名</th><th>聯絡方式</th><th>物件需求</th>
+      <th>預算</th><th>格局</th><th>地區</th><th>需求類型</th>
+    </tr></thead>
+    <tbody>${buyerRows()}</tbody>
+  </table>
+</div>
+
+<!-- 表三：公司庫存 -->
+<div class="section">
+  <div class="section-title">
+    三、公司庫存
+    <span>共 ${(db.inventory||[]).length} 筆</span>
+  </div>
+  <table>
+    <thead><tr>
+      <th>委託類型</th><th>案名／屋主</th><th>物件地址</th>
+      <th>類型</th><th>格局</th><th>總價</th><th>負責業務</th>
+    </tr></thead>
+    <tbody>${inventoryRows()}</tbody>
+  </table>
+</div>
+
+</body></html>`;
+
+  const win = window.open('','_blank','width=900,height=700');
+  if(!win){ alert('請允許彈跳視窗以使用列印功能'); return; }
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(()=>{ win.print(); }, 600);
+}
+// ══════════════════════════════════════════════════════════════════════
+
 function renderInventory(){
   const items = db.inventory || [];
   const q = (document.getElementById('inv-search')?.value||'').trim().toLowerCase();
@@ -5992,7 +6380,7 @@ function renderInventory(){
     if(q){
       const addr = fullAddr(r.propCity,r.propDist,r.propAddr);
       const ownLabel = r.owners&&r.owners.length ? r.owners.map(o=>o.name).join('') : (r.ownerName||'');
-      const hay = (ownLabel+addr+(r.bldgName||'')+(r._agentName||'')).toLowerCase();
+      const hay = (ownLabel+addr+(r.bldgName||'')+(r.caseName||'')+(r.bldg||'')+(r._agentName||'')).toLowerCase();
       if(!hay.includes(q)) return false;
     }
     return true;
@@ -6039,6 +6427,8 @@ function renderInventory(){
     const cardsHtml = g.items.map(r=>{
       const addr = fullAddr(r.propCity,r.propDist,r.propAddr);
       const ownLabel = r.owners&&r.owners.length ? r.owners.map(o=>o.name).join('、') : (r.ownerName||'—');
+      const mainTitle = r.caseName ? escH(r.caseName) : escH(ownLabel);
+      const ownerSub = r.caseName ? `<span style="font-size:12px;color:var(--tx2)">👤 ${escH(ownLabel)}</span>` : '';
       const exTag = r.commType==='exclusive'
         ? '<span style="background:var(--gldl);color:var(--gld);padding:1px 7px;border-radius:4px;font-size:11px;font-weight:700">專任</span>'
         : '<span style="background:var(--accl);color:var(--acc);padding:1px 7px;border-radius:4px;font-size:11px;font-weight:700">一般</span>';
@@ -6046,8 +6436,9 @@ function renderInventory(){
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
           ${exTag}
           ${r.propType?`<span style="background:var(--accl);color:var(--acc);padding:1px 7px;border-radius:4px;font-size:11px">${escH(r.propType)}</span>`:''}
-          <strong style="font-size:14px">${escH(ownLabel)}</strong>
-          <span style="font-size:12px;color:var(--tx3)">${escH(addr)}</span>
+          <strong style="font-size:14px;color:${r.caseName?'var(--acc)':'var(--tx)'}">${mainTitle}</strong>
+          ${ownerSub}
+          <span style="font-size:12px;color:var(--tx3);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📍 ${escH(addr)}</span>
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:var(--tx2)">
           ${r.total?`<span>💰 ${r.total}萬</span>`:''}
