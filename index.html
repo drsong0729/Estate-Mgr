@@ -1909,6 +1909,30 @@ function initGoogleMaps() {
       </div>
     </div>
   </div>
+    <!-- 委託專屬欄位（只在 commission 模式顯示）-->
+    <div id="ec-extra-section" class="fsec" style="display:none">
+      <div class="fsec-t">📝 委託條件</div>
+      <div class="fg fg2">
+        <div class="fgp"><label class="lbl">案名</label>
+          <input class="fc" id="ec2-casename" placeholder="（選填）"></div>
+        <div class="fgp"><label class="lbl">委託類型</label>
+          <div style="display:flex;gap:12px;padding-top:8px">
+            <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer"><input type="radio" name="ec2type" value="general" checked><span>一般</span></label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer"><input type="radio" name="ec2type" value="exclusive"><span>專任</span></label>
+          </div></div>
+      </div>
+      <div class="fg fg3" style="margin-top:10px">
+        <div class="fgp"><label class="lbl">服務費（%）</label>
+          <input class="fc" type="number" id="ec2-fee" step="0.1" min="0" max="100"></div>
+        <div class="fgp"><label class="lbl">起始日</label>
+          <input class="fc" type="date" id="ec2-start"></div>
+        <div class="fgp"><label class="lbl">終止日</label>
+          <input class="fc" type="date" id="ec2-end"></div>
+        <div class="fgp"><label class="lbl">業績獎勵分成（%）</label>
+          <input class="fc" type="number" id="ec2-bonus" step="0.1" min="0" max="100"></div>
+      </div>
+    </div>
+  </div>
   <div class="mf">
     <button class="btn btn-g" onclick="closeOv('recruit')">取消</button>
     <button class="btn btn-p" onclick="saveRecruit()">儲存</button>
@@ -2698,8 +2722,13 @@ function getOwnersFromForm(){
 
 function openRecruitModal(id,pool){
   editId=id; editPool=pool||'recruit';
-  document.getElementById('recruit-modal-title').textContent=id?'編輯物件資料':'新增募集線';
-  const list=editPool==='track'?db.track:db.recruit;
+  const isComm = editPool==='commission';
+  document.getElementById('recruit-modal-title').textContent=
+    isComm ? '編輯委託物件資料' : (id?'編輯物件資料':'新增募集線');
+  // 顯示/隱藏委託專屬欄位區塊
+  const ecExtra = document.getElementById('ec-extra-section');
+  if(ecExtra) ecExtra.style.display = isComm ? 'block' : 'none';
+  const list = isComm ? db.commission : (editPool==='track'?db.track:db.recruit);
   const f=id?list.find(r=>r.id===id):null;
   // clear fixed fields
   ['p-city','p-dist','p-addr','f-bldg','f-casename','f-proptype','f-area','f-total','f-unit','f-rooms','f-halls','f-baths','f-url','f-notes'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
@@ -2725,6 +2754,17 @@ function openRecruitModal(id,pool){
     document.getElementById('f-baths').value=f.baths||'';
     document.getElementById('f-url').value=f.url||'';
     document.getElementById('f-notes').value=f.notes||'';
+    // 委託專屬欄位
+    if(isComm){
+      document.getElementById('ec2-casename').value=f.caseName||'';
+      document.getElementById('ec2-fee').value=f.commFee||'';
+      document.getElementById('ec2-start').value=f.commStart||'';
+      document.getElementById('ec2-end').value=f.commEnd||'';
+      document.getElementById('ec2-bonus').value=f.companyBonus||'';
+      document.querySelectorAll('input[name="ec2type"]').forEach(rb=>{
+        rb.checked=(rb.value===(f.commType||'general'));
+      });
+    }
     // load owners - support legacy single-owner
     const owners=f.owners&&f.owners.length?f.owners:[{name:f.ownerName||'',gender:f.ownerGender||'',city:f.ownerCity||'',dist:f.ownerDist||'',addr:f.ownerAddr||''}];
     owners.forEach(o=>addOwnerRow(o));
@@ -2776,7 +2816,18 @@ function saveRecruit(){
     url:document.getElementById('f-url').value,
     notes:document.getElementById('f-notes').value
   };
-  const list=editPool==='track'?db.track:db.recruit;
+  const isComm = editPool==='commission';
+  // 委託模式：額外讀取委託欄位
+  if(isComm){
+    data.caseName   = (document.getElementById('ec2-casename')?.value||'').trim();
+    data.commFee    = document.getElementById('ec2-fee')?.value||'';
+    data.commStart  = document.getElementById('ec2-start')?.value||'';
+    data.commEnd    = document.getElementById('ec2-end')?.value||'';
+    data.companyBonus = document.getElementById('ec2-bonus')?.value||'';
+    const ec2type = document.querySelector('input[name="ec2type"]:checked');
+    if(ec2type) data.commType = ec2type.value;
+  }
+  const list = isComm ? db.commission : (editPool==='track'?db.track:db.recruit);
   if(editId){
     const r=list.find(x=>x.id===editId);
     if(r)Object.assign(r,data);
@@ -3285,7 +3336,7 @@ function renderCommission(){
       <td style="font-size:11px">${r.commStart}<br>～${r.commEnd}</td>
       <td>${expiryTag(r.commEnd)}</td>
       <td><div style="display:flex;gap:4px;flex-wrap:wrap">
-        <button class="btn btn-sm btn-edit" onclick="openEditComm('${r.id}')">✏️ 編輯</button>
+        <button class="btn btn-sm btn-edit" onclick="openRecruitModal('${r.id}','commission')">✏️ 編輯</button>
         <button class="btn btn-sm" style="background:var(--grnl);color:var(--grn);border:1px solid var(--grn)" onclick="openRenewComm('${r.id}')">🔄 續約</button>
         <button class="btn btn-sm" style="background:var(--redl);color:var(--red);border:1px solid var(--red)" onclick="openEndComm('${r.id}')">🔴 結束</button>
         <button class="btn btn-sm btn-del" onclick="delItem('commission','${r.id}',event)">🗑 刪除</button>
@@ -3311,7 +3362,7 @@ function renderCommission(){
       <div style="font-size:12px;color:var(--tx2);margin-bottom:6px">📅 ${r.commStart} ～ ${r.commEnd}</div>
       <div style="margin-bottom:8px">${expiryTag(r.commEnd)}</div>
       <div class="card-actions">
-        <button class="btn btn-sm btn-edit" onclick="openEditComm('${r.id}')">✏️ 編輯</button>
+        <button class="btn btn-sm btn-edit" onclick="event.stopPropagation();openRecruitModal('${r.id}','commission')">✏️ 編輯</button>
         <button class="btn btn-sm" style="background:var(--grnl);color:var(--grn);border:1px solid var(--grn)" onclick="openRenewComm('${r.id}')">🔄 續約</button>
         <button class="btn btn-sm" style="background:var(--redl);color:var(--red);border:1px solid var(--red)" onclick="event.stopPropagation();openEndComm('${r.id}')">🔴 結束</button>
         <button class="btn btn-sm btn-del" onclick="delItem('commission','${r.id}',event)">🗑 刪除</button>
