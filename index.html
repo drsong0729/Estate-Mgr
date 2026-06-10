@@ -2350,15 +2350,16 @@ function save(){
     // 同步更新公共索引（供主管查閱）
     _syncUserIndex(user);
     // 自動同步委託到公司庫存
-    _autoSyncInventory(user);
+    _autoSyncInventory();
   }).catch(e=>{
     setSyncStatus('⚠ 儲存失敗','var(--red)');
     alert('⚠️ 雲端儲存失敗！請確認網路連線。');
   });
 }
 
-// 每次 save() 後靜默同步委託到公司庫存
-function _autoSyncInventory(user){
+// 每次 save() / 登入後靜默同步委託到公司庫存
+function _autoSyncInventory(userArg){
+  const user = userArg || window._currentUser;
   if(!user || !window._firebaseInventoryRef) return;
   const agentName = window._myCustomName || user.displayName || '未知';
   const items = db.commission.map(r=>({...r}));
@@ -5055,6 +5056,9 @@ window.onFirebaseLogin = async function(user){
   checkNotifs();
   checkBuyerBirthdays();
 
+  // 登入後立刻同步委託到公司庫存（靜默背景執行）
+  _autoSyncInventory(user);
+
   // 閒置自動登出
   startAutoLogout();
 };
@@ -6016,7 +6020,7 @@ function renderInventory(){
   if(!filtered.length){
     listEl.innerHTML='<div style="text-align:center;padding:60px 20px;color:var(--tx3);font-size:14px">'
       + (items.length===0
-        ? '尚無公司庫存資料<br><small style="font-size:12px">請各成員點擊「同步我的委託」上傳資料</small>'
+        ? '尚無公司庫存資料<br><small style="font-size:12px">委託資料將於各成員登入後自動同步</small>'
         : '無符合篩選條件的物件')
       + '</div>';
     return;
