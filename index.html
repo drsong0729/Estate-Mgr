@@ -3549,6 +3549,32 @@ function saveGoals(){
   window._firebaseSetDoc(window._firebaseGoalsRef(user.uid), g, {merge: true}).catch(e=>console.error(e));
 }
 
+// 從 Firestore 重新載入年度目標至個人頁面（當切換到個人頁面時呼叫）
+async function loadGoals(){
+  const user = window._currentUser;
+  if(!user || !window._firebaseGetDoc || !window._firebaseGoalsRef) return;
+  try{
+    const gsnap = await window._firebaseGetDoc(window._firebaseGoalsRef(user.uid));
+    if(gsnap.exists()){
+      const g = gsnap.data();
+      const now = new Date();
+      if(g.yearExcl)   { const el=document.getElementById('goal-year-excl');   if(el) el.value=g.yearExcl; }
+      if(g.yearGen)    { const el=document.getElementById('goal-year-gen');    if(el) el.value=g.yearGen; }
+      if(g.yearProfit) { const el=document.getElementById('goal-year-profit'); if(el) el.value=g.yearProfit; }
+      if(g.yearDeals)  { const el=document.getElementById('goal-year-deals');  if(el) el.value=g.yearDeals; }
+      syncGoalTotal('year');
+      // 設定年份label
+      const lbl=document.getElementById('goal-year-label'); if(lbl) lbl.textContent=now.getFullYear();
+      // 月目標
+      const key = monthGoalKey(now.getFullYear(), now.getMonth()+1);
+      const mg = g[key] || {};
+      if(mg.excl) { const el=document.getElementById('goal-month-excl'); if(el) el.value=mg.excl; }
+      if(mg.gen)  { const el=document.getElementById('goal-month-gen');  if(el) el.value=mg.gen; }
+      syncGoalTotal('month');
+    }
+  }catch(e){ console.warn('loadGoals error', e); }
+}
+
 let _currentStatsTab = 'commission';
 function switchStatsTab(tab){
   _currentStatsTab = tab;
@@ -7630,6 +7656,7 @@ if (typeof window.switchPage === 'function') {
     setTimeout(calInit, 500);
   });
 }
+</script>
 <!-- ═══ Mobile Bottom Navigation ═══ -->
 <div id="mobile-nav-overlay" onclick="mbnCloseAll()"></div>
 
