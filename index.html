@@ -520,7 +520,7 @@ function initGoogleMaps() {
   box-shadow:-4px 0 24px rgba(0,0,0,.3);
 ">
   <!-- 使用者資訊（可點擊進入個人頁面） -->
-  <div onclick="switchPage('profile');toggleDrawer()" style="display:flex;align-items:center;justify-content:space-between;padding:20px 16px 14px;border-bottom:1px solid rgba(255,255,255,.12);flex-shrink:0;cursor:pointer;transition:.15s" onmouseover="this.style.background='rgba(255,255,255,.08)'" onmouseout="this.style.background=''">
+  <div onclick="goProfile()" style="display:flex;align-items:center;justify-content:space-between;padding:20px 16px 14px;border-bottom:1px solid rgba(255,255,255,.12);flex-shrink:0;cursor:pointer;transition:.15s" onmouseover="this.style.background='rgba(255,255,255,.08)'" onmouseout="this.style.background=''">
     <div style="display:flex;align-items:center;gap:10px">
       <img id="drawer-avatar" src="" alt="" style="width:38px;height:38px;border-radius:50%;border:2px solid rgba(255,255,255,.35);display:none;flex-shrink:0">
       <div style="min-width:0">
@@ -862,15 +862,6 @@ function initGoogleMaps() {
 </div>
 <!-- PAGE: 個人頁面 -->
 <div class="page" id="page-profile">
-  <!-- 使用者資訊卡 -->
-  <div style="background:linear-gradient(135deg,var(--acc),#1a6bbf);border-radius:var(--rlg);padding:20px;margin-bottom:20px;display:flex;align-items:center;gap:14px;box-shadow:var(--shlg)">
-    <img id="profile-avatar" src="" alt="" style="width:56px;height:56px;border-radius:50%;border:3px solid rgba(255,255,255,.5);display:none;flex-shrink:0">
-    <div style="min-width:0">
-      <div id="profile-name" style="font-size:18px;font-weight:700;color:#fff"></div>
-      <div id="profile-email" style="font-size:12px;color:rgba(255,255,255,.7);margin-top:2px"></div>
-      <div id="profile-role-badge" style="margin-top:6px"></div>
-    </div>
-  </div>
 
   <!-- 目標設定區（含業績、成交件數） -->
   <div class="goal-section">
@@ -1155,10 +1146,6 @@ function initGoogleMaps() {
 
 <!-- PAGE: 買方管理 -->
 <div class="page" id="page-buyer">
-  <div class="ph">
-    <span class="pt">👤 買方管理</span>
-    <button class="btn btn-p" onclick="openBuyerModal(null)">＋ 新增買方</button>
-  </div>
   <div class="stats" id="stats-buyer"></div>
   <!-- 搜尋 -->
   <div class="search-bar" id="search-buyer">
@@ -1173,8 +1160,9 @@ function initGoogleMaps() {
         <option value="">全部需求類型</option>
         <option>自住</option><option>投資</option><option>營業用</option>
       </select>
-      <button class="btn-clear" onclick="clearBuyerSearch()">✕ 清除</button>
+      <button class="btn-clear" onclick="clearBuyerSearch()" style="width:100%;justify-content:center">✕ 清除</button>
     </div>
+    <button class="btn btn-p" onclick="openBuyerModal(null)" style="width:100%;margin-top:8px;justify-content:center">＋ 新增買方</button>
   </div>
   <!-- 通知列（生日） -->
   <div id="buyer-bday-bar" style="display:none;background:var(--grnl);border:1px solid var(--grn);border-radius:var(--r);padding:10px 16px;margin-bottom:12px;font-size:13px;color:var(--grn);display:flex;align-items:center;gap:8px;flex-wrap:wrap"></div>
@@ -4758,6 +4746,14 @@ function toggleDrawer(){
     overlay.style.display  = 'block';
   }
 }
+function goProfile(){
+  // 關閉抽屜，然後切換頁面
+  const drawer  = document.getElementById('main-drawer');
+  const overlay = document.getElementById('drawer-overlay');
+  if(drawer){ drawer.style.transform = 'translateX(100%)'; }
+  if(overlay){ overlay.style.display = 'none'; }
+  switchPage('profile');
+}
 function updateDrawerThemeBtn(){
   const btn = document.getElementById('drawer-theme-btn');
   if(!btn) return;
@@ -5475,10 +5471,10 @@ function renderBuyer(){
   // stats
   const statsEl=document.getElementById('stats-buyer');
   if(statsEl){
-    statsEl.innerHTML=`<div class="sc"><div class="sn">${buyers.length}</div><div class="sl">買方總數</div></div>
+    statsEl.innerHTML=`<div class="sc"><div class="sn">${buyers.filter(b=>b.needType==='營業用').length}</div><div class="sl">營業需求</div></div>
     <div class="sc"><div class="sn">${buyers.filter(b=>b.needType==='自住').length}</div><div class="sl">自住需求</div></div>
     <div class="sc"><div class="sn">${buyers.filter(b=>b.needType==='投資').length}</div><div class="sl">投資需求</div></div>
-    <div class="sc"><div class="sn">${buyers.filter(b=>b.needType==='營業用').length}</div><div class="sl">營業需求</div></div>`;
+    <div class="sc" style="flex-basis:100%"><div class="sn">${buyers.length}</div><div class="sl">買方總數</div></div>`;
   }
   // badge 由 _updateAllBadges 統一管理
   // list
@@ -6893,35 +6889,55 @@ function renderTodayPanel() {
     const todos = (dayData.slots && dayData.slots[slot.key]) || [];
     const bg = slot.special ? 'background:var(--bg2)' : 'background:var(--surf)';
     const labelColor = slot.special ? 'color:var(--tx3)' : 'color:var(--acc)';
-    html += `<div onclick="_panelOpenTodo('${slot.key}')" style="border-bottom:1px solid var(--bdr);padding:9px 16px;cursor:pointer;transition:.15s;${bg}" onmouseover="this.style.filter='brightness(.97)'" onmouseout="this.style.filter=''">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:${todos.length?'8px':'0'}">
-        <span style="font-size:11px;font-weight:700;${labelColor};min-width:90px">${slot.label}</span>
-        ${slot.special ? `<span style="font-size:11px;color:var(--tx3)">${slot.specialLabel}</span>` : ''}
-        ${!slot.special && todos.length===0 ? '<span style="font-size:11px;color:var(--tx3)">點擊規劃待辦</span>' : ''}
-        <span style="margin-left:auto;font-size:18px;color:var(--acc);opacity:.4">+</span>
+    const timeLabel = slot.label.replace(' – ', '–');
+
+    if (todos.length === 0) {
+      // 無待辦：時間 + 提示文字同一行
+      html += `<div onclick="_panelOpenTodo('${slot.key}')" style="border-bottom:1px solid var(--bdr);padding:8px 16px;cursor:pointer;transition:.15s;${bg};display:flex;align-items:center;gap:8px" onmouseover="this.style.filter='brightness(.97)'" onmouseout="this.style.filter=''">
+        <span style="font-size:11px;font-weight:700;${labelColor};min-width:98px;flex-shrink:0">${timeLabel}</span>
+        ${slot.special
+          ? `<span style="font-size:11px;color:var(--tx3)">${slot.specialLabel}</span>`
+          : `<span style="font-size:11px;color:var(--tx3)">點擊規劃待辦</span>`}
+        <span style="margin-left:auto;font-size:16px;color:var(--acc);opacity:.35">+</span>
       </div>`;
-    if (todos.length > 0) {
-      for (const t of todos) {
+    } else {
+      // 有待辦：第一行時間 + 第一個待辦同行；後續待辦縮排對齊第一個待辦
+      html += `<div onclick="_panelOpenTodo('${slot.key}')" style="border-bottom:1px solid var(--bdr);padding:8px 16px;cursor:pointer;transition:.15s;${bg}" onmouseover="this.style.filter='brightness(.97)'" onmouseout="this.style.filter=''">`;
+      todos.forEach((t, i) => {
         const isDone = t.done === true;
         const isUndone = t.done === false;
         const dotColor = isDone ? 'var(--grn)' : isUndone ? 'var(--red)' : 'var(--acc)';
         const nameStyle = isDone ? 'text-decoration:line-through;color:var(--tx3)' : '';
         const badge = isDone
-          ? `<span style="font-size:10px;background:var(--grnl);color:var(--grn);border-radius:20px;padding:1px 7px;font-weight:600;margin-left:6px">✓ 已完成</span>`
+          ? `<span style="font-size:10px;background:var(--grnl);color:var(--grn);border-radius:20px;padding:1px 6px;font-weight:600;flex-shrink:0">✓</span>`
           : isUndone
-            ? `<span style="font-size:10px;background:var(--redl);color:var(--red);border-radius:20px;padding:1px 7px;font-weight:600;margin-left:6px">✗ 未完成</span>`
+            ? `<span style="font-size:10px;background:var(--redl);color:var(--red);border-radius:20px;padding:1px 6px;font-weight:600;flex-shrink:0">✗</span>`
             : '';
-        html += `<div style="display:flex;align-items:flex-start;gap:6px;padding:4px 0">
-          <span style="color:${dotColor};margin-top:1px;font-size:13px">●</span>
-          <div style="flex:1;min-width:0">
-            <div style="font-size:13px;font-weight:600;color:var(--tx);${nameStyle};display:flex;align-items:center;flex-wrap:wrap;gap:4px">${escHtml(t.name)}${badge}</div>
-            ${t.note ? `<div style="font-size:11px;color:var(--tx3);margin-top:1px">${escHtml(t.note)}</div>` : ''}
-            ${isUndone && t.undoneReason ? `<div style="font-size:11px;color:var(--red);margin-top:2px;padding:3px 7px;background:var(--redl);border-radius:4px">原因：${escHtml(t.undoneReason)}</div>` : ''}
-          </div>
-        </div>`;
-      }
+        if (i === 0) {
+          // 第一個待辦：時間標籤 + 點 + 名稱同行
+          html += `<div style="display:flex;align-items:flex-start;gap:8px;${i>0?'margin-top:4px':''}">
+            <span style="font-size:11px;font-weight:700;${labelColor};min-width:98px;flex-shrink:0;padding-top:2px">${timeLabel}</span>
+            <span style="color:${dotColor};font-size:13px;flex-shrink:0;padding-top:1px">●</span>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:13px;font-weight:600;color:var(--tx);${nameStyle};display:flex;align-items:center;flex-wrap:wrap;gap:4px">${escHtml(t.name)}${badge}</div>
+              ${t.note ? `<div style="font-size:11px;color:var(--tx3);margin-top:1px">${escHtml(t.note)}</div>` : ''}
+            </div>
+            <span style="font-size:16px;color:var(--acc);opacity:.35;flex-shrink:0">+</span>
+          </div>`;
+        } else {
+          // 第二個以後：左邊留空對齊待辦文字（98px時間 + 8px gap + 13px點 + 8px gap = ~127px）
+          html += `<div style="display:flex;align-items:flex-start;gap:8px;margin-top:4px">
+            <span style="min-width:98px;flex-shrink:0"></span>
+            <span style="color:${dotColor};font-size:13px;flex-shrink:0;padding-top:1px">●</span>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:13px;font-weight:600;color:var(--tx);${nameStyle};display:flex;align-items:center;flex-wrap:wrap;gap:4px">${escHtml(t.name)}${badge}</div>
+              ${t.note ? `<div style="font-size:11px;color:var(--tx3);margin-top:1px">${escHtml(t.note)}</div>` : ''}
+            </div>
+          </div>`;
+        }
+      });
+      html += '</div>';
     }
-    html += '</div>';
   }
   html += '</div>';
   bodyEl.innerHTML = html;
