@@ -519,23 +519,27 @@ function initGoogleMaps() {
   display:flex;flex-direction:column;
   box-shadow:-4px 0 24px rgba(0,0,0,.3);
 ">
-  <!-- 使用者資訊 -->
-  <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 16px 14px;border-bottom:1px solid rgba(255,255,255,.12);flex-shrink:0">
+  <!-- 使用者資訊（可點擊進入個人頁面） -->
+  <div onclick="switchPage('profile');toggleDrawer()" style="display:flex;align-items:center;justify-content:space-between;padding:20px 16px 14px;border-bottom:1px solid rgba(255,255,255,.12);flex-shrink:0;cursor:pointer;transition:.15s" onmouseover="this.style.background='rgba(255,255,255,.08)'" onmouseout="this.style.background=''">
     <div style="display:flex;align-items:center;gap:10px">
       <img id="drawer-avatar" src="" alt="" style="width:38px;height:38px;border-radius:50%;border:2px solid rgba(255,255,255,.35);display:none;flex-shrink:0">
       <div style="min-width:0">
-        <div id="drawer-name" style="font-size:13px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px"></div>
-        <div id="drawer-email" style="font-size:10px;color:rgba(255,255,255,.55);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px"></div>
+        <div id="drawer-name" style="font-size:13px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px"></div>
+        <div id="drawer-email" style="font-size:10px;color:rgba(255,255,255,.55);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px"></div>
+        <div style="font-size:10px;color:rgba(255,255,255,.45);margin-top:2px">👤 個人頁面</div>
       </div>
     </div>
-    <button onclick="toggleDrawer()" style="width:30px;height:30px;background:rgba(255,255,255,.12);border:none;border-radius:50%;color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">✕</button>
+    <button onclick="event.stopPropagation();toggleDrawer()" style="width:30px;height:30px;background:rgba(255,255,255,.12);border:none;border-radius:50%;color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">✕</button>
   </div>
-  <!-- 頁面導覽 -->
-  <div style="padding:10px 10px 0;flex-shrink:0">
-    <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);letter-spacing:.1em;padding:6px 8px 4px">頁面</div>
+  <!-- 首頁 -->
+  <div style="padding:6px 10px 0;flex-shrink:0">
     <button class="drawer-nav active" id="dnav-stats" onclick="switchPage('stats');toggleDrawer()">
       <span>🏠</span> 首頁
     </button>
+  </div>
+  <!-- 屋主 -->
+  <div style="padding:4px 10px 0;flex-shrink:0">
+    <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);letter-spacing:.1em;padding:6px 8px 3px">屋主</div>
     <button class="drawer-nav" id="dnav-recruit" onclick="switchPage('recruit');toggleDrawer()">
       <span>📋</span> 募集線 <span class="dnbadge" id="db-recruit">0</span>
     </button>
@@ -545,30 +549,31 @@ function initGoogleMaps() {
     <button class="drawer-nav" id="dnav-commission" onclick="switchPage('commission');toggleDrawer()">
       <span>📝</span> 委託 <span class="dnbadge" id="db-commission">0</span>
     </button>
-    <button class="drawer-nav" id="dnav-trip" onclick="switchPage('trip');toggleDrawer()">
-      <span>📍</span> 行程規劃
-    </button>
     <button class="drawer-nav" id="dnav-closed" onclick="switchPage('closed');toggleDrawer()">
       <span>🏁</span> 已結案 <span class="dnbadge" id="db-closed">0</span>
-    </button>
-    <button class="drawer-nav" id="dnav-buyer" onclick="switchPage('buyer');toggleDrawer()">
-      <span>👤</span> 買方管理 <span class="dnbadge" id="db-buyer">0</span>
     </button>
     <button class="drawer-nav" id="dnav-inventory" onclick="switchPage('inventory');toggleDrawer()">
       <span>🏢</span> 公司庫存 <span class="dnbadge" id="db-inventory">0</span>
     </button>
-    <button class="drawer-nav" id="dnav-admin" onclick="switchPage('admin');toggleDrawer()" style="display:none;background:rgba(124,58,237,.25)!important">
-      <span id="dnav-admin-icon">🛡</span> <span id="dnav-admin-label">主管後台</span>
+  </div>
+  <!-- 買方 -->
+  <div style="padding:4px 10px 0;flex-shrink:0">
+    <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);letter-spacing:.1em;padding:6px 8px 3px">買方</div>
+    <button class="drawer-nav" id="dnav-buyer" onclick="switchPage('buyer');toggleDrawer()">
+      <span>👤</span> 買方管理 <span class="dnbadge" id="db-buyer">0</span>
     </button>
   </div>
   <!-- 工具 -->
-  <div style="padding:10px;flex:1;overflow-y:auto">
-    <div style="height:1px;background:rgba(255,255,255,.12);margin:6px 0 10px"></div>
-    <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);letter-spacing:.1em;padding:0 8px 4px">工具</div>
-    <button class="drawer-nav" onclick="exportExcel();toggleDrawer()"><span>⬇</span> 匯出備份</button>
-    <button class="drawer-nav" onclick="document.getElementById('xlsxInput').click();toggleDrawer()"><span>⬆</span> 匯入資料</button>
+  <div style="padding:4px 10px;flex:1;overflow-y:auto">
+    <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);letter-spacing:.1em;padding:6px 8px 3px">工具</div>
+    <button class="drawer-nav" id="dnav-trip" onclick="switchPage('trip');toggleDrawer()">
+      <span>📍</span> 行程規劃
+    </button>
+    <button class="drawer-nav" id="dnav-admin" onclick="switchPage('admin');toggleDrawer()" style="display:none;background:rgba(124,58,237,.25)!important">
+      <span id="dnav-admin-icon">🛡</span> <span id="dnav-admin-label">主管後台</span>
+    </button>
     <button class="drawer-nav" id="drawer-theme-btn" onclick="toggleTheme();updateDrawerThemeBtn()"><span>🌙</span> 切換主題</button>
-    <div style="height:1px;background:rgba(255,255,255,.12);margin:10px 0"></div>
+    <div style="height:1px;background:rgba(255,255,255,.12);margin:8px 0"></div>
     <button class="drawer-nav" onclick="handleSignOut()" style="color:#ff9999!important;background:rgba(192,24,42,.2)!important"><span>🚪</span> 登出</button>
   </div>
 </div>
@@ -772,6 +777,21 @@ function initGoogleMaps() {
     </div>
     <!-- 月曆格子 -->
     <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:0"></div>
+    <!-- 當日行程快速面板 -->
+    <div id="cal-today-panel" style="border-top:2px solid var(--acc);background:var(--surf2)">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px 8px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:16px">📋</span>
+          <span id="cal-today-panel-title" style="font-size:14px;font-weight:700;color:var(--acc)"></span>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button onclick="calTodayPanelPrev()" style="width:28px;height:28px;border:1px solid var(--bdr);border-radius:50%;background:var(--surf);color:var(--tx2);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s" title="前一天">‹</button>
+          <button onclick="calTodayPanelGoToday()" style="padding:4px 10px;border:1px solid var(--acc);border-radius:var(--r);background:var(--accl);color:var(--acc);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;transition:.15s">今天</button>
+          <button onclick="calTodayPanelNext()" style="width:28px;height:28px;border:1px solid var(--bdr);border-radius:50%;background:var(--surf);color:var(--tx2);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s" title="後一天">›</button>
+        </div>
+      </div>
+      <div id="cal-today-body" style="padding:0 0 8px"></div>
+    </div>
     <!-- 列印週報表按鈕 -->
     <div style="padding:12px 16px;border-top:1px solid var(--bdr);display:flex;justify-content:flex-end;gap:8px">
       <button onclick="openWeekReportModal('print')" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:var(--acc);color:#fff;border:none;border-radius:var(--r);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:.15s;box-shadow:0 2px 6px rgba(15,81,155,.25)" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">🖨️ 列印週報表</button>
@@ -836,6 +856,19 @@ function initGoogleMaps() {
         <button class="btn btn-g btn-sm" onclick="closeWeekReportModal()">取消</button>
         <button class="btn btn-p btn-sm" id="wr-action-btn" onclick="printWeekReport()">🖨️ 列印</button>
       </div>
+    </div>
+  </div>
+
+</div>
+<!-- PAGE: 個人頁面 -->
+<div class="page" id="page-profile">
+  <!-- 使用者資訊卡 -->
+  <div style="background:linear-gradient(135deg,var(--acc),#1a6bbf);border-radius:var(--rlg);padding:20px;margin-bottom:20px;display:flex;align-items:center;gap:14px;box-shadow:var(--shlg)">
+    <img id="profile-avatar" src="" alt="" style="width:56px;height:56px;border-radius:50%;border:3px solid rgba(255,255,255,.5);display:none;flex-shrink:0">
+    <div style="min-width:0">
+      <div id="profile-name" style="font-size:18px;font-weight:700;color:#fff"></div>
+      <div id="profile-email" style="font-size:12px;color:rgba(255,255,255,.7);margin-top:2px"></div>
+      <div id="profile-role-badge" style="margin-top:6px"></div>
     </div>
   </div>
 
@@ -906,7 +939,7 @@ function initGoogleMaps() {
     </div>
   </div>
 
-  <!-- 首頁分頁標籤 -->
+  <!-- 成效分頁標籤 -->
   <div class="stats-tabs">
     <button class="stats-tab active" id="stab-commission-btn" onclick="switchStatsTab('commission')">📝 委託成效</button>
     <button class="stats-tab" id="stab-profit-btn" onclick="switchStatsTab('profit')">💰 業績成效</button>
@@ -2005,7 +2038,7 @@ function toggleFilter(pool){
   btn.textContent=open?'⚙ 收起篩選':'⚙ 進階篩選';
 }
 
-const PAGE_TITLES={'recruit':'募集線','track':'追蹤線','commission':'委託管理','stats':'首頁','trip':'行程規劃','closed':'已結案','admin':'管理後台','buyer':'買方管理','inventory':'公司庫存'};
+const PAGE_TITLES={'recruit':'募集線','track':'追蹤線','commission':'委託管理','stats':'首頁','trip':'行程規劃','closed':'已結案','admin':'管理後台','buyer':'買方管理','inventory':'公司庫存','profile':'個人頁面'};
 function switchPage(p){
   currentPage=p;
   document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));
@@ -2016,7 +2049,8 @@ function switchPage(p){
   if(dn) dn.classList.add('active');
   const tb=document.getElementById('topbar-title');
   if(tb)tb.textContent=PAGE_TITLES[p]||'';
-  if(p==='stats'){initStatsYears();renderDailyQuote();renderStats();checkBuyerBirthdays();}
+  if(p==='stats'){initStatsYears();renderDailyQuote();renderStats();checkBuyerBirthdays();calTodayPanelInit();}
+  else if(p==='profile'){initStatsYears();renderStats();loadGoals();loadMonthGoal();renderProfileInfo();}
   else if(p==='closed'){renderClosed();}
   else if(p==='trip'){tripInitHCitySelect();renderTripList();renderTripSelected();updateMapsBtn();_syncTripLocationBar();}
   else if(p==='admin'){loadAdminData();}
@@ -6748,6 +6782,7 @@ function calInit() {
     ySel.appendChild(o);
   }
   calRender();
+  calTodayPanelInit();
 }
 
 function calRender() {
@@ -6804,6 +6839,120 @@ function calRender() {
   }
 
   grid.innerHTML = html;
+}
+
+// ─── 當日行程快速面板 ────────────────────────────────────────────
+let _todayPanelDate = '';
+
+function _todayPanelDateKey(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function calTodayPanelInit() {
+  if (!_todayPanelDate) {
+    _todayPanelDate = _todayPanelDateKey(new Date());
+  }
+  renderTodayPanel();
+}
+
+function calTodayPanelGoToday() {
+  _todayPanelDate = _todayPanelDateKey(new Date());
+  renderTodayPanel();
+}
+
+function calTodayPanelPrev() {
+  const d = new Date(_todayPanelDate + 'T00:00:00');
+  d.setDate(d.getDate() - 1);
+  _todayPanelDate = _todayPanelDateKey(d);
+  renderTodayPanel();
+}
+
+function calTodayPanelNext() {
+  const d = new Date(_todayPanelDate + 'T00:00:00');
+  d.setDate(d.getDate() + 1);
+  _todayPanelDate = _todayPanelDateKey(d);
+  renderTodayPanel();
+}
+
+function renderTodayPanel() {
+  const titleEl = document.getElementById('cal-today-panel-title');
+  const bodyEl = document.getElementById('cal-today-body');
+  if (!titleEl || !bodyEl) return;
+
+  const [y, m, d] = _todayPanelDate.split('-');
+  const dow = new Date(parseInt(y), parseInt(m)-1, parseInt(d)).getDay();
+  const dowNames = ['日','一','二','三','四','五','六'];
+  const todayKey = _todayPanelDateKey(new Date());
+  const isToday = _todayPanelDate === todayKey;
+  titleEl.textContent = `${parseInt(y)}年${parseInt(m)}月${parseInt(d)}日（${dowNames[dow]}）${isToday ? ' — 今天' : ''}`;
+  titleEl.style.color = isToday ? 'var(--acc)' : 'var(--tx2)';
+
+  const dayData = calData[_todayPanelDate] || { slots: {} };
+  let html = '<div style="padding:0 0 4px">';
+  for (const slot of CAL_SLOTS) {
+    const todos = (dayData.slots && dayData.slots[slot.key]) || [];
+    const bg = slot.special ? 'background:var(--bg2)' : 'background:var(--surf)';
+    const labelColor = slot.special ? 'color:var(--tx3)' : 'color:var(--acc)';
+    html += `<div onclick="_panelOpenTodo('${slot.key}')" style="border-bottom:1px solid var(--bdr);padding:9px 16px;cursor:pointer;transition:.15s;${bg}" onmouseover="this.style.filter='brightness(.97)'" onmouseout="this.style.filter=''">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:${todos.length?'8px':'0'}">
+        <span style="font-size:11px;font-weight:700;${labelColor};min-width:90px">${slot.label}</span>
+        ${slot.special ? `<span style="font-size:11px;color:var(--tx3)">${slot.specialLabel}</span>` : ''}
+        ${!slot.special && todos.length===0 ? '<span style="font-size:11px;color:var(--tx3)">點擊規劃待辦</span>' : ''}
+        <span style="margin-left:auto;font-size:18px;color:var(--acc);opacity:.4">+</span>
+      </div>`;
+    if (todos.length > 0) {
+      for (const t of todos) {
+        const isDone = t.done === true;
+        const isUndone = t.done === false;
+        const dotColor = isDone ? 'var(--grn)' : isUndone ? 'var(--red)' : 'var(--acc)';
+        const nameStyle = isDone ? 'text-decoration:line-through;color:var(--tx3)' : '';
+        const badge = isDone
+          ? `<span style="font-size:10px;background:var(--grnl);color:var(--grn);border-radius:20px;padding:1px 7px;font-weight:600;margin-left:6px">✓ 已完成</span>`
+          : isUndone
+            ? `<span style="font-size:10px;background:var(--redl);color:var(--red);border-radius:20px;padding:1px 7px;font-weight:600;margin-left:6px">✗ 未完成</span>`
+            : '';
+        html += `<div style="display:flex;align-items:flex-start;gap:6px;padding:4px 0">
+          <span style="color:${dotColor};margin-top:1px;font-size:13px">●</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600;color:var(--tx);${nameStyle};display:flex;align-items:center;flex-wrap:wrap;gap:4px">${escHtml(t.name)}${badge}</div>
+            ${t.note ? `<div style="font-size:11px;color:var(--tx3);margin-top:1px">${escHtml(t.note)}</div>` : ''}
+            ${isUndone && t.undoneReason ? `<div style="font-size:11px;color:var(--red);margin-top:2px;padding:3px 7px;background:var(--redl);border-radius:4px">原因：${escHtml(t.undoneReason)}</div>` : ''}
+          </div>
+        </div>`;
+      }
+    }
+    html += '</div>';
+  }
+  html += '</div>';
+  bodyEl.innerHTML = html;
+}
+
+function _panelOpenTodo(slotKey) {
+  _scheduleDate = _todayPanelDate;
+  openTodoModal(slotKey);
+}
+
+// ─── 個人頁面資訊渲染 ──────────────────────────────────────────────
+function renderProfileInfo() {
+  const u = window._currentUser;
+  if (!u) return;
+  const nameEl = document.getElementById('profile-name');
+  const emailEl = document.getElementById('profile-email');
+  const avatarEl = document.getElementById('profile-avatar');
+  const roleEl = document.getElementById('profile-role-badge');
+  if (nameEl) nameEl.textContent = u.displayName || u.email || '（未知）';
+  if (emailEl) emailEl.textContent = u.email || '';
+  if (avatarEl && u.photoURL) {
+    avatarEl.src = u.photoURL;
+    avatarEl.style.display = 'block';
+  }
+  if (roleEl) {
+    const role = window._myRole || window._userRole || 'staff';
+    const roleMap = { sysadmin:'🛡 系統管理員', owner:'👑 擁有者', supervisor:'👔 主管', staff:'👤 業務人員' };
+    const roleColor = role==='sysadmin'?'var(--red)':role==='owner'?'var(--gld)':role==='supervisor'?'var(--blu)':'var(--grn)';
+    const roleBg = role==='sysadmin'?'var(--redl)':role==='owner'?'var(--gldl)':role==='supervisor'?'var(--blul)':'var(--grnl)';
+    roleEl.innerHTML = `<span style="font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;background:${roleBg};color:${roleColor}">${roleMap[role]||role}</span>`;
+  }
 }
 
 function calPrevMonth() {
@@ -6989,6 +7138,8 @@ function saveTodoModal() {
   calSave();
   closeTodoModal();
   renderScheduleBody(); // 更新日程表
+  // 若當日面板顯示同一天，同步更新
+  if (_todayPanelDate === _scheduleDate) renderTodayPanel();
 }
 
 function closeTodoModal() {
