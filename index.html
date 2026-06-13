@@ -7417,7 +7417,7 @@ function printWeekReport() {
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 @page{size:A4 portrait;margin:0mm}
-@media print{html,body{width:210mm;height:297mm;overflow:hidden}#page{width:210mm!important;height:297mm!important;transform:none!important;padding:6mm 6mm!important}}
+@media print{html,body{width:210mm!important;height:297mm!important;overflow:visible!important;margin:0!important}#page{width:210mm!important;height:297mm!important;transform:none!important;padding:6mm 6mm!important;overflow:hidden!important}}
 html,body{margin:0;padding:0;background:#fff;font-family:'Noto Sans TC',system-ui,sans-serif;color:#1a2332;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 #page{width:794px;height:1123px;padding:10px 10px;display:flex;flex-direction:column;overflow:hidden;transform-origin:top left}
 .hdr{flex-shrink:0;padding-bottom:4px}
@@ -7455,7 +7455,10 @@ td{border:1px solid #ccc;padding:2px 3px;vertical-align:middle;text-align:center
   window.addEventListener('resize',fit);
   window.addEventListener('beforeprint',function(){
     var el=document.getElementById('page');
-    if(el)el.style.transform='none';
+    if(el){el.style.transform='none';}
+    document.body.style.width='210mm';
+    document.body.style.height='297mm';
+    document.body.style.overflow='visible';
   });
   window.addEventListener('afterprint',function(){fit();});
 })();
