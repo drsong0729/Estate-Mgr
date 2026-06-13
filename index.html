@@ -4165,32 +4165,48 @@ function useMyLocation() {
     bar.innerHTML = '⏳ 正在取得您的所在位置…';
   }
   if (btn) btn.textContent = '📍 取得中…';
+  // 先試快速低精度定位，成功後再嘗試升精度
+  let gotPosition = false;
+
+  function _onGeoSuccess(pos) {
+    if (gotPosition) return;
+    gotPosition = true;
+    myLocationCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+    myLocationActive = true;
+    if (bar) {
+      bar.style.background = '#e6f4ea';
+      bar.style.border = '1px solid #34a853';
+      bar.innerHTML = `✅ 已取得目前位置（精確度 ±${Math.round(pos.coords.accuracy)}m）&nbsp;<button onclick="useMyLocation()" style="background:none;border:none;cursor:pointer;font-size:12px;color:#c0392b;font-family:inherit;padding:0">✕ 取消</button>`;
+    }
+    if (btn) { btn.textContent = '📍 目前位置（啟用中）'; btn.style.background = '#34a853'; btn.style.color = '#fff'; btn.style.borderColor = '#2d9348'; }
+    if (tripSelected.size > 0) queueGeoForAll();
+    renderTripList();
+    renderTripSelected();
+    updateMapsBtn();
+  }
+
+  function _onGeoError(err) {
+    if (gotPosition) return;
+    const codeMap = { 1: '使用者拒絕授權', 2: '無法取得位置訊號', 3: '定位逾時' };
+    const msg = codeMap[err.code] || err.message || '未知錯誤';
+    if (bar) {
+      bar.style.background = '#fdecea';
+      bar.style.border = '1px solid #e53935';
+      bar.innerHTML = `⚠️ 無法取得位置（${msg}）`;
+      setTimeout(() => { bar.style.display = 'none'; }, 5000);
+    }
+    if (btn) btn.textContent = '📍 使用目前位置作為起點';
+  }
+
+  // 第一次：快速、低精度（通常 1-2 秒）
   navigator.geolocation.getCurrentPosition(
-    (pos) => {
-      myLocationCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      myLocationActive = true;
-      if (bar) {
-        bar.style.background = '#e6f4ea';
-        bar.style.border = '1px solid #34a853';
-        bar.innerHTML = `✅ 已取得目前位置（精確度 ±${Math.round(pos.coords.accuracy)}m）&nbsp;<button onclick="useMyLocation()" style="background:none;border:none;cursor:pointer;font-size:12px;color:#c0392b;font-family:inherit;padding:0">✕ 取消</button>`;
-      }
-      if (btn) { btn.textContent = '📍 目前位置（啟用中）'; btn.style.background = '#34a853'; btn.style.color = '#fff'; btn.style.borderColor = '#2d9348'; }
-      // 重新計算所有已選物件距離
-      if (tripSelected.size > 0) queueGeoForAll();
-      renderTripList();
-      renderTripSelected();
-      updateMapsBtn();
-    },
-    (err) => {
-      if (bar) {
-        bar.style.background = '#fdecea';
-        bar.style.border = '1px solid #e53935';
-        bar.innerHTML = `⚠️ 無法取得位置：${err.message}`;
-        setTimeout(() => { bar.style.display = 'none'; }, 4000);
-      }
-      if (btn) btn.textContent = '📍 使用目前位置作為起點';
-    },
-    { enableHighAccuracy: false, timeout: 5000, maximumAge: 30000 }
+    _onGeoSuccess, _onGeoError,
+    { enableHighAccuracy: false, timeout: 6000, maximumAge: 60000 }
+  );
+  // 同時啟動高精度，若先回來且尚未取得則補上
+  navigator.geolocation.getCurrentPosition(
+    _onGeoSuccess, () => {},
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
   );
 }
 function _syncTripLocationBar() {
