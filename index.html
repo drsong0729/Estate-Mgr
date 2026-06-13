@@ -1167,7 +1167,7 @@ function initGoogleMaps() {
       <button class="btn btn-g btn-sm" onclick="tripClearAll()">清除選取</button>
       <button class="btn btn-sm" id="btn-use-location" onclick="useMyLocation()"
         style="background:var(--surf2);border:1px solid var(--bdr);color:var(--tx);font-family:inherit;cursor:pointer;border-radius:var(--r);padding:5px 12px;font-size:13px">
-        📍 使用目前位置
+        📍 使用目前位置作為起點
       </button>
       <button class="btn btn-p btn-sm" id="btn-open-maps" onclick="openGoogleMaps()" disabled>🗺 開啟導航</button>
     </div>
@@ -4151,7 +4151,7 @@ function useMyLocation() {
     myLocationActive = false;
     myLocationCoords = null;
     if (bar) { bar.style.display = 'none'; }
-    if (btn) { btn.style.background = ''; btn.style.borderColor = ''; btn.style.color = ''; btn.textContent = '📍 使用目前位置'; }
+    if (btn) { btn.style.background = ''; btn.style.borderColor = ''; btn.style.color = ''; btn.textContent = '📍 使用目前位置作為起點'; }
     renderTripList();
     renderTripSelected();
     return;
@@ -4188,9 +4188,9 @@ function useMyLocation() {
         bar.innerHTML = `⚠️ 無法取得位置：${err.message}`;
         setTimeout(() => { bar.style.display = 'none'; }, 4000);
       }
-      if (btn) btn.textContent = '📍 使用目前位置';
+      if (btn) btn.textContent = '📍 使用目前位置作為起點';
     },
-    { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    { enableHighAccuracy: false, timeout: 5000, maximumAge: 30000 }
   );
 }
 function _syncTripLocationBar() {
@@ -4208,7 +4208,7 @@ function _syncTripLocationBar() {
     btn.style.borderColor = '#2d9348';
   } else {
     bar.style.display = 'none';
-    btn.textContent = '📍 使用目前位置';
+    btn.textContent = '📍 使用目前位置作為起點';
     btn.style.background = '';
     btn.style.color = '';
     btn.style.borderColor = '';
