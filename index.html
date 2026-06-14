@@ -115,6 +115,8 @@
     from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
   import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs }
     from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+  import { initializeAppCheck, ReCaptchaV3Provider }
+    from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check.js';
 
   const firebaseConfig = {
     apiKey: "AIzaSyCe5b4l0Eru24YeD09wrEFktKEqZKeI7Vw",
@@ -126,6 +128,18 @@
   };
 
   const app = initializeApp(firebaseConfig);
+
+  // ── App Check（reCAPTCHA v3）── 必須在 getAuth / getFirestore 之前 ──
+  // 本機測試：localhost 自動啟用 debug token（不影響正式網域 github.io）
+  if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+    self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+  }
+  const appCheck = initializeAppCheck(app, {
+    provider: new ReCaptchaV3Provider('6LfwYR4tAAAAANSOnxEuKaXeO8HAnSWfuh3hh6Tx'),
+    isTokenAutoRefreshEnabled: true
+  });
+  window._firebaseAppCheck = appCheck;
+
   const auth = getAuth(app);
   const db_fs = getFirestore(app);
   const provider = new GoogleAuthProvider();
