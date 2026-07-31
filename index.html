@@ -3359,7 +3359,7 @@ function _buildDetailPanelHtml(pool,id){
       <div class="dp-grid">
         ${r.caseName?`<div class="dp-field"><div class="k">案名</div><div class="v" style="font-weight:700;color:var(--acc)">${escH(r.caseName)}</div></div>`:''}
         ${r.bldg?`<div class="dp-field"><div class="k">建案名稱</div><div class="v">${escH(r.bldg)}</div></div>`:''}
-        <div class="dp-field" style="grid-column:1/-1"><div class="k">屋主</div><div class="v">${(r.owners&&r.owners.length?r.owners:[{name:r.ownerName,gender:r.ownerGender,city:r.ownerCity,dist:r.ownerDist,addr:r.ownerAddr}]).map((o,i)=>`<div style="padding:3px 0;${i>0?'border-top:1px solid var(--bdr);margin-top:3px':''}"><strong>${escH(o.name)}${escH(o.gender)}</strong>${o.city||o.dist||o.addr?' <span style=\'color:var(--tx3);font-size:11px\'>'+(o.city||'')+(o.dist||'')+(o.addr||'')+'</span>':''}</div>`).join('')}</div></div>
+        <div class="dp-field" style="grid-column:1/-1"><div class="k">屋主</div><div class="v">${(r.owners&&r.owners.length?r.owners:[{name:r.ownerName,gender:r.ownerGender,city:r.ownerCity,dist:r.ownerDist,addr:r.ownerAddr}]).map((o,i)=>`<div style="padding:3px 0;${i>0?'border-top:1px solid var(--bdr);margin-top:3px':''}"><strong>${escH(o.name)}${escH(o.gender)}</strong>${o.city||o.dist||o.addr?' <span style=\'color:var(--tx3);font-size:11px\'>'+escH((o.city||'')+(o.dist||'')+(o.addr||''))+'</span>':''}${ownerContactsHtml(o)}</div>`).join('')}</div></div>
         <div class="dp-field"><div class="k">物件地址</div><div class="v">${escH(fullAddr(r.propCity,r.propDist,r.propAddr))}</div></div>
 
         ${r.propType?`<div class="dp-field"><div class="k">物件類型</div><div class="v" style="font-weight:700;color:var(--acc)">${escH(r.propType)}</div></div>`:''}
@@ -3424,6 +3424,15 @@ function ownersLabel(r,full){
   }
   const shown=owners.slice(0,3).map(o=>escH(o.name)+escH(o.gender)).join('、');
   return shown+'與其他'+(owners.length-3)+'位';
+}
+function ownerContactsHtml(o){
+  if(!o)return'';
+  const parts=[];
+  if(o.phone) parts.push(`<span>📞 ${escH(o.phone)}</span>`);
+  if(o.line) parts.push(`<span>💬 LINE：${escH(o.line)}</span>`);
+  if(o.email) parts.push(`<span>✉️ ${escH(o.email)}</span>`);
+  if(!parts.length) return'';
+  return `<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:3px;color:var(--acc);font-size:11px">${parts.join('')}</div>`;
 }
 function ownersHousehold(r){
   const list=r.owners&&r.owners.length?r.owners:[{name:r.ownerName,gender:r.ownerGender,city:r.ownerCity||'',dist:r.ownerDist||'',addr:r.ownerAddr||''}];
