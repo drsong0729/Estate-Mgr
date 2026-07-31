@@ -978,12 +978,16 @@ function gm_authFailure() {
         <button class="mc" onclick="closeImportTrackModal()">✕</button>
       </div>
       <div class="mb">
+        <div class="subtabs" id="importtrack-tabs">
+          <button type="button" class="stab active" data-pool="recruit" onclick="switchImportTrackTab('recruit')">📋 募集線</button>
+          <button type="button" class="stab" data-pool="track" onclick="switchImportTrackTab('track')">🔍 追蹤線</button>
+        </div>
         <input class="fc" id="importtrack-search" oninput="filterImportTrackList()" placeholder="🔍 搜尋屋主姓氏或物件地址" style="margin-bottom:10px">
         <div id="importtrack-list" style="max-height:420px;overflow-y:auto;display:flex;flex-direction:column;gap:8px"></div>
       </div>
       <div class="mf">
         <button class="btn btn-g btn-sm" onclick="closeImportTrackModal()">取消</button>
-        <button class="btn btn-p btn-sm" onclick="confirmImportTrack()">📥 帶入</button>
+        <button class="btn btn-p btn-sm" onclick="confirmImportTrack()">📥 代入</button>
       </div>
     </div>
   </div>
@@ -8482,14 +8486,17 @@ function closeTodoModal() {
 // ─── 代入募集／追蹤線 ──────────────────────────────────────────────
 let _importTrackItems = [];
 let _importTrackChecked = new Set();
+let _importTrackTab = 'recruit';
 
 function openImportTrackModal() {
   _importTrackChecked = new Set();
+  _importTrackTab = 'recruit';
   _importTrackItems = db.recruit.map(r => ({ ...r, _pool: 'recruit' }))
     .concat(db.track.map(r => ({ ...r, _pool: 'track' })));
   const search = document.getElementById('importtrack-search');
   if (search) search.value = '';
-  renderImportTrackList(_importTrackItems);
+  document.querySelectorAll('#importtrack-tabs .stab').forEach(b => b.classList.toggle('active', b.dataset.pool === 'recruit'));
+  filterImportTrackList();
   document.getElementById('importtrack-overlay').classList.add('show');
 }
 
@@ -8497,15 +8504,23 @@ function closeImportTrackModal() {
   document.getElementById('importtrack-overlay').classList.remove('show');
 }
 
+function switchImportTrackTab(pool) {
+  _importTrackTab = pool;
+  document.querySelectorAll('#importtrack-tabs .stab').forEach(b => b.classList.toggle('active', b.dataset.pool === pool));
+  filterImportTrackList();
+}
+
 function filterImportTrackList() {
   const kw = (document.getElementById('importtrack-search').value || '').trim().toLowerCase();
-  if (!kw) { renderImportTrackList(_importTrackItems); return; }
-  const filtered = _importTrackItems.filter(r => {
-    const addr = fullAddr(r.propCity, r.propDist, r.propAddr).toLowerCase();
-    const owners = ownersLabel(r, true).toLowerCase();
-    return addr.includes(kw) || owners.includes(kw);
-  });
-  renderImportTrackList(filtered);
+  let items = _importTrackItems.filter(r => r._pool === _importTrackTab);
+  if (kw) {
+    items = items.filter(r => {
+      const addr = fullAddr(r.propCity, r.propDist, r.propAddr).toLowerCase();
+      const owners = ownersLabel(r, true).toLowerCase();
+      return addr.includes(kw) || owners.includes(kw);
+    });
+  }
+  renderImportTrackList(items);
 }
 
 function renderImportTrackList(items) {
@@ -8525,7 +8540,8 @@ function renderImportTrackList(items) {
           <span class="trip-owner">${escH(ownersLabel(r, true))}</span>
           <span class="trip-pool-badge ${r._pool === 'recruit' ? 'trip-pool-r' : 'trip-pool-t'}">${r._pool === 'recruit' ? '募集線' : '追蹤線'}</span>
         </div>
-        <div class="trip-addr">🏠 ${escH(addr)}</div>
+        <div class="trip-addr">🏠 物件：${escH(addr)}</div>
+        <div class="trip-household">📋 戶籍　${ownersHousehold(r)}</div>
       </div>
     </label>`;
   }).join('');
