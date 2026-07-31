@@ -7469,24 +7469,27 @@ function goPropDetail(pool, id){
   const pageMap = {recruit:'recruit', track:'track', commission:'commission'};
   const targetPage = pageMap[pool] || pool;
 
-  // ⚠️ 修正：清除該池目前的搜尋篩選條件——若使用者原本在募集/追蹤線頁面設了篩選，
-  // 目標物件可能被篩選掉，導致切換頁面渲染出來的列表裡根本沒有這筆資料，
-  // 之後 toggleDetail 找不到對應節點就會整個沒反應。
+  // 先確保該筆目前是收合狀態，切換頁面
+  openDetailId[pool] = null;
+  switchPage(targetPage);
+  // ⚠️ 真正的根因：switchPage() 內部呼叫的 renderAll() 一定會把 currentPageMap
+  // 全部重置回第 1 頁（見 renderAll() 開頭的 currentPageMap.recruit=1 等），
+  // 所以任何在 switchPage() 之前設定的分頁／篩選都會被蓋掉。必須在 switchPage()
+  // 執行「之後」才清篩選、算分頁，並且重新呼叫 renderRecruit()/renderTrack()
+  // 讓正確的那一頁真正被畫出來，cdw-{id} 節點才會存在於 DOM 中。
   if(pool==='recruit' || pool==='track'){
     ['name','propaddr','haddr','proptype','datefrom','dateto','min','max'].forEach(k=>{
       const el = document.getElementById(`sq-${pool}-${k}`);
       if(el) el.value = '';
     });
-    // ⚠️ 修正：計算該筆物件在（篩選清空後）排序清單中的分頁位置並切過去，
-    // 否則若原本停留在第 2 頁以後、目標物件卻在第 1 頁，一樣會找不到節點。
     const sorted = sortItems(pool, filterItems(pool));
     const idx = sorted.findIndex(r=>r.id===id);
-    if(idx !== -1) currentPageMap[pool] = Math.floor(idx / PAGE_SIZE) + 1;
+    if(idx !== -1){
+      currentPageMap[pool] = Math.floor(idx / PAGE_SIZE) + 1;
+      if(pool==='recruit') renderRecruit(); else renderTrack();
+    }
   }
 
-  // 先確保該筆目前是收合狀態，切換頁面渲染出列表（此時該筆卡片尚未展開）
-  openDetailId[pool] = null;
-  switchPage(targetPage);
   // 等列表渲染完成後，透過 toggleDetail 觸發滑出動畫並自動捲動至該筆明細
   setTimeout(()=>{
     const target = document.getElementById('cdw-'+id);
