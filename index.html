@@ -7023,18 +7023,10 @@ window.onFirebaseLogin = async function(user){
     window._myCustomName = idxData.customName || null;
     window._myGoogleName  = user.displayName || user.email?.split('@')[0] || '未知';
 
-    // 寫回索引（不帶 customName，merge:true 自動保留 Firestore 上已有的值）
-    const now2 = new Date().toISOString();
-    const payload = {
-      uid: user.uid, name: user.displayName||'', email: user.email||'',
-      photoURL: user.photoURL||'', recruitCnt: db.recruit.length,
-      trackCnt: db.track.length, commCnt: db.commission.length,
-      closedCnt: (db.closed||[]).length, updatedAt: now2,
-      lastLoginAt: now2,
-      firstLoginAt: idxData.firstLoginAt || now2,
-      role: fixedRole || window._myRole
-    };
-    window._firebaseSetDoc(window._firebaseIndexRef(user.uid), payload, {merge:true}).catch(()=>{});
+    // 寫回索引：改呼叫 _syncUserIndex()，除了基本欄位外也會一併重新計算並寫入
+    // 每日戰報一鍵套用所需的「實際達成」統計與「目標」數值，確保每次登入都會自動刷新，
+    // 不必等使用者手動重新編輯／儲存個人頁面或委託資料才會更新。
+    _syncUserIndex(user);
   }catch(e){
     // 讀取失敗時至少顯示 Google 名稱
     if(dName) dName.textContent = user.displayName || '使用者';
