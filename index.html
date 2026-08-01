@@ -183,6 +183,10 @@
   window._firebaseDutyRosterNewRef = () => doc(collection(db_fs, 'duty_roster'));
   // 每月出勤排休表：每月一份文件（doc id = 'YYYY-MM'），內含當月所有人每一天的狀態
   window._firebaseDutyScheduleRef = (ym) => doc(db_fs, 'duty_schedules', ym);
+  // 首頁公布欄：公告
+  window._firebaseAnnounceRef    = (id) => doc(db_fs, 'announcements', id);
+  window._firebaseAnnounceColl   = () => collection(db_fs, 'announcements');
+  window._firebaseAnnounceNewRef = () => doc(collection(db_fs, 'announcements'));
 
   // 每次開啟網站：先登出 → 設 session persistence → 再監聽
   signOut(auth)
@@ -911,6 +915,15 @@ function gm_authFailure() {
       <div id="quote-text" style="font-size:14px;font-weight:700;color:#fff;line-height:1.5"></div>
       <div id="quote-sub" style="font-size:11px;color:rgba(255,255,255,.65);margin-top:2px"></div>
     </div>
+  </div>
+  <!-- ═══════════════════════ 公布欄 ═══════════════════════ -->
+  <div id="announce-section" style="background:var(--surf);border:1px solid var(--bdr);border-radius:var(--rlg);box-shadow:var(--sh);margin-bottom:18px;overflow:hidden">
+    <div style="padding:14px 18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;border-bottom:1px solid var(--bdr)">
+      <div style="font-size:15px;font-weight:700;color:var(--tx);display:flex;align-items:center;gap:8px"><span>📢</span><span>公布欄</span></div>
+      <button class="btn btn-p btn-sm" id="announce-post-btn" style="display:none" onclick="openAnnounceEditModal(null)">📝 發布公告</button>
+    </div>
+    <div id="announce-list"><div style="padding:24px;text-align:center;color:var(--tx3);font-size:13px">⏳ 載入中…</div></div>
+    <div id="announce-pagination" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:0"></div>
   </div>
   <!-- 買方生日提醒（首頁） -->
   <div id="stats-bday-bar" style="display:none;background:var(--grnl);border:1px solid var(--grn);border-radius:var(--r);padding:10px 16px;margin-bottom:16px;display:none;align-items:center;gap:10px;flex-wrap:wrap">
@@ -2236,6 +2249,76 @@ function gm_authFailure() {
   </div>
 </div></div>
 
+<!-- 公布欄：發布／編輯公告 -->
+<style>
+.an-tb-btn{width:30px;height:30px;border:1px solid var(--bdr);background:var(--surf);border-radius:6px;cursor:pointer;font-size:13px;color:var(--tx2);display:flex;align-items:center;justify-content:center;font-family:inherit;flex-shrink:0}
+.an-tb-btn:hover{background:var(--accl);border-color:var(--acc);color:var(--acc)}
+.an-tb-sel{height:30px;padding:0 4px;border:1px solid var(--bdr);border-radius:6px;background:var(--surf);font-size:12px;color:var(--tx2);font-family:inherit;flex-shrink:0}
+.an-tb-color{width:30px;height:30px;border:1px solid var(--bdr);border-radius:6px;padding:2px;cursor:pointer;flex-shrink:0;background:var(--surf)}
+#an-editor{min-height:200px;max-height:400px;overflow-y:auto;border:1px solid var(--bdr);border-top:none;border-radius:0 0 var(--r) var(--r);padding:10px 12px;font-size:13px;color:var(--tx);background:var(--surf);line-height:1.6}
+#an-editor:focus{outline:none;box-shadow:0 0 0 3px rgba(15,81,155,.15)}
+#an-editor table{border-collapse:collapse}
+#an-editor td{border:1px solid #ccc;padding:6px 8px}
+.announce-item:last-child{border-bottom:none!important}
+</style>
+<div class="ov" id="ov-announce">
+<div class="modal" style="max-width:720px">
+  <div class="mh"><div class="mt" id="announce-modal-title">📝 發布公告</div><button class="mc" onclick="closeOv('announce')">✕</button></div>
+  <div class="mb">
+    <div class="fgp">
+      <label class="lbl">公告標題</label>
+      <input class="fc" id="an-title" placeholder="請輸入公告標題">
+    </div>
+    <div class="fgp">
+      <label class="lbl">公告分類</label>
+      <select class="fc" id="an-category">
+        <option value="系統公告">系統公告</option>
+        <option value="公司命令">公司命令</option>
+        <option value="行政宣導">行政宣導</option>
+        <option value="活動訊息">活動訊息</option>
+      </select>
+    </div>
+    <div class="fgp">
+      <label class="lbl">公告內文</label>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;padding:6px;background:var(--surf2);border:1px solid var(--bdr);border-radius:var(--r) var(--r) 0 0">
+        <select class="an-tb-sel" id="an-fontsize" title="字體大小" onchange="anExec('fontSize', this.value)">
+          <option value="2">小</option><option value="3" selected>正常</option><option value="4">中</option><option value="5">大</option><option value="6">特大</option>
+        </select>
+        <button type="button" class="an-tb-btn" title="粗體" onclick="anExec('bold')"><b>B</b></button>
+        <button type="button" class="an-tb-btn" title="斜體" onclick="anExec('italic')"><i>I</i></button>
+        <button type="button" class="an-tb-btn" title="底線" onclick="anExec('underline')"><u>U</u></button>
+        <button type="button" class="an-tb-btn" title="刪除線" onclick="anExec('strikeThrough')"><s>S</s></button>
+        <input type="color" class="an-tb-color" id="an-color" title="文字顏色" value="#1a2332" onchange="anExec('foreColor', this.value)">
+        <button type="button" class="an-tb-btn" title="插入表格" onclick="anInsertTable()">⊞</button>
+        <button type="button" class="an-tb-btn" title="插入超連結" onclick="anInsertLink()">🔗</button>
+        <button type="button" class="an-tb-btn" title="新增投票" onclick="anInsertPoll()">📊</button>
+      </div>
+      <div id="an-editor" contenteditable="true"></div>
+    </div>
+
+    <div id="an-poll-builder" style="display:none;margin-top:10px;padding:12px;background:var(--surf2);border:1px solid var(--bdr);border-radius:var(--r)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-size:12px;font-weight:700;color:var(--tx2)">📊 投票設定</div>
+        <button type="button" class="btn btn-sm btn-g" onclick="anRemovePoll()">移除投票</button>
+      </div>
+      <div class="fgp">
+        <label class="lbl">投票問題（選填，留空則直接顯示選項）</label>
+        <input class="fc" id="an-poll-question" placeholder="例如：本週五聚餐要選哪家餐廳？">
+      </div>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;margin-bottom:8px;cursor:pointer"><input type="checkbox" id="an-poll-multiple"> 允許複選</label>
+      <div id="an-poll-options"></div>
+      <button type="button" class="btn btn-sm btn-g" onclick="anAddPollOption('')">＋ 新增選項</button>
+    </div>
+  </div>
+  <div class="mf" style="justify-content:space-between">
+    <button class="btn btn-del" id="an-delete-btn" style="display:none" onclick="deleteAnnouncement()">🗑 刪除公告</button>
+    <div style="display:flex;gap:8px;margin-left:auto">
+      <button class="btn btn-g" onclick="closeOv('announce')">取消</button>
+      <button class="btn btn-p" onclick="saveAnnouncement()">發布</button>
+    </div>
+  </div>
+</div></div>
+
 <!-- PAGE: 主管後台（僅主管可見） -->
 <div class="page" id="page-admin">
 
@@ -2905,6 +2988,10 @@ window._myRole = ROLES.STAFF;
 function canEditWarReport(){
   return window._myRole === ROLES.ADVISOR || window._myRole === ROLES.SYSADMIN;
 }
+// 首頁公布欄可發布/編輯公告者：系統管理員、老闆、主管、幕僚
+function canPostAnnouncement(){
+  return SUPERVISOR_ROLES.includes(window._myRole) || window._myRole === ROLES.ADVISOR;
+}
 
 const CITIES={"基隆市":["仁愛區","信義區","中正區","中山區","安樂區","暖暖區","七堵區"],"臺北市":["松山區","信義區","大安區","中山區","中正區","大同區","萬華區","文山區","南港區","內湖區","士林區","北投區"],"新北市":["板橋區","三重區","中和區","永和區","新莊區","新店區","樹林區","鶯歌區","三峽區","淡水區","汐止區","瑞芳區","土城區","蘆洲區","五股區","泰山區","林口區","深坑區","石碇區","坪林區","三芝區","石門區","八里區","平溪區","雙溪區","貢寮區","金山區","萬里區","烏來區"],"桃園市":["桃園區","中壢區","大溪區","楊梅區","蘆竹區","大園區","龜山區","八德區","龍潭區","平鎮區","新屋區","觀音區","復興區"],"新竹市":["東區","北區","香山區"],"新竹縣":["竹北市","湖口鄉","新豐鄉","新埔鎮","關西鎮","芎林鄉","寶山鄉","竹東鎮","五峰鄉","橫山鄉","尖石鄉","北埔鄉","峨眉鄉"],"苗栗縣":["竹南鎮","頭份市","三灣鄉","南庄鄉","獅潭鄉","後龍鎮","通霄鎮","苑裡鎮","苗栗市","造橋鄉","頭屋鄉","公館鄉","大湖鄉","泰安鄉","銅鑼鄉","三義鄉","西湖鄉","卓蘭鎮"],"臺中市":["中區","東區","南區","西區","北區","西屯區","南屯區","北屯區","豐原區","東勢區","大甲區","清水區","沙鹿區","梧棲區","后里區","神岡區","潭子區","大雅區","新社區","石岡區","外埔區","大安區","烏日區","大肚區","龍井區","霧峰區","太平區","大里區","和平區"],"彰化縣":["彰化市","芬園鄉","花壇鄉","秀水鄉","鹿港鎮","福興鄉","線西鄉","和美鎮","伸港鄉","員林市","社頭鄉","永靖鄉","埔心鄉","溪湖鎮","大村鄉","埔鹽鄉","田中鎮","北斗鎮","田尾鄉","埤頭鄉","溪州鄉","竹塘鄉","二林鎮","大城鄉","芳苑鄉","二水鄉"],"南投縣":["南投市","中寮鄉","草屯鎮","國姓鄉","埔里鎮","仁愛鄉","名間鄉","集集鎮","水里鄉","魚池鄉","信義鄉","竹山鎮","鹿谷鄉"],"雲林縣":["斗南鎮","大埤鄉","虎尾鎮","土庫鎮","褒忠鄉","東勢鄉","臺西鄉","崙背鄉","麥寮鄉","斗六市","林內鄉","古坑鄉","莿桐鄉","西螺鎮","二崙鄉","北港鎮","水林鄉","口湖鄉","四湖鄉","元長鄉"],"嘉義市":["東區","西區"],"嘉義縣":["番路鄉","梅山鄉","竹崎鄉","阿里山鄉","中埔鄉","大埔鄉","水上鄉","鹿草鄉","太保市","朴子市","東石鄉","六腳鄉","新港鄉","民雄鄉","大林鎮","溪口鄉","義竹鄉","布袋鎮"],"臺南市":["中西區","東區","南區","北區","安平區","安南區","永康區","歸仁區","新化區","左鎮區","玉井區","楠西區","南化區","仁德區","關廟區","龍崎區","官田區","麻豆區","佳里區","西港區","七股區","將軍區","學甲區","北門區","新營區","後壁區","白河區","東山區","六甲區","下營區","柳營區","鹽水區","善化區","大內區","山上區","新市區","安定區"],"高雄市":["楠梓區","左營區","鼓山區","三民區","鹽埕區","前金區","新興區","苓雅區","前鎮區","旗津區","小港區","鳳山區","林園區","大寮區","大樹區","大社區","仁武區","鳥松區","岡山區","橋頭區","燕巢區","田寮區","阿蓮區","路竹區","湖內區","茄萣區","永安區","彌陀區","梓官區","旗山區","美濃區","六龜區","甲仙區","杉林區","內門區","茂林區","桃源區","那瑪夏區"],"屏東縣":["屏東市","三地門鄉","霧台鄉","瑪家鄉","九如鄉","里港鄉","高樹鄉","鹽埔鄉","長治鄉","麟洛鄉","竹田鄉","內埔鄉","萬丹鄉","潮州鎮","泰武鄉","來義鄉","萬巒鄉","崁頂鄉","新埤鄉","南州鄉","林邊鄉","東港鎮","琉球鄉","佳冬鄉","新園鄉","枋寮鄉","枋山鄉","春日鄉","獅子鄉","車城鄉","牡丹鄉","恆春鎮","滿州鄉"],"宜蘭縣":["宜蘭市","頭城鎮","礁溪鄉","壯圍鄉","員山鄉","羅東鎮","三星鄉","大同鄉","五結鄉","冬山鄉","蘇澳鎮","南澳鄉"],"花蓮縣":["花蓮市","新城鄉","秀林鄉","吉安鄉","壽豐鄉","鳳林鎮","光復鄉","豐濱鄉","瑞穗鄉","萬榮鄉","玉里鎮","卓溪鄉","富里鄉"],"臺東縣":["臺東市","綠島鄉","蘭嶼鄉","延平鄉","卑南鄉","鹿野鄉","關山鎮","海端鄉","池上鄉","東河鄉","成功鎮","長濱鄉","太麻里鄉","金峰鄉","大武鄉","達仁鄉"],"澎湖縣":["馬公市","西嶼鄉","望安鄉","七美鄉","白沙鄉","湖西鄉"],"金門縣":["金城鎮","金湖鎮","金沙鎮","金寧鄉","烈嶼鄉","烏坵鄉"],"連江縣":["南竿鄉","北竿鄉","莒光鄉","東引鄉"]};
 
@@ -3203,7 +3290,7 @@ function switchPage(p){
   if(dn) dn.classList.add('active');
   const tb=document.getElementById('topbar-title');
   if(tb)tb.textContent=PAGE_TITLES[p]||'';
-  if(p==='stats'){initStatsYears();renderDailyQuote();renderStats();checkBuyerBirthdays();calTodayPanelInit();}
+  if(p==='stats'){initStatsYears();renderDailyQuote();renderStats();checkBuyerBirthdays();calTodayPanelInit();initAnnounceBoard();}
   else if(p==='profile'){initStatsYears();renderStats();loadGoals();loadMonthGoal();renderProfileInfo();}
   else if(p==='closed'){renderClosed();}
   else if(p==='trip'){tripInitHCitySelect();renderTripList();renderTripSelected();updateMapsBtn();_syncTripLocationBar();}
@@ -10012,6 +10099,345 @@ body{display:flex;flex-direction:column;height:794px;padding:14px}
       alert('PDF 產生失敗，請確認網路連線後再試。\n' + e.message);
     }
   })();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// 首頁公布欄
+// 資料模型：announcements/{id}（標題／分類／富文字內文／附件／投票／發布人／時間）
+// 發布權限：系統管理員／老闆／主管／幕僚（canPostAnnouncement()）；其餘身份組僅能檢視與投票。
+// ══════════════════════════════════════════════════════════════════
+let _announceList = [];            // 全部公告快取，已依發布時間新到舊排序
+let _announcePage = 1;             // 目前頁碼（每頁 10 則）
+let _announceExpanded = new Set(); // 目前展開中的公告 id
+let _announceEditingId = null;
+let _announceLoadError = null;
+const ANNOUNCE_PAGE_SIZE = 10;
+const ANNOUNCE_CATEGORIES = ['系統公告','公司命令','行政宣導','活動訊息'];
+const ANNOUNCE_CATEGORY_COLORS = {
+  '系統公告': { bg:'var(--redl)', fg:'var(--red)' },
+  '公司命令': { bg:'var(--orgl)', fg:'var(--org)' },
+  '行政宣導': { bg:'var(--blul)', fg:'var(--blu)' },
+  '活動訊息': { bg:'var(--grnl)', fg:'var(--grn)' }
+};
+
+function _announceFmtDate(iso){
+  if(!iso) return '';
+  const d = new Date(iso);
+  if(isNaN(d.getTime())) return '';
+  const pad = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}`;
+}
+
+// 進入首頁時初始化公布欄
+async function initAnnounceBoard(){
+  const postBtn = document.getElementById('announce-post-btn');
+  if(postBtn) postBtn.style.display = canPostAnnouncement() ? '' : 'none';
+  await loadAnnounceData();
+  renderAnnounceList();
+}
+
+async function loadAnnounceData(){
+  _announceLoadError = null;
+  try{
+    const snap = await window._firebaseGetDocs(window._firebaseAnnounceColl());
+    const list = [];
+    snap.forEach(d=>{ const x = d.data()||{}; x.id = d.id; list.push(x); });
+    list.sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
+    _announceList = list;
+  }catch(e){
+    _announceLoadError = e.message || '權限不足';
+    console.error('Announcement load error:', e);
+  }
+}
+
+function renderAnnounceList(){
+  const listEl = document.getElementById('announce-list');
+  const pagEl = document.getElementById('announce-pagination');
+  if(!listEl) return;
+
+  if(_announceLoadError){
+    listEl.innerHTML = `<div style="padding:24px;text-align:center;color:var(--tx3);font-size:13px">⚠️ 載入失敗：${escH(_announceLoadError)}<br><span style="font-size:11px">請確認 Firestore 安全規則已開放讀取 announcements 集合</span></div>`;
+    if(pagEl) pagEl.innerHTML = '';
+    return;
+  }
+  if(!_announceList.length){
+    const canPost = canPostAnnouncement();
+    listEl.innerHTML = `<div style="padding:30px;text-align:center;color:var(--tx3);font-size:13px">📭 尚無公告${canPost?'，點選右上方「發布公告」開始張貼':''}</div>`;
+    if(pagEl) pagEl.innerHTML = '';
+    return;
+  }
+
+  const totalPages = Math.max(1, Math.ceil(_announceList.length / ANNOUNCE_PAGE_SIZE));
+  if(_announcePage > totalPages) _announcePage = totalPages;
+  if(_announcePage < 1) _announcePage = 1;
+  const startIdx = (_announcePage-1) * ANNOUNCE_PAGE_SIZE;
+  const pageItems = _announceList.slice(startIdx, startIdx + ANNOUNCE_PAGE_SIZE);
+  const canPost = canPostAnnouncement();
+
+  listEl.innerHTML = pageItems.map(a=>{
+    const cat = ANNOUNCE_CATEGORY_COLORS[a.category] || { bg:'var(--bg2)', fg:'var(--tx2)' };
+    const expanded = _announceExpanded.has(a.id);
+    const dateStr = _announceFmtDate(a.createdAt);
+    const editBtn = canPost ? `<button class="btn btn-sm btn-g" onclick="openAnnounceEditModal('${a.id}')">✏️ 編輯</button>` : '';
+    return `<div class="announce-item" style="padding:12px 18px;border-bottom:1px solid var(--bdr)">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0;flex:1">
+          <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:${cat.bg};color:${cat.fg};flex-shrink:0;white-space:nowrap">${escH(a.category||'公告')}</span>
+          <span style="font-size:14px;font-weight:700;color:var(--tx);word-break:break-word">${escH(a.title||'（無標題）')}</span>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          ${editBtn}
+          <button class="btn btn-sm btn-g" onclick="toggleAnnounceExpand('${a.id}')">${expanded?'收起 ▴':'查看 ▾'}</button>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--tx3);margin-top:4px">${escH(a.authorName||'')} ・ ${dateStr}</div>
+      <div id="announce-body-${a.id}" style="display:${expanded?'block':'none'};margin-top:10px;padding-top:10px;border-top:1px dashed var(--bdr);font-size:13px;color:var(--tx2);line-height:1.7;word-break:break-word">
+        ${a.contentHtml || ''}
+        ${_renderPollWidget(a.id, a.poll)}
+      </div>
+    </div>`;
+  }).join('');
+
+  if(pagEl){
+    if(totalPages <= 1){
+      pagEl.innerHTML = '';
+      pagEl.style.padding = '0';
+    } else {
+      pagEl.style.padding = '12px';
+      let btns = '';
+      for(let p=1; p<=totalPages; p++){
+        const active = p === _announcePage;
+        btns += `<button onclick="_announceGoPage(${p})" style="min-width:28px;padding:5px 8px;border-radius:6px;border:1px solid ${active?'var(--acc)':'var(--bdr)'};background:${active?'var(--acc)':'transparent'};color:${active?'#fff':'var(--tx2)'};font-size:12px;cursor:pointer;font-family:inherit;font-weight:${active?'700':'500'}">${p}</button>`;
+      }
+      pagEl.innerHTML = btns;
+    }
+  }
+}
+
+function _announceGoPage(p){
+  _announcePage = p;
+  renderAnnounceList();
+}
+
+// 查看／收起：點擊同一顆按鈕可切換展開狀態
+function toggleAnnounceExpand(id){
+  if(_announceExpanded.has(id)) _announceExpanded.delete(id);
+  else _announceExpanded.add(id);
+  renderAnnounceList();
+}
+
+// ── 投票元件（讀取檢視）：點擊選項即可投票／取消投票，即時寫回 Firestore ──
+function _renderPollWidget(announceId, poll){
+  if(!poll || !poll.options || !poll.options.length) return '';
+  const myUid = window._currentUser && window._currentUser.uid;
+  const totalVotes = poll.options.reduce((s,o)=>s + ((o.votes||[]).length), 0);
+  const optsHtml = poll.options.map((o,i)=>{
+    const cnt = (o.votes||[]).length;
+    const pct = totalVotes ? Math.round(cnt/totalVotes*100) : 0;
+    const voted = !!(myUid && (o.votes||[]).includes(myUid));
+    return `<div onclick="voteAnnouncePoll('${announceId}',${i})" style="cursor:pointer;margin-bottom:6px;border:1.5px solid ${voted?'var(--acc)':'var(--bdr)'};border-radius:var(--r);padding:8px 10px;position:relative;overflow:hidden;background:${voted?'var(--accl)':'var(--surf)'}">
+      <div style="position:absolute;left:0;top:0;bottom:0;width:${pct}%;background:var(--accl);z-index:0;transition:width .3s"></div>
+      <div style="position:relative;z-index:1;display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <span style="font-size:12px;font-weight:${voted?'700':'500'};color:${voted?'var(--acc)':'var(--tx2)'}">${voted?'✓ ':''}${escHtml(o.text)}</span>
+        <span style="font-size:11px;color:var(--tx3);white-space:nowrap;flex-shrink:0">${cnt} 票・${pct}%</span>
+      </div>
+    </div>`;
+  }).join('');
+  return `<div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--bdr)" onclick="event.stopPropagation()">
+    ${poll.question ? `<div style="font-size:12px;font-weight:700;color:var(--tx2);margin-bottom:8px">📊 ${escHtml(poll.question)}</div>` : ''}
+    ${optsHtml}
+    <div style="font-size:10px;color:var(--tx3);margin-top:2px">共 ${totalVotes} 票${poll.allowMultiple?'（可複選）':''}</div>
+  </div>`;
+}
+
+async function voteAnnouncePoll(announceId, optIndex){
+  const a = _announceList.find(x=>x.id===announceId);
+  if(!a || !a.poll) return;
+  const myUid = window._currentUser && window._currentUser.uid;
+  if(!myUid){ alert('請先登入'); return; }
+  const opts = a.poll.options.map(o=>({ text:o.text, votes:[...(o.votes||[])] }));
+  const alreadyVoted = opts[optIndex].votes.includes(myUid);
+  if(a.poll.allowMultiple){
+    if(alreadyVoted) opts[optIndex].votes = opts[optIndex].votes.filter(u=>u!==myUid);
+    else opts[optIndex].votes.push(myUid);
+  } else {
+    opts.forEach((o,i)=>{
+      if(i===optIndex){
+        o.votes = alreadyVoted ? o.votes.filter(u=>u!==myUid) : [...o.votes.filter(u=>u!==myUid), myUid];
+      } else {
+        o.votes = o.votes.filter(u=>u!==myUid);
+      }
+    });
+  }
+  a.poll = { question:a.poll.question, allowMultiple:a.poll.allowMultiple, options:opts };
+  renderAnnounceList();
+  try{
+    await window._firebaseSetDoc(window._firebaseAnnounceRef(announceId), { poll:a.poll }, {merge:true});
+  }catch(e){
+    alert('⚠️ 投票失敗：' + e.message);
+    await loadAnnounceData();
+    renderAnnounceList();
+  }
+}
+
+// ── 發布／編輯公告 ──
+function openAnnounceEditModal(id){
+  if(!canPostAnnouncement()) return;
+  _announceEditingId = id;
+  const titleEl = document.getElementById('announce-modal-title');
+  const delBtn = document.getElementById('an-delete-btn');
+  const editor = document.getElementById('an-editor');
+  const pollBuilder = document.getElementById('an-poll-builder');
+
+  let a = null;
+  if(id){ a = _announceList.find(x=>x.id===id); if(!a) return; }
+  if(titleEl) titleEl.textContent = a ? '✏️ 編輯公告' : '📝 發布公告';
+  if(delBtn) delBtn.style.display = a ? '' : 'none';
+  document.getElementById('an-title').value = a?.title || '';
+  document.getElementById('an-category').value = a?.category || ANNOUNCE_CATEGORIES[0];
+  if(editor) editor.innerHTML = a?.contentHtml || '';
+
+  const optsWrap = document.getElementById('an-poll-options');
+  if(optsWrap) optsWrap.innerHTML = '';
+  if(a?.poll){
+    if(pollBuilder) pollBuilder.style.display = '';
+    document.getElementById('an-poll-question').value = a.poll.question || '';
+    document.getElementById('an-poll-multiple').checked = !!a.poll.allowMultiple;
+    (a.poll.options || []).forEach(o=>anAddPollOption(o.text));
+  } else {
+    if(pollBuilder) pollBuilder.style.display = 'none';
+    document.getElementById('an-poll-question').value = '';
+    document.getElementById('an-poll-multiple').checked = false;
+  }
+
+  openOv('announce');
+}
+
+// ── 富文字編輯工具列 ──
+function anExec(cmd, val){
+  const editor = document.getElementById('an-editor');
+  if(editor) editor.focus();
+  document.execCommand(cmd, false, val || null);
+}
+
+function anInsertTable(){
+  const rowsStr = prompt('請輸入表格列數（rows）：', '3');
+  if(rowsStr===null) return;
+  const colsStr = prompt('請輸入表格欄數（columns）：', '3');
+  if(colsStr===null) return;
+  const rows = parseInt(rowsStr, 10), cols = parseInt(colsStr, 10);
+  if(!rows || !cols || rows<1 || cols<1 || rows>30 || cols>15){ alert('請輸入有效的列數／欄數（列數 1–30，欄數 1–15）'); return; }
+  let html = '<table style="border-collapse:collapse;width:100%;margin:8px 0">';
+  for(let r=0; r<rows; r++){
+    html += '<tr>';
+    for(let c=0; c<cols; c++){ html += '<td style="border:1px solid #ccc;padding:6px 8px;min-width:40px">&nbsp;</td>'; }
+    html += '</tr>';
+  }
+  html += '</table><p><br></p>';
+  const editor = document.getElementById('an-editor');
+  if(editor) editor.focus();
+  document.execCommand('insertHTML', false, html);
+}
+
+function anInsertLink(){
+  const url = prompt('請輸入連結網址（需包含 http:// 或 https://）：');
+  if(!url) return;
+  const editor = document.getElementById('an-editor');
+  if(editor) editor.focus();
+  const sel = window.getSelection();
+  if(sel && sel.toString()){
+    document.execCommand('createLink', false, url);
+  } else {
+    document.execCommand('insertHTML', false, `<a href="${escAttr(url)}" target="_blank" rel="noopener">${escHtml(url)}</a>`);
+  }
+}
+
+// ── 投票設定（編輯視窗內） ──
+function anInsertPoll(){
+  const panel = document.getElementById('an-poll-builder');
+  if(!panel) return;
+  panel.style.display = '';
+  const optsWrap = document.getElementById('an-poll-options');
+  if(optsWrap && !optsWrap.children.length){ anAddPollOption(''); anAddPollOption(''); }
+}
+function anRemovePoll(){
+  const panel = document.getElementById('an-poll-builder');
+  if(panel) panel.style.display = 'none';
+  const optsWrap = document.getElementById('an-poll-options');
+  if(optsWrap) optsWrap.innerHTML = '';
+  document.getElementById('an-poll-question').value = '';
+  document.getElementById('an-poll-multiple').checked = false;
+}
+function anAddPollOption(val){
+  const optsWrap = document.getElementById('an-poll-options');
+  if(!optsWrap) return;
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:6px';
+  row.innerHTML = `<input class="fc" data-poll-opt placeholder="選項文字" value="${escAttr(val||'')}" style="flex:1"><button type="button" onclick="this.parentElement.remove()" style="border:none;background:transparent;color:var(--red);cursor:pointer;font-size:14px;flex-shrink:0">✕</button>`;
+  optsWrap.appendChild(row);
+}
+
+async function saveAnnouncement(){
+  const title = (document.getElementById('an-title').value || '').trim();
+  if(!title){ alert('請輸入公告標題'); return; }
+  const category = document.getElementById('an-category').value;
+  const editor = document.getElementById('an-editor');
+  const contentHtml = editor ? editor.innerHTML : '';
+  const nowIso = new Date().toISOString();
+  const existing = _announceEditingId ? _announceList.find(x=>x.id===_announceEditingId) : null;
+
+  let poll = null;
+  const pollBuilder = document.getElementById('an-poll-builder');
+  if(pollBuilder && pollBuilder.style.display !== 'none'){
+    const question = (document.getElementById('an-poll-question').value || '').trim();
+    const allowMultiple = document.getElementById('an-poll-multiple').checked;
+    const optInputs = Array.from(document.querySelectorAll('#an-poll-options [data-poll-opt]'));
+    const optTexts = optInputs.map(i=>i.value.trim()).filter(v=>v);
+    if(optTexts.length >= 2){
+      const oldOptions = (existing && existing.poll && existing.poll.options) || [];
+      poll = {
+        question, allowMultiple,
+        options: optTexts.map(text=>{
+          const prior = oldOptions.find(o=>o.text===text);
+          return { text, votes: prior ? (prior.votes||[]) : [] };
+        })
+      };
+    }
+  }
+
+  const myUser = window._currentUser;
+  const payload = {
+    title, category, contentHtml,
+    poll,
+    authorName: existing ? (existing.authorName||'') : ((myUser && (myUser.displayName || myUser.email)) || '未知'),
+    authorUid:  existing ? (existing.authorUid||'')  : ((myUser && myUser.uid) || ''),
+    authorEmail: existing ? (existing.authorEmail||'') : ((myUser && myUser.email) || ''),
+    createdAt: existing ? (existing.createdAt || nowIso) : nowIso,
+    updatedAt: nowIso
+  };
+  try{
+    const ref = existing ? window._firebaseAnnounceRef(existing.id) : window._firebaseAnnounceNewRef();
+    await window._firebaseSetDoc(ref, payload, {merge:false});
+    closeOv('announce');
+    await loadAnnounceData();
+    _announcePage = 1;
+    renderAnnounceList();
+  }catch(e){
+    alert('⚠️ 發布失敗：' + e.message);
+  }
+}
+
+async function deleteAnnouncement(){
+  if(!_announceEditingId) return;
+  if(!confirm('確定要刪除這則公告嗎？此動作無法復原。')) return;
+  try{
+    await window._firebaseDeleteDoc(window._firebaseAnnounceRef(_announceEditingId));
+    closeOv('announce');
+    await loadAnnounceData();
+    renderAnnounceList();
+  }catch(e){
+    alert('⚠️ 刪除失敗：' + e.message);
+  }
 }
 
 // 展開/收起員工列
