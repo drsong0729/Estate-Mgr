@@ -9514,7 +9514,7 @@ function _dutyRosterComputeRows(){
     return {
       id: p.id, category: p.category, name: p.name, backup: p.backup,
       showCategory, rowspan: catCounts[p.category] || 1,
-      cells, should, actual: should - leaveCnt, leave: leaveCnt, off: offCnt
+      cells, should, actual: should - leaveCnt - offCnt, leave: leaveCnt, off: offCnt
     };
   });
 }
@@ -9749,7 +9749,7 @@ function renderDutyRosterMobile(){
     </div>`;
   }
   const should = daysInMonth - _dutyCountSundays(_dutyYear, _dutyMonth);
-  const actual = should - leaveCnt;
+  const actual = should - leaveCnt - offCnt;
   sumEl.innerHTML = `
     <div class="sc" style="flex:1;min-width:70px;padding:8px 10px"><div class="sn" style="font-size:18px">${should}</div><div class="sl">應上</div></div>
     <div class="sc" style="flex:1;min-width:70px;padding:8px 10px"><div class="sn" style="font-size:18px">${actual}</div><div class="sl">實上</div></div>
