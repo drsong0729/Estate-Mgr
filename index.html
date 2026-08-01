@@ -9479,8 +9479,17 @@ function _dutyNormalizeDay(v){
   return { am: v.am || '', pm: v.pm || '' };
 }
 
+// 計算某年某月共有幾個星期日，供「應上」計算使用：應上 ＝ 當月總天數 － 當月週日天數
+function _dutyCountSundays(year, month){
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  let cnt = 0;
+  for(let d=1; d<=daysInMonth; d++){ if(new Date(year, month, d).getDay()===0) cnt++; }
+  return cnt;
+}
+
 function _dutyRosterComputeRows(){
   const daysInMonth = new Date(_dutyYear, _dutyMonth+1, 0).getDate();
+  const should = daysInMonth - _dutyCountSundays(_dutyYear, _dutyMonth);
   const catCounts = {};
   _dutyRoster.forEach(p=>{ catCounts[p.category] = (catCounts[p.category]||0)+1; });
   let lastCategory = null;
@@ -9505,7 +9514,7 @@ function _dutyRosterComputeRows(){
     return {
       id: p.id, category: p.category, name: p.name, backup: p.backup,
       showCategory, rowspan: catCounts[p.category] || 1,
-      cells, should: daysInMonth - offCnt, actual: daysInMonth - offCnt - leaveCnt, leave: leaveCnt, off: offCnt
+      cells, should, actual: should - leaveCnt, leave: leaveCnt, off: offCnt
     };
   });
 }
@@ -9519,12 +9528,12 @@ function _dutyCellVisual(c, opts){
   if(!c.split){
     const st = c.stAm;
     const bg = c.am ? st.bg : (c.highlight ? (opts.highlightBg || 'var(--surf2)') : '');
-    return { bg, html: `<span style="font-weight:700;font-size:${fontMain};color:${st.color}">${st.short}</span>` };
+    return { bg, html: `<div style="height:100%;display:flex;align-items:center;justify-content:center"><span style="font-weight:700;font-size:${fontMain};color:${st.color}">${st.short}</span></div>` };
   }
   const bgAm = c.am ? c.stAm.bg : (c.highlight ? (opts.highlightBg || 'var(--surf2)') : '');
   const bgPm = c.pm ? c.stPm.bg : (c.highlight ? (opts.highlightBg || 'var(--surf2)') : '');
-  const html = `<div style="height:50%;display:flex;align-items:center;justify-content:center;background:${bgAm};border-bottom:1px dashed ${dividerColor}"><span style="font-weight:700;font-size:${fontSplit};color:${c.stAm.color}">${c.stAm.short || '班'}</span></div>` +
-    `<div style="height:50%;display:flex;align-items:center;justify-content:center;background:${bgPm}"><span style="font-weight:700;font-size:${fontSplit};color:${c.stPm.color}">${c.stPm.short || '班'}</span></div>`;
+  const html = `<div style="height:50%;display:flex;align-items:center;justify-content:center;background:${bgAm};border-bottom:1px dashed ${dividerColor}"><span style="font-weight:700;font-size:${fontSplit};color:${c.stAm.color}">${c.stAm.short}</span></div>` +
+    `<div style="height:50%;display:flex;align-items:center;justify-content:center;background:${bgPm}"><span style="font-weight:700;font-size:${fontSplit};color:${c.stPm.color}">${c.stPm.short}</span></div>`;
   return { bg:'', html };
 }
 
@@ -9739,7 +9748,7 @@ function renderDutyRosterMobile(){
       ${statusHtml}
     </div>`;
   }
-  const should = daysInMonth - offCnt;
+  const should = daysInMonth - _dutyCountSundays(_dutyYear, _dutyMonth);
   const actual = should - leaveCnt;
   sumEl.innerHTML = `
     <div class="sc" style="flex:1;min-width:70px;padding:8px 10px"><div class="sn" style="font-size:18px">${should}</div><div class="sl">應上</div></div>
