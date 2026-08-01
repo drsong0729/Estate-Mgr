@@ -8841,6 +8841,9 @@ async function openWarPersonModal(id){
   document.getElementById('wp-month-track').value = base.monthTrack ?? 0;
   document.getElementById('wp-month-recruit').value = base.monthRecruit ?? 0;
   document.getElementById('wp-month-call').value = base.monthCall ?? 0;
+  // 記錄開啟表單時帶入的月統計值：儲存時若幕僚沒有手動更動這 3 欄，就自動依「今日」欄位的異動累加，
+  // 若幕僚有自行修改數字，則尊重手動輸入（呼應「可手動輸入也會自動加總」的需求）。
+  window._warModalPrefillMonth = { track: base.monthTrack ?? 0, recruit: base.monthRecruit ?? 0, call: base.monthCall ?? 0 };
 
   const hintEl = document.getElementById('wp-month-auto-hint');
   if(hintEl){
@@ -8887,20 +8890,48 @@ async function saveWarPerson(){
   const nowIso = new Date().toISOString();
   const myEmail = (window._currentUser && window._currentUser.email) || '';
 
+  const existing = _warEditingId ? _warRoster.find(x=>x.id===_warEditingId) : null;
+  const isNew = !existing;
+
+  const newTodayTrack   = num('wp-today-track');
+  const newTodayRecruit = num('wp-today-recruit');
+  const newTodayCall    = num('wp-today-call');
+  let mTrack   = num('wp-month-track');
+  let mRecruit = num('wp-month-recruit');
+  let mCall    = num('wp-month-call');
+
+  // 若幕僚沒有手動更動月統計欄位（仍等於開啟表單時帶入的值），依「今日」欄位這次的新舊差額自動累加；
+  // 若幕僚已自行修改月統計數字，則尊重手動輸入的值，不覆蓋。
+  const prefill = window._warModalPrefillMonth;
+  if(prefill && mTrack === prefill.track && mRecruit === prefill.recruit && mCall === prefill.call){
+    let base = {track:0, recruit:0, call:0};
+    let oldTodayTrack = 0, oldTodayRecruit = 0, oldTodayCall = 0;
+    if(existing){
+      const daySnap = _warFindSnapshot(existing.id, dateStr);
+      const priorSnap = !daySnap ? _warFindLatestPrior(existing.id, dateStr) : null;
+      if(daySnap){
+        base = { track: daySnap.monthTrack||0, recruit: daySnap.monthRecruit||0, call: daySnap.monthCall||0 };
+        oldTodayTrack = daySnap.todayTrack||0; oldTodayRecruit = daySnap.todayRecruit||0; oldTodayCall = daySnap.todayCall||0;
+      } else if(priorSnap){
+        base = { track: priorSnap.monthTrack||0, recruit: priorSnap.monthRecruit||0, call: priorSnap.monthCall||0 };
+      }
+    }
+    mTrack   = base.track   + (newTodayTrack   - oldTodayTrack);
+    mRecruit = base.recruit + (newTodayRecruit - oldTodayRecruit);
+    mCall    = base.call    + (newTodayCall    - oldTodayCall);
+  }
+
   const snapshotFields = {
     targetS: num('wp-target-s'), targetB: num('wp-target-b'), targetA: num('wp-target-a'),
     yearS: num('wp-year-s'), monthS: num('wp-month-s'),
     aCount: num('wp-a-count'), abCount: num('wp-ab-count'), inventory: num('wp-inventory'),
-    monthTrack: num('wp-month-track'), monthRecruit: num('wp-month-recruit'), monthCall: num('wp-month-call'),
-    todayTrack: num('wp-today-track'), todayRecruit: num('wp-today-recruit'), todayCall: num('wp-today-call')
+    monthTrack: mTrack, monthRecruit: mRecruit, monthCall: mCall,
+    todayTrack: newTodayTrack, todayRecruit: newTodayRecruit, todayCall: newTodayCall
   };
 
   const linkSel = document.getElementById('wp-linked-uid');
   const linkedUid = linkSel ? linkSel.value : '';
   const linkedUser = linkedUid ? _warUsersIndex.find(u=>u.uid===linkedUid) : null;
-
-  const existing = _warEditingId ? _warRoster.find(x=>x.id===_warEditingId) : null;
-  const isNew = !existing;
 
   const rosterPayload = {
     name,
