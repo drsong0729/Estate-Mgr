@@ -958,6 +958,15 @@ function gm_authFailure() {
       </div>
       <div id="cal-today-body" style="padding:0 0 8px"></div>
     </div>
+    <!-- 今日心得 -->
+    <div style="padding:12px 16px 14px;border-top:1px dashed var(--bdr)">
+      <div style="font-size:12px;font-weight:700;color:var(--tx2);margin-bottom:6px;display:flex;align-items:center;gap:6px"><span>📝</span><span id="cal-journal-label">今日心得</span></div>
+      <textarea id="cal-today-journal" class="fc" rows="3" placeholder="寫下今天的心得、反思，或提醒自己的事…" style="resize:vertical;width:100%;box-sizing:border-box"></textarea>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;flex-wrap:wrap;gap:6px">
+        <span id="cal-journal-saved-hint" style="font-size:11px;color:var(--tx3)"></span>
+        <button class="btn btn-p btn-sm" onclick="calSaveTodayJournal()">💾 儲存心得</button>
+      </div>
+    </div>
     <!-- 列印週報表按鈕 -->
     <div style="padding:12px 16px;border-top:1px solid var(--bdr);display:flex;justify-content:flex-end;gap:8px">
       <button onclick="openWeekReportModal('print')" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:var(--acc);color:#fff;border:none;border-radius:var(--r);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:.15s;box-shadow:0 2px 6px rgba(15,81,155,.25)" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">🖨️ 列印週報表</button>
@@ -1985,11 +1994,12 @@ function gm_authFailure() {
           <th>今日追蹤</th>
           <th>今日募集</th>
           <th>今日電話</th>
+          <th>今日進案</th>
           <th id="war-th-actions" style="display:none">操作</th>
         </tr>
       </thead>
       <tbody id="warreport-tbody">
-        <tr><td class="empty-td" colspan="14">⏳ 載入中…</td></tr>
+        <tr><td class="empty-td" colspan="15">⏳ 載入中…</td></tr>
       </tbody>
     </table>
   </div>
@@ -1997,7 +2007,7 @@ function gm_authFailure() {
 
 <!-- Modal: 自行填寫今日數字（一般使用者，僅能填自己） -->
 <div class="ov" id="ov-warself">
-<div class="modal modal-sm">
+<div class="modal" style="max-width:460px">
   <div class="mh"><div class="mt">✏️ 填寫我的今日數字</div><button class="mc" onclick="closeOv('warself')">✕</button></div>
   <div class="mb">
     <div style="font-size:12px;color:var(--tx3);margin-bottom:10px" id="warself-sub"></div>
@@ -2012,6 +2022,26 @@ function gm_authFailure() {
     <div class="fgp">
       <label class="lbl">今日電話數</label>
       <input class="fc" type="number" id="ws-call" placeholder="0">
+    </div>
+    <div style="border-top:1px dashed var(--bdr);margin:4px 0 0;padding-top:12px">
+      <div style="font-size:12px;font-weight:700;color:var(--tx2);margin-bottom:8px">今日進案（選填；僅顯示於每日戰報，不會建立到委託管理）</div>
+      <div class="fgp">
+        <label class="lbl">委託類型</label>
+        <div style="display:flex;gap:14px">
+          <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer"><input type="radio" name="ws-case-type" value="general" checked><span>一般約</span></label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer"><input type="radio" name="ws-case-type" value="exclusive"><span>專任約</span></label>
+        </div>
+      </div>
+      <div class="fgp">
+        <label class="lbl">暫定案名</label>
+        <input class="fc" id="ws-case-name" placeholder="例如：OO大樓 王先生">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div class="fgp" style="margin-bottom:0"><label class="lbl">開價（萬）</label><input class="fc" type="number" id="ws-case-ask" placeholder="0"></div>
+        <div class="fgp" style="margin-bottom:0"><label class="lbl">底價（萬）</label><input class="fc" type="number" id="ws-case-floor" placeholder="0"></div>
+        <div class="fgp" style="margin-bottom:0;margin-top:8px"><label class="lbl">斡旋價（萬）</label><input class="fc" type="number" id="ws-case-offer" placeholder="0"></div>
+        <div class="fgp" style="margin-bottom:0;margin-top:8px"><label class="lbl">服務費（%）</label><input class="fc" type="number" id="ws-case-fee" placeholder="0" step="0.1"></div>
+      </div>
     </div>
   </div>
   <div class="mf">
@@ -2072,6 +2102,26 @@ function gm_authFailure() {
         <div class="fgp" style="margin-bottom:0"><label class="lbl">今日追蹤數</label><input class="fc" type="number" id="wp-today-track" placeholder="0"></div>
         <div class="fgp" style="margin-bottom:0"><label class="lbl">今日募集數</label><input class="fc" type="number" id="wp-today-recruit" placeholder="0"></div>
         <div class="fgp" style="margin-bottom:0"><label class="lbl">今日電話數</label><input class="fc" type="number" id="wp-today-call" placeholder="0"></div>
+      </div>
+    </div>
+    <div style="border-top:1px dashed var(--bdr);margin:4px 0 0;padding-top:12px">
+      <div style="font-size:12px;font-weight:700;color:var(--tx2);margin-bottom:8px">今日進案（選填，對應上方選擇的日期；僅顯示於每日戰報，不會建立到委託管理）</div>
+      <div class="fgp">
+        <label class="lbl">委託類型</label>
+        <div style="display:flex;gap:14px">
+          <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer"><input type="radio" name="wp-case-type" value="general" checked><span>一般約</span></label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer"><input type="radio" name="wp-case-type" value="exclusive"><span>專任約</span></label>
+        </div>
+      </div>
+      <div class="fgp">
+        <label class="lbl">暫定案名</label>
+        <input class="fc" id="wp-case-name" placeholder="例如：OO大樓 王先生">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div class="fgp" style="margin-bottom:0"><label class="lbl">開價（萬）</label><input class="fc" type="number" id="wp-case-ask" placeholder="0"></div>
+        <div class="fgp" style="margin-bottom:0"><label class="lbl">底價（萬）</label><input class="fc" type="number" id="wp-case-floor" placeholder="0"></div>
+        <div class="fgp" style="margin-bottom:0;margin-top:8px"><label class="lbl">斡旋價（萬）</label><input class="fc" type="number" id="wp-case-offer" placeholder="0"></div>
+        <div class="fgp" style="margin-bottom:0;margin-top:8px"><label class="lbl">服務費（%）</label><input class="fc" type="number" id="wp-case-fee" placeholder="0" step="0.1"></div>
       </div>
     </div>
   </div>
@@ -8736,23 +8786,23 @@ async function renderWarReport(){
   if(thActions) thActions.style.display = editing ? '' : 'none';
 
   if(_warLoadError){
-    tbody.innerHTML = `<tr><td class="empty-td" colspan="14">⚠️ 載入失敗：${escH(_warLoadError)}<br><span style="font-size:11px">請確認 Firestore 安全規則已開放讀取 war_report_roster／war_report_snapshots 集合</span></td></tr>`;
+    tbody.innerHTML = `<tr><td class="empty-td" colspan="15">⚠️ 載入失敗：${escH(_warLoadError)}<br><span style="font-size:11px">請確認 Firestore 安全規則已開放讀取 war_report_roster／war_report_snapshots 集合</span></td></tr>`;
     return;
   }
   if(!_warRoster.length){
-    tbody.innerHTML = `<tr><td class="empty-td" colspan="14">📭 尚無業務資料${canEdit?'，點選右上方「＋ 新增業務」開始建立':''}</td></tr>`;
+    tbody.innerHTML = `<tr><td class="empty-td" colspan="15">📭 尚無業務資料${canEdit?'，點選右上方「＋ 新增業務」開始建立':''}</td></tr>`;
     return;
   }
 
   const dateStr = _warSelectedDate || nowDate();
   const ym = dateStr.slice(0,7);
-  tbody.innerHTML = `<tr><td class="empty-td" colspan="14">⏳ 載入 ${escH(dateStr)} 快照中…</td></tr>`;
+  tbody.innerHTML = `<tr><td class="empty-td" colspan="15">⏳ 載入 ${escH(dateStr)} 快照中…</td></tr>`;
 
   let monthList;
   try{
     monthList = await _warFetchMonth(ym);
   }catch(e){
-    tbody.innerHTML = `<tr><td class="empty-td" colspan="14">⚠️ 載入快照失敗：${escH(e.message||'')}<br><span style="font-size:11px">請確認 Firestore 安全規則已開放讀取 war_report_snapshots 集合</span></td></tr>`;
+    tbody.innerHTML = `<tr><td class="empty-td" colspan="15">⚠️ 載入快照失敗：${escH(e.message||'')}<br><span style="font-size:11px">請確認 Firestore 安全規則已開放讀取 war_report_snapshots 集合</span></td></tr>`;
     return;
   }
   // 若使用者在讀取期間又切換了日期，放棄這次結果，避免畫面錯亂
@@ -8765,7 +8815,7 @@ async function renderWarReport(){
       return `<tr>
         <td style="font-weight:700">${escH(p.name||'—')}</td>
         <td style="font-size:12px">${escH(p.hireDate||'—')}</td>
-        <td colspan="11" style="text-align:center;color:var(--tx3);font-size:12px">（${escH(dateStr)} 尚無快照紀錄）</td>
+        <td colspan="12" style="text-align:center;color:var(--tx3);font-size:12px">（${escH(dateStr)} 尚無快照紀錄）</td>
         ${actionsCell}
       </tr>`;
     }
@@ -8783,9 +8833,19 @@ async function renderWarReport(){
       <td>${fmtWarNum(daySnap.todayTrack)}</td>
       <td>${fmtWarNum(daySnap.todayRecruit)}</td>
       <td>${fmtWarNum(daySnap.todayCall)}</td>
+      <td style="font-size:11px;text-align:left">${_warCaseCellHtml(daySnap.todayNewCase)}</td>
       ${actionsCell}
     </tr>`;
   }).join('');
+}
+
+// 「今日進案」欄位的顯示內容：只在有暫定案名時顯示，其餘為 —
+function _warCaseCellHtml(c){
+  if(!c || !c.caseName) return '<span style="color:var(--tx3)">—</span>';
+  const typeLabel = c.type === 'exclusive' ? '專任' : '一般';
+  const typeColor = c.type === 'exclusive' ? 'var(--acc)' : 'var(--tx2)';
+  return `<div style="font-weight:700">${escH(c.caseName)} <span style="font-size:10px;font-weight:700;color:${typeColor};background:var(--accl);padding:0 5px;border-radius:4px">${typeLabel}</span></div>
+    <div style="color:var(--tx3);white-space:nowrap">開${fmtWarNum(c.askPrice)}／底${fmtWarNum(c.floorPrice)}／斡${fmtWarNum(c.offerPrice)}／服務費${fmtWarNum(c.feePct)}%</div>`;
 }
 
 // 開啟「新增／編輯業務」modal（會針對「目前選擇的日期」建立或編輯當天的快照）
@@ -8866,6 +8926,7 @@ async function openWarPersonModal(id){
   document.getElementById('wp-today-track').value = daySnap?.todayTrack ?? '';
   document.getElementById('wp-today-recruit').value = daySnap?.todayRecruit ?? '';
   document.getElementById('wp-today-call').value = daySnap?.todayCall ?? '';
+  _warFillCaseForm('wp', daySnap?.todayNewCase || null);
 
   openOv('warperson');
 }
@@ -8929,7 +8990,8 @@ async function saveWarPerson(){
     yearS: num('wp-year-s'), monthS: num('wp-month-s'),
     aCount: num('wp-a-count'), abCount: num('wp-ab-count'), inventory: num('wp-inventory'),
     monthTrack: mTrack, monthRecruit: mRecruit, monthCall: mCall,
-    todayTrack: newTodayTrack, todayRecruit: newTodayRecruit, todayCall: newTodayCall
+    todayTrack: newTodayTrack, todayRecruit: newTodayRecruit, todayCall: newTodayCall,
+    todayNewCase: _warReadCaseForm('wp')
   };
 
   const linkSel = document.getElementById('wp-linked-uid');
@@ -9085,6 +9147,35 @@ async function recalcAllMonthlyStats(){
 // ── 一般使用者：自行填寫「自己」的今日追蹤／募集／電話數 ──────────────
 // 僅能寫入 todayTrack/todayRecruit/todayCall（+ date/personId/savedAt/savedBy），
 // 且只限本人 linkedUid 綁定的業務資料，其餘欄位與其他人的資料一律無法異動（由 Firestore 規則強制把關）。
+// 讀取「今日進案」表單欄位；未填暫定案名則視為當天沒有進案（回傳 null，儲存時會清除既有的進案資料）
+function _warReadCaseForm(prefix){
+  const nameEl = document.getElementById(prefix+'-case-name');
+  const name = (nameEl?.value || '').trim();
+  if(!name) return null;
+  const num = id => { const el = document.getElementById(id); const v = el?el.value:''; return v===''? 0 : (parseFloat(v)||0); };
+  const typeEl = document.querySelector(`input[name="${prefix}-case-type"]:checked`);
+  return {
+    type: typeEl ? typeEl.value : 'general',
+    caseName: name,
+    askPrice: num(prefix+'-case-ask'),
+    floorPrice: num(prefix+'-case-floor'),
+    offerPrice: num(prefix+'-case-offer'),
+    feePct: num(prefix+'-case-fee')
+  };
+}
+// 將既有的「今日進案」資料帶回表單（沒有資料則清空為預設值）
+function _warFillCaseForm(prefix, c){
+  const set = (id,val) => { const el = document.getElementById(id); if(el) el.value = val; };
+  set(prefix+'-case-name',  c?.caseName ?? '');
+  set(prefix+'-case-ask',   c?.askPrice ?? '');
+  set(prefix+'-case-floor', c?.floorPrice ?? '');
+  set(prefix+'-case-offer', c?.offerPrice ?? '');
+  set(prefix+'-case-fee',   c?.feePct ?? '');
+  const typeVal = c?.type === 'exclusive' ? 'exclusive' : 'general';
+  const radio = document.querySelector(`input[name="${prefix}-case-type"][value="${typeVal}"]`);
+  if(radio) radio.checked = true;
+}
+
 async function openWarSelfModal(){
   if(!_warMyPerson){ alert('您的帳號尚未綁定「對應業務」，請聯繫幕僚協助綁定後再填寫。'); return; }
   const todayStr = nowDate();
@@ -9095,6 +9186,7 @@ async function openWarSelfModal(){
   document.getElementById('ws-track').value   = daySnap?.todayTrack   ?? '';
   document.getElementById('ws-recruit').value = daySnap?.todayRecruit ?? '';
   document.getElementById('ws-call').value    = daySnap?.todayCall    ?? '';
+  _warFillCaseForm('ws', daySnap?.todayNewCase || null);
   openOv('warself');
 }
 
@@ -9134,6 +9226,7 @@ async function saveWarSelf(){
     monthTrack:   base.track   + (newTodayTrack   - oldTodayTrack),
     monthRecruit: base.recruit + (newTodayRecruit - oldTodayRecruit),
     monthCall:    base.call    + (newTodayCall    - oldTodayCall),
+    todayNewCase: _warReadCaseForm('ws'),
     savedAt: new Date().toISOString(),
     savedBy: (window._currentUser && window._currentUser.email) || ''
   };
@@ -9167,7 +9260,7 @@ async function viewUserDetail(uid){
 
   area.innerHTML = `<div class="admin-user-detail">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-      <div style="font-size:14px;font-weight:700;color:#7c3aed">📋 ${escH(displayName)} 的詳細資料</div>
+      <div style="font-size:14px;font-weight:700;color:#7c3aed">📋 ${escH(displayName)} 的行事曆</div>
       <button class="btn btn-sm btn-g" onclick="document.getElementById('admin-user-detail-area').innerHTML=''">✕ 收起</button>
     </div>
     <div style="text-align:center;padding:20px;color:var(--tx3);font-size:13px">⏳ 載入中…</div>
@@ -9175,23 +9268,14 @@ async function viewUserDetail(uid){
   area.scrollIntoView({behavior:'smooth',block:'start'});
 
   try{
-    let userData = _adminUserCache[uid];
-    if(!userData){
-      const snap = await window._firebaseGetDoc(window._firebaseDocRef(uid));
-      userData = snap.exists() ? snap.data() : null;
-      if(userData) _adminUserCache[uid] = userData;
+    // _adminUserCache 快取的是該員工的「行事曆」文件（users/{uid}/data/calendar），僅供主管檢視，無法編輯
+    let calDataObj = _adminUserCache[uid];
+    if(!calDataObj){
+      const snap = await window._firebaseGetDoc(window._firebaseCalRef(uid));
+      calDataObj = snap.exists() ? snap.data() : { calData: {} };
+      _adminUserCache[uid] = calDataObj;
     }
-    if(!userData){
-      area.innerHTML = `<div class="admin-user-detail">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-          <div style="font-size:14px;font-weight:700;color:#7c3aed">📋 ${escH(displayName)}</div>
-          <button class="btn btn-sm btn-g" onclick="document.getElementById('admin-user-detail-area').innerHTML=''">✕ 收起</button>
-        </div>
-        <div style="text-align:center;padding:30px;color:var(--tx3);font-size:14px">📭 該員工目前無資料</div>
-      </div>`;
-      return;
-    }
-    _renderUserDetailContent(area, u, userData, displayName);
+    _renderUserDetailContent(area, u, calDataObj, displayName);
   }catch(e){
     // 權限不足或其他錯誤：顯示友善提示
     const isPermErr = e.message && e.message.includes('permission');
@@ -9201,67 +9285,214 @@ async function viewUserDetail(uid){
         <button class="btn btn-sm btn-g" onclick="document.getElementById('admin-user-detail-area').innerHTML=''">✕ 收起</button>
       </div>
       <div style="text-align:center;padding:30px;color:var(--tx3);font-size:14px">
-        ${isPermErr ? '📭 該員工目前無資料' : `⚠️ 載入失敗：${escH(e.message)}`}
+        ${isPermErr ? '📭 該員工目前無行事曆資料' : `⚠️ 載入失敗：${escH(e.message)}`}
       </div>
     </div>`;
   }
 }
 
-// 渲染員工詳細資料內容
-function _renderUserDetailContent(area, u, data, displayName){
-  const rec  = data.recruit    || [];
-  const trk  = data.track      || [];
-  const comm = data.commission || [];
-  const cls  = data.closed     || [];
+// ── 主管後台「詳細」：唯讀檢視員工的行事曆（月曆＋當日行程表＋當日心得）──
+let _adminCalUid = null;
+let _adminCalData = {};
+let _adminCalYear = 0;
+let _adminCalMonth = 0;
+let _adminCalSelectedDate = '';
 
-  function miniList(items, type){
-    if(!items.length) return '<div style="color:var(--tx3);font-size:12px;padding:8px 0">（無資料）</div>';
-    return items.slice(0,50).map(r=>{
-      const owners = r.owners&&r.owners.length ? r.owners.map(o=>o.name).join('、') : (r.ownerName||'');
-      const addr = fullAddr(r.propCity, r.propDist, r.propAddr);
-      const extra = type==='comm' ? ` <span style="font-size:10px;color:var(--tx3)">${r.commType==='exclusive'?'專任':'一般'} ${r.commEnd?'到'+r.commEnd:''}</span>` : '';
-      const closed_extra = type==='cls' ? ` <span style="font-size:10px;color:${isSelfDealType(r.closedType)?'var(--grn)':'var(--org)'}">${dealTypeLabel(r.closedType)}${r.dealProfit?' ・'+r.dealProfit+'萬':''}</span>` : '';
-      return `<div style="padding:5px 0;border-bottom:1px solid var(--bdr);font-size:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-        <span style="font-weight:600;min-width:40px">${escH(owners||'—')}</span>
-        <span style="color:var(--tx2);flex:1">${escH(addr)}</span>
-        ${r.propType?`<span style="background:var(--accl);color:var(--acc);padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600">${escH(r.propType)}</span>`:''}
-        ${extra}${closed_extra}
-      </div>`;
-    }).join('') + (items.length>50?`<div style="font-size:11px;color:var(--tx3);padding:6px 0">… 共 ${items.length} 筆，僅顯示前 50 筆</div>`:'');
+function _adminCalDateKey(y,m,d){ return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
+
+function adminCalPrevMonth(){
+  _adminCalMonth--;
+  if(_adminCalMonth<0){ _adminCalMonth=11; _adminCalYear--; }
+  _adminCalRenderGrid();
+}
+function adminCalNextMonth(){
+  _adminCalMonth++;
+  if(_adminCalMonth>11){ _adminCalMonth=0; _adminCalYear++; }
+  _adminCalRenderGrid();
+}
+function adminCalJumpToSelected(){
+  const ySel = document.getElementById('admin-cal-year-sel');
+  const mSel = document.getElementById('admin-cal-month-sel');
+  if(ySel) _adminCalYear = parseInt(ySel.value) || _adminCalYear;
+  if(mSel) _adminCalMonth = parseInt(mSel.value) || 0;
+  _adminCalRenderGrid();
+}
+function adminCalGoToday(){
+  const now = new Date();
+  _adminCalYear = now.getFullYear();
+  _adminCalMonth = now.getMonth();
+  _adminCalRenderGrid();
+  adminCalSelectDate(_adminCalDateKey(now.getFullYear(), now.getMonth(), now.getDate()));
+}
+function adminCalSelectDate(dateKey){
+  _adminCalSelectedDate = dateKey;
+  _adminCalRenderDayPanel();
+  document.querySelectorAll('#admin-cal-grid [data-datekey]').forEach(el=>{
+    const active = el.dataset.datekey === dateKey;
+    el.style.background = active ? 'var(--accl)' : (el.dataset.today==='1' ? 'var(--bg2)' : '');
+    el.style.borderColor = active ? 'var(--acc)' : 'var(--bdr)';
+  });
+}
+
+function _adminCalRenderGrid(){
+  const ySel = document.getElementById('admin-cal-year-sel');
+  const mSel = document.getElementById('admin-cal-month-sel');
+  const titleEl = document.getElementById('admin-cal-title');
+  const grid = document.getElementById('admin-cal-grid');
+  if(!grid) return;
+  if(ySel) ySel.value = _adminCalYear;
+  if(mSel) mSel.value = _adminCalMonth;
+  if(titleEl) titleEl.textContent = _adminCalYear + '年 ' + (_adminCalMonth+1) + '月';
+
+  const firstDay = new Date(_adminCalYear, _adminCalMonth, 1).getDay();
+  const daysInMonth = new Date(_adminCalYear, _adminCalMonth+1, 0).getDate();
+  const today = new Date();
+  const todayKey = _adminCalDateKey(today.getFullYear(), today.getMonth(), today.getDate());
+
+  let html = '';
+  for(let i=0;i<firstDay;i++){
+    html += `<div style="min-height:52px;border-right:1px solid var(--bdr);border-bottom:1px solid var(--bdr);background:var(--bg2);opacity:.4"></div>`;
   }
-
-  function section(icon, title, cnt, colorVar, content){
-    return `<div style="margin-bottom:16px">
-      <div style="font-size:12px;font-weight:700;color:${colorVar};margin-bottom:8px;padding-bottom:6px;border-bottom:2px solid ${colorVar}22;display:flex;align-items:center;gap:6px">
-        <span>${icon}</span><span>${title}</span><span style="background:${colorVar}22;color:${colorVar};border-radius:20px;padding:1px 8px;font-size:11px">${cnt} 筆</span>
-      </div>
-      ${content}
+  for(let d=1; d<=daysInMonth; d++){
+    const dateKey = _adminCalDateKey(_adminCalYear, _adminCalMonth, d);
+    const dow = (firstDay+d-1)%7;
+    const isToday = dateKey === todayKey;
+    const isSelected = dateKey === _adminCalSelectedDate;
+    const isSun = dow===0, isSat = dow===6;
+    const dayData = _adminCalData[dateKey];
+    let todoCount = 0;
+    if(dayData && dayData.slots){ for(const k in dayData.slots){ todoCount += (dayData.slots[k]||[]).length; } }
+    const hasJournal = !!(dayData && dayData.journal && dayData.journal.trim());
+    const dayColor = isSun?'var(--red)':isSat?'var(--acc)':'var(--tx)';
+    const cellBg = isSelected ? 'var(--accl)' : (isToday ? 'var(--bg2)' : '');
+    html += `<div data-datekey="${dateKey}" ${isToday?'data-today="1"':''} onclick="adminCalSelectDate('${dateKey}')" style="min-height:52px;padding:5px;border-right:1px solid var(--bdr);border-bottom:1px solid var(--bdr);cursor:pointer;transition:.15s;background:${cellBg};border-color:${isSelected?'var(--acc)':'var(--bdr)'}">
+      <div style="font-size:12px;font-weight:${isToday?'800':'600'};color:${dayColor}">${d}</div>
+      ${todoCount>0?`<div style="margin-top:2px"><span style="font-size:9px;font-weight:700;background:var(--acc);color:#fff;padding:0 5px;border-radius:20px">${todoCount}</span></div>`:''}
+      ${hasJournal?`<div style="margin-top:2px;font-size:10px">📝</div>`:''}
     </div>`;
   }
+  const totalCells = firstDay+daysInMonth;
+  const rem = (7-(totalCells%7))%7;
+  for(let i=0;i<rem;i++){
+    html += `<div style="min-height:52px;border-right:1px solid var(--bdr);border-bottom:1px solid var(--bdr);background:var(--bg2);opacity:.4"></div>`;
+  }
+  grid.innerHTML = html;
+}
+
+function _adminCalRenderDayPanel(){
+  const titleEl = document.getElementById('admin-cal-day-title');
+  const bodyEl = document.getElementById('admin-cal-day-body');
+  const journalEl = document.getElementById('admin-cal-day-journal');
+  if(!titleEl || !bodyEl) return;
+  const dateKey = _adminCalSelectedDate;
+  if(!dateKey){ titleEl.textContent=''; bodyEl.innerHTML=''; if(journalEl) journalEl.style.display='none'; return; }
+  const [y,m,d] = dateKey.split('-');
+  const dow = new Date(parseInt(y),parseInt(m)-1,parseInt(d)).getDay();
+  const dowNames = ['日','一','二','三','四','五','六'];
+  const now = new Date();
+  const todayKey = _adminCalDateKey(now.getFullYear(), now.getMonth(), now.getDate());
+  const isToday = dateKey === todayKey;
+  titleEl.textContent = `📅 ${parseInt(y)}年${parseInt(m)}月${parseInt(d)}日（${dowNames[dow]}）${isToday?' — 今天':''}`;
+
+  const dayData = _adminCalData[dateKey] || {slots:{}};
+  let html = '';
+  for(const slot of CAL_SLOTS){
+    const todos = (dayData.slots && dayData.slots[slot.key]) || [];
+    const bg = slot.special ? 'background:var(--bg2)' : 'background:var(--surf)';
+    const labelColor = slot.special ? 'color:var(--tx3)' : 'color:var(--acc)';
+    const timeLabel = slot.label.replace(' – ','–');
+    html += `<div style="border-bottom:1px solid var(--bdr);padding:7px 14px;${bg};display:flex;align-items:flex-start;gap:8px">
+      <span style="font-size:11px;font-weight:700;${labelColor};min-width:92px;flex-shrink:0;padding-top:1px">${timeLabel}</span>
+      <div style="flex:1;min-width:0">
+        ${slot.special
+          ? `<span style="font-size:11px;color:var(--tx3)">${slot.specialLabel}</span>`
+          : (todos.length
+              ? todos.map(t=>{
+                  const isDone = t.done===true, isUndone = t.done===false;
+                  const dotColor = isDone?'var(--grn)':isUndone?'var(--red)':'var(--acc)';
+                  return `<div style="font-size:12px;color:var(--tx2);display:flex;align-items:center;gap:5px;margin-bottom:2px"><span style="width:6px;height:6px;border-radius:50%;background:${dotColor};flex-shrink:0"></span>${escH(t.name||'')}</div>`;
+                }).join('')
+              : `<span style="font-size:11px;color:var(--tx3)">（無待辦）</span>`)}
+      </div>
+    </div>`;
+  }
+  bodyEl.innerHTML = html;
+
+  if(journalEl){
+    const journal = dayData.journal || '';
+    if(journal.trim()){
+      journalEl.style.display = '';
+      journalEl.innerHTML = `<div style="font-size:11px;font-weight:700;color:var(--tx2);margin-bottom:4px;display:flex;align-items:center;gap:4px"><span>📝</span><span>心得</span></div><div style="font-size:12px;color:var(--tx2);white-space:pre-wrap;line-height:1.6">${escH(journal)}</div>`;
+    } else {
+      journalEl.style.display = 'none';
+    }
+  }
+}
+
+// 渲染員工「行事曆」唯讀檢視內容
+function _renderUserDetailContent(area, u, calDataObj, displayName){
+  _adminCalUid = u.uid;
+  _adminCalData = (calDataObj && calDataObj.calData) || {};
+  const now = new Date();
+  _adminCalYear = now.getFullYear();
+  _adminCalMonth = now.getMonth();
+  _adminCalSelectedDate = _adminCalDateKey(now.getFullYear(), now.getMonth(), now.getDate());
 
   const myNote = _supNotes[u.uid] || {};
+  let yearOpts = '';
+  for(let y=now.getFullYear()-3; y<=now.getFullYear()+1; y++){
+    yearOpts += `<option value="${y}"${y===_adminCalYear?' selected':''}>${y}年</option>`;
+  }
+  let monthOpts = '';
+  for(let mm=0; mm<12; mm++){
+    monthOpts += `<option value="${mm}"${mm===_adminCalMonth?' selected':''}>${mm+1}月</option>`;
+  }
+
   area.innerHTML = `<div class="admin-user-detail">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
       <div style="display:flex;align-items:center;gap:10px">
         ${u.photoURL?`<img src="${escH(u.photoURL)}" style="width:36px;height:36px;border-radius:50%" referrerpolicy="no-referrer">`:''}
         <div>
-          <div style="font-size:15px;font-weight:700;color:#7c3aed">${escH(displayName)}</div>
-          <div style="font-size:11px;color:var(--tx3)">${escH(u.email||'')}${myNote.note?' ・ '+escH(myNote.note):''}</div>
+          <div style="font-size:15px;font-weight:700;color:#7c3aed">${escH(displayName)} 的行事曆</div>
+          <div style="font-size:11px;color:var(--tx3)">${escH(u.email||'')}${myNote.note?' ・ '+escH(myNote.note):''}（僅供檢視，無法編輯）</div>
         </div>
       </div>
       <button class="btn btn-sm btn-g" onclick="document.getElementById('admin-user-detail-area').innerHTML=''">✕ 收起</button>
     </div>
-    <div class="dp-grid" style="margin-bottom:14px">
-      <div class="dp-field"><div class="k">募集線</div><div class="v" style="color:var(--acc);font-size:20px;font-weight:800">${rec.length}</div></div>
-      <div class="dp-field"><div class="k">追蹤線</div><div class="v" style="color:var(--grn);font-size:20px;font-weight:800">${trk.length}</div></div>
-      <div class="dp-field"><div class="k">委託</div><div class="v" style="color:#b07800;font-size:20px;font-weight:800">${comm.length}</div></div>
-      <div class="dp-field"><div class="k">已結案</div><div class="v" style="color:var(--red);font-size:20px;font-weight:800">${cls.length}</div></div>
+
+    <div style="background:var(--surf2);border:1px solid var(--bdr);border-radius:var(--rlg);overflow:hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:10px 12px;background:linear-gradient(135deg,var(--acc),#1a6bbf)">
+        <div style="display:flex;align-items:center;gap:6px">
+          <button onclick="adminCalPrevMonth()" style="width:26px;height:26px;border:none;border-radius:50%;background:rgba(255,255,255,.2);color:#fff;font-size:14px;cursor:pointer">‹</button>
+          <span id="admin-cal-title" style="font-size:13px;font-weight:700;color:#fff;min-width:90px;text-align:center"></span>
+          <button onclick="adminCalNextMonth()" style="width:26px;height:26px;border:none;border-radius:50%;background:rgba(255,255,255,.2);color:#fff;font-size:14px;cursor:pointer">›</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <select id="admin-cal-year-sel" class="fc" style="width:78px;padding:4px 6px!important;font-size:12px!important;background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.3);color:#fff" onchange="adminCalJumpToSelected()">${yearOpts}</select>
+          <select id="admin-cal-month-sel" class="fc" style="width:62px;padding:4px 6px!important;font-size:12px!important;background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.3);color:#fff" onchange="adminCalJumpToSelected()">${monthOpts}</select>
+          <button onclick="adminCalGoToday()" style="padding:4px 10px;border:1.5px solid rgba(255,255,255,.4);border-radius:var(--r);background:transparent;color:#fff;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">今天</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);background:var(--accl);border-bottom:1px solid var(--bdr)">
+        <div style="text-align:center;padding:6px 4px;font-size:10px;font-weight:700;color:var(--red)">日</div>
+        <div style="text-align:center;padding:6px 4px;font-size:10px;font-weight:700;color:var(--tx2)">一</div>
+        <div style="text-align:center;padding:6px 4px;font-size:10px;font-weight:700;color:var(--tx2)">二</div>
+        <div style="text-align:center;padding:6px 4px;font-size:10px;font-weight:700;color:var(--tx2)">三</div>
+        <div style="text-align:center;padding:6px 4px;font-size:10px;font-weight:700;color:var(--tx2)">四</div>
+        <div style="text-align:center;padding:6px 4px;font-size:10px;font-weight:700;color:var(--tx2)">五</div>
+        <div style="text-align:center;padding:6px 4px;font-size:10px;font-weight:700;color:var(--acc)">六</div>
+      </div>
+      <div id="admin-cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr)"></div>
+      <div style="border-top:2px solid var(--acc);background:var(--surf)">
+        <div id="admin-cal-day-title" style="padding:10px 14px 4px;font-size:13px;font-weight:700;color:var(--acc)"></div>
+        <div id="admin-cal-day-body"></div>
+        <div id="admin-cal-day-journal" style="padding:10px 14px 14px;border-top:1px dashed var(--bdr);display:none"></div>
+      </div>
     </div>
-    ${section('📋','募集線',rec.length,'var(--acc)',miniList(rec,'rec'))}
-    ${section('🔍','追蹤線',trk.length,'var(--grn)',miniList(trk,'trk'))}
-    ${section('📝','委託',comm.length,'#b07800',miniList(comm,'comm'))}
-    ${section('🏁','已結案',cls.length,'var(--red)',miniList(cls,'cls'))}
   </div>`;
+
+  _adminCalRenderGrid();
+  _adminCalRenderDayPanel();
 }
 
 (function(){
@@ -9340,6 +9571,26 @@ function calSave() {
   }
 }
 calLoad();
+
+// 儲存「今日心得」：綁定目前當日行程面板所顯示的日期（可透過面板切換到過去日期補寫）
+function calSaveTodayJournal(){
+  const journalEl = document.getElementById('cal-today-journal');
+  if (!journalEl || !_todayPanelDate) return;
+  const text = journalEl.value;
+  if (text.trim()) {
+    if (!calData[_todayPanelDate]) calData[_todayPanelDate] = { slots: {} };
+    calData[_todayPanelDate].journal = text;
+  } else if (calData[_todayPanelDate]) {
+    delete calData[_todayPanelDate].journal;
+    // 若該日既沒有待辦也沒有心得了，整個日期節點一併清掉，保持資料乾淨
+    if (!calData[_todayPanelDate].slots || Object.keys(calData[_todayPanelDate].slots).length === 0) {
+      delete calData[_todayPanelDate];
+    }
+  }
+  calSave();
+  const hintEl = document.getElementById('cal-journal-saved-hint');
+  if (hintEl) hintEl.textContent = '✅ 已儲存 ' + new Date().toLocaleTimeString('zh-TW');
+}
 
 // ─── 時段定義 ───────────────────────────────────────────────────
 const CAL_SLOTS = [
@@ -9482,6 +9733,14 @@ function renderTodayPanel() {
   titleEl.style.color = isToday ? 'var(--acc)' : 'var(--tx2)';
 
   const dayData = calData[_todayPanelDate] || { slots: {} };
+
+  // 今日心得：切換日期時同步帶入該日已儲存的心得文字
+  const journalEl = document.getElementById('cal-today-journal');
+  const journalLabelEl = document.getElementById('cal-journal-label');
+  const journalHintEl = document.getElementById('cal-journal-saved-hint');
+  if (journalEl) journalEl.value = dayData.journal || '';
+  if (journalLabelEl) journalLabelEl.textContent = isToday ? '今日心得' : `${parseInt(m)}月${parseInt(d)}日心得`;
+  if (journalHintEl) journalHintEl.textContent = '';
   let html = '<div style="padding:0 0 4px">';
   for (const slot of CAL_SLOTS) {
     const todos = (dayData.slots && dayData.slots[slot.key]) || [];
