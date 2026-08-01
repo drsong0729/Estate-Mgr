@@ -2097,6 +2097,11 @@ function gm_authFailure() {
       <label class="lbl">到職日</label>
       <input class="fc" type="date" id="wp-hiredate">
     </div>
+    <div class="fgp">
+      <label class="lbl">年度業績起始數據（萬，選填）</label>
+      <input class="fc" type="number" id="wp-year-baseline" placeholder="0" step="0.001">
+      <div style="font-size:11px;color:var(--tx3);margin-top:4px">若此業務在系統啟用前已有未列入紀錄的業績，可在此設定起始基礎，會自動疊加進本人「已結案」頁面的今年累積業績與每日戰報的年度S中</div>
+    </div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
       <div style="font-size:12px;font-weight:700;color:var(--tx2)">目標設定</div>
       <button class="btn btn-g" style="font-size:11px;padding:4px 10px" onclick="warAutoFillTargetsFromLinked()">🔄 從對應帳號一鍵套用</button>
@@ -3259,12 +3264,46 @@ function _computeSelfGoalTargets(){
     };
   }).catch(()=>({}));
 }
+
+// ── 年度業績起始數據 ─────────────────────────────────────────────
+// 系統於 2026/08 正式啟用前，以下幾位業務在 7 月已成交，但當時尚未列入系統的委託／已結案紀錄，
+// 故先以此預設清單（依「每日戰報」業務姓名比對）做為其年度累積業績的起始基礎（萬元）。
+// 若管理者之後在「每日戰報」的業務資料中手動設定了「年度業績起始數據」欄位，一律以該欄位數值為準，
+// 此預設清單僅在尚未手動設定時使用。本人的「已結案」頁面「今年累積業績」與每日戰報的「年度S」，
+// 都會在起始數據的基礎上，疊加系統內實際計算出的當年度業績，直到今年結束（隔年重新歸零）。
+const YEAR_PROFIT_BASELINE_SEED = {
+  '陳冠銘': 47.8,
+  '陳郁弘': 28.032,
+  '吳欣儀': 42.048
+};
+let _myYearProfitBaseline = 0;
+// 讀取「本人」的年度業績起始數據：以本人 uid 對應「每日戰報」業務名冊（linkedUid）查詢，
+// 找到後優先採用該筆資料手動設定的 yearProfitBaseline 欄位，若未設定則退回上方預設清單（依姓名比對）。
+// 查無綁定資料或讀取失敗時安全回傳 0，不影響其餘功能。
+function _fetchMyYearProfitBaseline(){
+  const myUid = window._currentUser && window._currentUser.uid;
+  if(!myUid || !window._firebaseWarReportColl || !window._firebaseQuery || !window._firebaseWhere || !window._firebaseGetDocs){
+    return Promise.resolve(0);
+  }
+  try{
+    const q = window._firebaseQuery(window._firebaseWarReportColl(), window._firebaseWhere('linkedUid','==',myUid));
+    return window._firebaseGetDocs(q).then(snap=>{
+      let found = null;
+      snap.forEach(d=>{ if(!found) found = d.data()||{}; });
+      if(!found) return 0;
+      if(found.yearProfitBaseline !== undefined && found.yearProfitBaseline !== null && found.yearProfitBaseline !== ''){
+        return parseFloat(found.yearProfitBaseline) || 0;
+      }
+      return YEAR_PROFIT_BASELINE_SEED[found.name] || 0;
+    }).catch(()=>0);
+  }catch(e){ return Promise.resolve(0); }
+}
 function _syncUserIndex(user){
   if(!window._firebaseIndexRef) return;
   const fixedRole = FIXED_ROLES[(user.email||'').toLowerCase()];
   const now = new Date().toISOString();
   const ref = window._firebaseIndexRef(user.uid);
-  Promise.all([ window._firebaseGetDoc(ref), _computeSelfGoalTargets() ]).then(([snap, goalTargets])=>{
+  Promise.all([ window._firebaseGetDoc(ref), _computeSelfGoalTargets(), _fetchMyYearProfitBaseline() ]).then(([snap, goalTargets, yearBaseline])=>{
     const existing = snap.exists() ? snap.data() : {};
     // 顯示名稱：優先用 customName
     const shownName = existing.customName || user.displayName || '使用者';
@@ -3272,6 +3311,9 @@ function _syncUserIndex(user){
     if(dName) dName.textContent = shownName;
     window._myCustomName = existing.customName || null;
     window._myGoogleName  = user.displayName || user.email?.split('@')[0] || '未知';
+    // 年度S（warYearProfit）= 系統內實際計算出的當年度業績 + 年度業績起始數據（若有）
+    const warStats = _computeSelfWarStats();
+    warStats.warYearProfit = +(((warStats.warYearProfit||0) + (yearBaseline||0))).toFixed(1);
     // payload 不含 customName，merge:true 自動保留 Firestore 上已有的值
     const payload = {
       uid:          user.uid,
@@ -3286,7 +3328,7 @@ function _syncUserIndex(user){
       lastLoginAt:  now,
       firstLoginAt: existing.firstLoginAt || now,
       role:         fixedRole || existing.role || window._myRole || ROLES.STAFF,
-      ..._computeSelfWarStats(),
+      ...warStats,
       ...goalTargets
     };
     window._firebaseSetDoc(ref, payload, {merge:true}).catch(()=>{});
@@ -7012,6 +7054,10 @@ window.onFirebaseLogin = async function(user){
 
   await loadFromFirestore(user.uid);
 
+  // 讀取本人的「年度業績起始數據」（若有綁定「每日戰報」業務資料），供已結案頁面「今年累積業績」使用；
+  // 非阻塞背景讀取，完成後才重新整理一次已結案統計卡，避免拖慢登入流程
+  _fetchMyYearProfitBaseline().then(v=>{ _myYearProfitBaseline = v; renderClosed(); }).catch(()=>{});
+
   // 從 users_index 讀取身份組 + customName（所有身份組統一走這裡）
   try{
     const idxSnap = await window._firebaseGetDoc(window._firebaseIndexRef(user.uid));
@@ -7376,8 +7422,9 @@ function renderClosed(){
       const fee = parseFloat(x.dealFee) || 0;
       return total * (fee / 100);
     };
+    // 今年累積業績 = 系統內實際計算出的當年度業績 + 年度業績起始數據（若有；供系統啟用前既有業績未列入紀錄的情況使用）
     const yearProfit = list.filter(x => x.closedDate && x.closedDate.slice(0,4) === curYearStr)
-                            .reduce((s,x) => s + revenueOf(x), 0);
+                            .reduce((s,x) => s + revenueOf(x), 0) + (_myYearProfitBaseline || 0);
     const monthProfit = list.filter(x => x.closedDate && x.closedDate.slice(0,4) === curYearStr && x.closedDate.slice(5,7) === curMonthStr)
                              .reduce((s,x) => s + revenueOf(x), 0);
     statsEl.innerHTML = `
@@ -8973,10 +9020,10 @@ function fmtWarNum(v){ return (v===undefined||v===null||v==='') ? 0 : v; }
 // 依「當天快照」計算月排名（依當月S）／年排名（依年度S）：由高到低排序，數值並列者名次相同、
 // 下一個相異數值的名次會依照已排過的人數往後跳（標準名次法，例如兩人並列第1名，下一位是第3名）。
 // 當天沒有快照的人不參與排名（該員名次顯示 —）。回傳 { monthRank:{personId:rank}, yearRank:{personId:rank} }
-function _warComputeRanks(monthList, dateStr){
+function _warComputeRanks(dateStr){
   const monthVals = [], yearVals = [];
   _warRoster.forEach(p=>{
-    const s = monthList.find(x=>x.personId===p.id && x.date===dateStr);
+    const s = _warEffectiveSnap(p, dateStr);
     if(s){
       monthVals.push({ id: p.id, val: parseFloat(s.monthS) || 0 });
       yearVals.push({ id: p.id, val: parseFloat(s.yearS) || 0 });
@@ -9032,6 +9079,25 @@ function _warFindLatestPrior(personId, dateStr){
   if(!list.length) return null;
   list.sort((a,b) => a.date < b.date ? 1 : -1);
   return list[0];
+}
+// 取得某人在指定日期「表格顯示用」的有效快照：
+// 若當天已經有人填過快照，直接原樣回傳；若當天是新的一天（尚無快照），
+// 累積性欄位（目標／年度S／當月S／A／A+B／庫存／月統計）沿用「同月最近一筆快照 → 名冊最近一次填寫的快取值」直接帶入表格，
+// 但「今日」欄位（今日追蹤／募集／電話／今日進案）一律歸零／清空，等待使用者當天輸入。
+// 若完全沒有任何歷史資料可沿用（全新業務、從未填寫過），回傳 null，表格會顯示「尚無快照紀錄」。
+function _warEffectiveSnap(p, dateStr){
+  const daySnap = _warFindSnapshot(p.id, dateStr);
+  if(daySnap) return daySnap;
+  const priorSnap = _warFindLatestPrior(p.id, dateStr);
+  const base = priorSnap || p.latest || null;
+  if(!base) return null;
+  return {
+    targetMonthS: base.targetMonthS, targetB: base.targetB, targetA: base.targetA,
+    yearS: base.yearS, monthS: base.monthS,
+    aCount: base.aCount, abCount: base.abCount, inventory: base.inventory,
+    monthTrack: base.monthTrack, monthRecruit: base.monthRecruit, monthCall: base.monthCall,
+    todayTrack: 0, todayRecruit: 0, todayCall: 0, todayNewCase: null
+  };
 }
 
 // 進入「每日戰報」頁面時初始化
@@ -9141,11 +9207,13 @@ async function renderWarReport(){
   // 若使用者在讀取期間又切換了日期，放棄這次結果，避免畫面錯亂
   if((_warSelectedDate || nowDate()) !== dateStr) return;
 
-  // 排名：依「當天快照」的當月S／年度S 高到低排序（有並列名次、下一名次會依人數往後跳），沒有當天快照者不參與排名
-  const { monthRank, yearRank } = _warComputeRanks(monthList, dateStr);
+  // 排名：依「表格顯示用有效快照」的當月S／年度S 高到低排序（有並列名次、下一名次會依人數往後跳），
+  // 完全沒有任何歷史資料可沿用者（全新業務、從未填寫過）不參與排名
+  const { monthRank, yearRank } = _warComputeRanks(dateStr);
 
   tbody.innerHTML = _warRoster.map(p=>{
-    const daySnap = monthList.find(s => s.personId === p.id && s.date === dateStr);
+    // 新的一天（當天尚無快照）：累積性欄位自動沿用最近一筆快照／名冊快取值，今日欄位歸零等待輸入
+    const daySnap = _warEffectiveSnap(p, dateStr);
     const actionsCell = editing ? `<td style="white-space:nowrap"><button class="btn btn-sm btn-edit" onclick="openWarPersonModal('${p.id}')">✏️ 編輯</button></td>` : '';
     if(!daySnap){
       return `<tr>
@@ -9225,6 +9293,7 @@ async function openWarPersonModal(id){
   document.getElementById('wp-name').value = p?.name || '';
   if(linkSel) linkSel.value = p?.linkedUid || '';
   document.getElementById('wp-hiredate').value = p?.hireDate || '';
+  document.getElementById('wp-year-baseline').value = (p && p.yearProfitBaseline !== undefined && p.yearProfitBaseline !== null) ? p.yearProfitBaseline : '';
 
   // 預填順序：當天已有的快照 → 同月最近一筆快照 → 名冊上次填寫的快取值 → 空白
   const daySnap = p ? _warFindSnapshot(p.id, dateStr) : null;
@@ -9348,11 +9417,13 @@ async function saveWarPerson(){
   const linkedUid = linkSel ? linkSel.value : '';
   const linkedUser = linkedUid ? _warUsersIndex.find(u=>u.uid===linkedUid) : null;
 
+  const yearBaselineVal = document.getElementById('wp-year-baseline').value;
   const rosterPayload = {
     name,
     linkedUid: linkedUid || '',
     linkedEmail: linkedUser?.email || (isNew ? '' : (existing.linkedEmail||'')),
     hireDate: document.getElementById('wp-hiredate').value || '',
+    yearProfitBaseline: yearBaselineVal === '' ? null : (parseFloat(yearBaselineVal) || 0),
     latest: {...snapshotFields},
     updatedAt: nowIso,
     updatedBy: myEmail
