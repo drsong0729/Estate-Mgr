@@ -113,7 +113,7 @@
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
   import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, browserSessionPersistence, setPersistence }
     from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-  import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs }
+  import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs, query, where }
     from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
   import { initializeAppCheck, ReCaptchaV3Provider }
     from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check.js';
@@ -168,6 +168,15 @@
   window._firebaseAllowedColl = () => collection(db_fs, 'allowed_users');
   window._firebasePendingRef  = (uid) => doc(db_fs, 'pending_registrations', uid);
   window._firebasePendingColl = () => collection(db_fs, 'pending_registrations');
+  // 每日戰報：業務名冊（幕僚維護，只存基本資料 + 最新一次填寫的快取值）
+  window._firebaseWarReportRef  = (id) => doc(db_fs, 'war_report_roster', id);
+  window._firebaseWarReportColl = () => collection(db_fs, 'war_report_roster');
+  window._firebaseWarReportNewRef = () => doc(collection(db_fs, 'war_report_roster'));
+  // 每日戰報：每日快照（每人每天一筆，doc id = 'YYYY-MM-DD_業務id'，供歷史回看）
+  window._firebaseWarSnapshotRef  = (dateStr, personId) => doc(db_fs, 'war_report_snapshots', dateStr + '_' + personId);
+  window._firebaseWarSnapshotsColl = () => collection(db_fs, 'war_report_snapshots');
+  window._firebaseQuery = query;
+  window._firebaseWhere = where;
 
   // 每次開啟網站：先登出 → 設 session persistence → 再監聽
   signOut(auth)
@@ -732,6 +741,9 @@ function gm_authFailure() {
     </button>
     <button class="drawer-nav" id="dnav-taxcalc" onclick="switchPage('taxcalc');toggleDrawer()">
       <span>🧮</span> 稅務與貸款試算
+    </button>
+    <button class="drawer-nav" id="dnav-warreport" onclick="switchPage('warreport');toggleDrawer()">
+      <span>📊</span> 每日戰報
     </button>
     <button class="drawer-nav" id="dnav-admin" onclick="switchPage('admin');toggleDrawer()" style="display:none">
       <span id="dnav-admin-icon">🛡</span> <span id="dnav-admin-label">主管後台</span>
@@ -1937,6 +1949,114 @@ function gm_authFailure() {
   <div id="inv-list" style="padding:0 16px 24px"></div>
 </div>
 
+<!-- PAGE: 每日戰報 -->
+<div class="page" id="page-warreport">
+  <div class="ph" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:space-between">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <label style="font-size:12px;color:var(--tx2);font-weight:600">日期</label>
+      <input class="fc" type="date" id="war-date" style="width:150px" onchange="onWarDateChange()">
+      <button class="btn btn-g" style="font-size:12px;padding:6px 10px" onclick="warGoToday()">📅 回到今天</button>
+    </div>
+    <div id="war-edit-actions" style="display:none;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-p" onclick="openWarPersonModal(null)">＋ 新增業務</button>
+      <button class="btn btn-g" id="war-edit-toggle-btn" onclick="toggleWarEditMode()">✏️ 編輯戰報</button>
+    </div>
+  </div>
+  <div style="font-size:12px;color:var(--tx3);padding:0 16px 10px;line-height:1.6">
+    💡 每一天都會保留一份完整快照，切換上方日期即可回看當天所有欄位的實際數字；若某天沒有編輯過，該列會顯示「尚無快照紀錄」。編輯戰報時，系統會以「當天已有的快照 → 同月最近一筆 → 名冊最近一次填寫」的順序帶入預設值方便接續填寫。
+  </div>
+  <div id="war-updated" style="font-size:11px;color:var(--tx3);padding:0 16px 8px"></div>
+  <div class="admin-table-wrap" style="margin:0 16px 24px">
+    <table>
+      <thead>
+        <tr>
+          <th>業務</th>
+          <th>到職日</th>
+          <th>目標 S/B/A</th>
+          <th>年度 S</th>
+          <th>當月 S</th>
+          <th>A / A+B</th>
+          <th>庫存</th>
+          <th>月追蹤</th>
+          <th>月募集</th>
+          <th>月電話</th>
+          <th>今日追蹤</th>
+          <th>今日募集</th>
+          <th>今日電話</th>
+          <th id="war-th-actions" style="display:none">操作</th>
+        </tr>
+      </thead>
+      <tbody id="warreport-tbody">
+        <tr><td class="empty-td" colspan="14">⏳ 載入中…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal: 新增／編輯業務 -->
+<div class="ov" id="ov-warperson">
+<div class="modal" style="max-width:640px">
+  <div class="mh"><div class="mt" id="warperson-modal-title">＋ 新增業務</div><button class="mc" onclick="closeOv('warperson')">✕</button></div>
+  <div class="mb">
+    <div class="fgp">
+      <label class="lbl">姓名</label>
+      <input class="fc" id="wp-name" placeholder="業務姓名">
+    </div>
+    <div class="fgp">
+      <label class="lbl">對應帳號（可選，選定後可一鍵套用該帳號的系統資料）</label>
+      <select class="fc" id="wp-linked-uid">
+        <option value="">尚未綁定</option>
+      </select>
+    </div>
+    <div class="fgp">
+      <label class="lbl">到職日</label>
+      <input class="fc" type="date" id="wp-hiredate">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">
+      <div class="fgp" style="margin-bottom:0"><label class="lbl">目標 S（萬）</label><input class="fc" type="number" id="wp-target-s" placeholder="0"></div>
+      <div class="fgp" style="margin-bottom:0"><label class="lbl">目標 B（一般約）</label><input class="fc" type="number" id="wp-target-b" placeholder="0"></div>
+      <div class="fgp" style="margin-bottom:0"><label class="lbl">目標 A（專任約）</label><input class="fc" type="number" id="wp-target-a" placeholder="0"></div>
+    </div>
+    <div style="border-top:1px dashed var(--bdr);margin:4px 0 12px;padding-top:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-size:12px;font-weight:700;color:var(--tx2)">實際達成數值</div>
+        <button class="btn btn-g" style="font-size:11px;padding:4px 10px" onclick="warAutoFillFromLinked()">🔄 從對應帳號一鍵套用</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div class="fgp" style="margin-bottom:0"><label class="lbl">年度 S（萬）</label><input class="fc" type="number" id="wp-year-s" placeholder="0"></div>
+        <div class="fgp" style="margin-bottom:0"><label class="lbl">當月 S（萬）</label><input class="fc" type="number" id="wp-month-s" placeholder="0"></div>
+        <div class="fgp" style="margin-bottom:0"><label class="lbl">A（當月專任約數）</label><input class="fc" type="number" id="wp-a-count" placeholder="0"></div>
+        <div class="fgp" style="margin-bottom:0"><label class="lbl">A+B（當月總委託數）</label><input class="fc" type="number" id="wp-ab-count" placeholder="0"></div>
+        <div class="fgp" style="margin-bottom:0"><label class="lbl">庫存（現有委託總數）</label><input class="fc" type="number" id="wp-inventory" placeholder="0"></div>
+      </div>
+    </div>
+    <div style="border-top:1px dashed var(--bdr);margin:4px 0 12px;padding-top:12px">
+      <div style="font-size:12px;font-weight:700;color:var(--tx2);margin-bottom:8px">月統計（可手動輸入，也會自動加總當月每日輸入的數字）</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <div class="fgp" style="margin-bottom:0"><label class="lbl">月追蹤數</label><input class="fc" type="number" id="wp-month-track" placeholder="0"></div>
+        <div class="fgp" style="margin-bottom:0"><label class="lbl">月募集數</label><input class="fc" type="number" id="wp-month-recruit" placeholder="0"></div>
+        <div class="fgp" style="margin-bottom:0"><label class="lbl">月電話數</label><input class="fc" type="number" id="wp-month-call" placeholder="0"></div>
+      </div>
+      <div style="font-size:11px;color:var(--tx3);margin-top:4px">目前自動加總值：<span id="wp-month-auto-hint">—</span>（僅供參考，儲存時以上方欄位數字為準）</div>
+    </div>
+    <div style="border-top:1px dashed var(--bdr);margin:4px 0 0;padding-top:12px">
+      <div style="font-size:12px;font-weight:700;color:var(--tx2);margin-bottom:8px">今日數字（<span id="wp-today-label"></span>）</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <div class="fgp" style="margin-bottom:0"><label class="lbl">今日追蹤數</label><input class="fc" type="number" id="wp-today-track" placeholder="0"></div>
+        <div class="fgp" style="margin-bottom:0"><label class="lbl">今日募集數</label><input class="fc" type="number" id="wp-today-recruit" placeholder="0"></div>
+        <div class="fgp" style="margin-bottom:0"><label class="lbl">今日電話數</label><input class="fc" type="number" id="wp-today-call" placeholder="0"></div>
+      </div>
+    </div>
+  </div>
+  <div class="mf" style="justify-content:space-between">
+    <button class="btn btn-del" id="wp-delete-btn" style="display:none" onclick="deleteWarPerson()">🗑 刪除此業務</button>
+    <div style="display:flex;gap:8px;margin-left:auto">
+      <button class="btn btn-g" onclick="closeOv('warperson')">取消</button>
+      <button class="btn btn-p" onclick="saveWarPerson()">儲存</button>
+    </div>
+  </div>
+</div></div>
+
 <!-- PAGE: 主管後台（僅主管可見） -->
 <div class="page" id="page-admin">
 
@@ -2569,11 +2689,12 @@ function gm_authFailure() {
 
 <script>
 // ── 身份組設定 ──
-// 身份組優先順序：sysadmin > owner > supervisor > staff
+// 身份組優先順序：sysadmin > owner > supervisor > advisor > staff
 const ROLES = {
   SYSADMIN:   'sysadmin',   // 系統管理員
   OWNER:      'owner',      // 老闆
   SUPERVISOR: 'supervisor', // 主管
+  ADVISOR:    'advisor',    // 幕僚（基本功能 + 每日戰報編輯）
   STAFF:      'staff'       // 員工（預設）
 };
 // 硬編碼：系統管理員與老闆（不可被任何人更動）
@@ -2588,6 +2709,7 @@ const ROLE_LABELS = {
   sysadmin:   '系統管理員',
   owner:      '老闆',
   supervisor: '主管',
+  advisor:    '幕僚',
   staff:      '員工'
 };
 // 身份組顯示顏色
@@ -2595,10 +2717,15 @@ const ROLE_COLORS = {
   sysadmin:   '#dc2626',
   owner:      '#7c3aed',
   supervisor: '#0f519b',
+  advisor:    '#0d9488',
   staff:      '#6b7280'
 };
 // 本登入者的角色（登入後由 onFirebaseLogin 或 Firestore 設定）
 window._myRole = ROLES.STAFF;
+// 可編輯「每日戰報」的身份組：幕僚 + 系統管理員（系統管理員固定身份，確保永遠有人能維運此功能）
+function canEditWarReport(){
+  return window._myRole === ROLES.ADVISOR || window._myRole === ROLES.SYSADMIN;
+}
 
 const CITIES={"基隆市":["仁愛區","信義區","中正區","中山區","安樂區","暖暖區","七堵區"],"臺北市":["松山區","信義區","大安區","中山區","中正區","大同區","萬華區","文山區","南港區","內湖區","士林區","北投區"],"新北市":["板橋區","三重區","中和區","永和區","新莊區","新店區","樹林區","鶯歌區","三峽區","淡水區","汐止區","瑞芳區","土城區","蘆洲區","五股區","泰山區","林口區","深坑區","石碇區","坪林區","三芝區","石門區","八里區","平溪區","雙溪區","貢寮區","金山區","萬里區","烏來區"],"桃園市":["桃園區","中壢區","大溪區","楊梅區","蘆竹區","大園區","龜山區","八德區","龍潭區","平鎮區","新屋區","觀音區","復興區"],"新竹市":["東區","北區","香山區"],"新竹縣":["竹北市","湖口鄉","新豐鄉","新埔鎮","關西鎮","芎林鄉","寶山鄉","竹東鎮","五峰鄉","橫山鄉","尖石鄉","北埔鄉","峨眉鄉"],"苗栗縣":["竹南鎮","頭份市","三灣鄉","南庄鄉","獅潭鄉","後龍鎮","通霄鎮","苑裡鎮","苗栗市","造橋鄉","頭屋鄉","公館鄉","大湖鄉","泰安鄉","銅鑼鄉","三義鄉","西湖鄉","卓蘭鎮"],"臺中市":["中區","東區","南區","西區","北區","西屯區","南屯區","北屯區","豐原區","東勢區","大甲區","清水區","沙鹿區","梧棲區","后里區","神岡區","潭子區","大雅區","新社區","石岡區","外埔區","大安區","烏日區","大肚區","龍井區","霧峰區","太平區","大里區","和平區"],"彰化縣":["彰化市","芬園鄉","花壇鄉","秀水鄉","鹿港鎮","福興鄉","線西鄉","和美鎮","伸港鄉","員林市","社頭鄉","永靖鄉","埔心鄉","溪湖鎮","大村鄉","埔鹽鄉","田中鎮","北斗鎮","田尾鄉","埤頭鄉","溪州鄉","竹塘鄉","二林鎮","大城鄉","芳苑鄉","二水鄉"],"南投縣":["南投市","中寮鄉","草屯鎮","國姓鄉","埔里鎮","仁愛鄉","名間鄉","集集鎮","水里鄉","魚池鄉","信義鄉","竹山鎮","鹿谷鄉"],"雲林縣":["斗南鎮","大埤鄉","虎尾鎮","土庫鎮","褒忠鄉","東勢鄉","臺西鄉","崙背鄉","麥寮鄉","斗六市","林內鄉","古坑鄉","莿桐鄉","西螺鎮","二崙鄉","北港鎮","水林鄉","口湖鄉","四湖鄉","元長鄉"],"嘉義市":["東區","西區"],"嘉義縣":["番路鄉","梅山鄉","竹崎鄉","阿里山鄉","中埔鄉","大埔鄉","水上鄉","鹿草鄉","太保市","朴子市","東石鄉","六腳鄉","新港鄉","民雄鄉","大林鎮","溪口鄉","義竹鄉","布袋鎮"],"臺南市":["中西區","東區","南區","北區","安平區","安南區","永康區","歸仁區","新化區","左鎮區","玉井區","楠西區","南化區","仁德區","關廟區","龍崎區","官田區","麻豆區","佳里區","西港區","七股區","將軍區","學甲區","北門區","新營區","後壁區","白河區","東山區","六甲區","下營區","柳營區","鹽水區","善化區","大內區","山上區","新市區","安定區"],"高雄市":["楠梓區","左營區","鼓山區","三民區","鹽埕區","前金區","新興區","苓雅區","前鎮區","旗津區","小港區","鳳山區","林園區","大寮區","大樹區","大社區","仁武區","鳥松區","岡山區","橋頭區","燕巢區","田寮區","阿蓮區","路竹區","湖內區","茄萣區","永安區","彌陀區","梓官區","旗山區","美濃區","六龜區","甲仙區","杉林區","內門區","茂林區","桃源區","那瑪夏區"],"屏東縣":["屏東市","三地門鄉","霧台鄉","瑪家鄉","九如鄉","里港鄉","高樹鄉","鹽埔鄉","長治鄉","麟洛鄉","竹田鄉","內埔鄉","萬丹鄉","潮州鎮","泰武鄉","來義鄉","萬巒鄉","崁頂鄉","新埤鄉","南州鄉","林邊鄉","東港鎮","琉球鄉","佳冬鄉","新園鄉","枋寮鄉","枋山鄉","春日鄉","獅子鄉","車城鄉","牡丹鄉","恆春鎮","滿州鄉"],"宜蘭縣":["宜蘭市","頭城鎮","礁溪鄉","壯圍鄉","員山鄉","羅東鎮","三星鄉","大同鄉","五結鄉","冬山鄉","蘇澳鎮","南澳鄉"],"花蓮縣":["花蓮市","新城鄉","秀林鄉","吉安鄉","壽豐鄉","鳳林鎮","光復鄉","豐濱鄉","瑞穗鄉","萬榮鄉","玉里鎮","卓溪鄉","富里鄉"],"臺東縣":["臺東市","綠島鄉","蘭嶼鄉","延平鄉","卑南鄉","鹿野鄉","關山鎮","海端鄉","池上鄉","東河鄉","成功鎮","長濱鄉","太麻里鄉","金峰鄉","大武鄉","達仁鄉"],"澎湖縣":["馬公市","西嶼鄉","望安鄉","七美鄉","白沙鄉","湖西鄉"],"金門縣":["金城鎮","金湖鎮","金沙鎮","金寧鄉","烈嶼鄉","烏坵鄉"],"連江縣":["南竿鄉","北竿鄉","莒光鄉","東引鄉"]};
 
@@ -2730,6 +2857,36 @@ function _autoSyncInventory(userArg){
   }).catch(e=>console.warn('公司庫存自動同步失敗', e));
 }
 
+// 供「每日戰報」自動套用使用：計算本人今年／本月累積業績與當月新增委託數
+// （放在 users_index 內，因為戰報僅讀取 users_index 這份共用索引，不需額外開放讀取每個人的私人資料文件）
+function _computeSelfWarStats(){
+  try{
+    const now = new Date();
+    const curYearStr = String(now.getFullYear());
+    const curYM = curYearStr + '-' + String(now.getMonth()+1).padStart(2,'0');
+    const revenueOf = x => {
+      if(typeof isSelfDealType !== 'function' || !isSelfDealType(x.closedType)) return 0;
+      const total = parseFloat(x.dealTotal) || 0;
+      const fee = parseFloat(x.dealFee) || 0;
+      return total * (fee / 100);
+    };
+    const closedList = db.closed || [];
+    const yearProfit = closedList.filter(x => x.closedDate && x.closedDate.slice(0,4) === curYearStr)
+                                  .reduce((s,x) => s + revenueOf(x), 0);
+    const monthProfit = closedList.filter(x => x.closedDate && x.closedDate.slice(0,7) === curYM)
+                                   .reduce((s,x) => s + revenueOf(x), 0);
+    const commList = db.commission || [];
+    const monthCommCnt = commList.filter(r => (r.commDate||'').slice(0,7) === curYM).length;
+    const monthExclusiveCnt = commList.filter(r => (r.commDate||'').slice(0,7) === curYM && r.commType==='exclusive').length;
+    return {
+      warYearProfit: +yearProfit.toFixed(1),
+      warMonthProfit: +monthProfit.toFixed(1),
+      warMonthCommCnt: monthCommCnt,
+      warMonthExclusiveCnt: monthExclusiveCnt,
+      warInventoryCnt: commList.length
+    };
+  }catch(e){ return {}; }
+}
 function _syncUserIndex(user){
   if(!window._firebaseIndexRef) return;
   const fixedRole = FIXED_ROLES[(user.email||'').toLowerCase()];
@@ -2756,7 +2913,8 @@ function _syncUserIndex(user){
       updatedAt:    now,
       lastLoginAt:  now,
       firstLoginAt: existing.firstLoginAt || now,
-      role:         fixedRole || existing.role || window._myRole || ROLES.STAFF
+      role:         fixedRole || existing.role || window._myRole || ROLES.STAFF,
+      ..._computeSelfWarStats()
     };
     window._firebaseSetDoc(ref, payload, {merge:true}).catch(()=>{});
   }).catch(()=>{
@@ -2764,7 +2922,8 @@ function _syncUserIndex(user){
       uid:uid_field(user), name: user.displayName||'', email: user.email||'',
       photoURL: user.photoURL||'', recruitCnt:0, trackCnt:0, commCnt:0, closedCnt:0,
       updatedAt:now, lastLoginAt:now, firstLoginAt:now,
-      role: fixedRole || window._myRole || ROLES.STAFF
+      role: fixedRole || window._myRole || ROLES.STAFF,
+      ..._computeSelfWarStats()
     };
     window._firebaseSetDoc(ref, payload, {merge:true}).catch(()=>{});
   });
@@ -2854,7 +3013,7 @@ function toggleFilter(pool){
   btn.textContent=open?'⚙ 收起篩選':'⚙ 進階篩選';
 }
 
-const PAGE_TITLES={'recruit':'募集線','track':'追蹤線','commission':'委託管理','stats':'首頁','trip':'行程規劃','closed':'已結案','admin':'管理後台','buyer':'買方管理','inventory':'公司庫存','taxcalc':'稅務與貸款試算','profile':'個人頁面'};
+const PAGE_TITLES={'recruit':'募集線','track':'追蹤線','commission':'委託管理','stats':'首頁','trip':'行程規劃','closed':'已結案','admin':'管理後台','buyer':'買方管理','inventory':'公司庫存','taxcalc':'稅務與貸款試算','profile':'個人頁面','warreport':'每日戰報'};
 function switchPage(p){
   currentPage=p;
   document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));
@@ -2872,6 +3031,7 @@ function switchPage(p){
   else if(p==='admin'){loadAdminData();}
   else if(p==='buyer'){renderBuyer();checkBuyerBirthdays();}
   else if(p==='inventory'){renderInventory();}
+  else if(p==='warreport'){initWarReportPage();}
   if(p==='commission') _updateEndedBadge();
   else renderAll();
 }
@@ -8205,6 +8365,7 @@ function renderSysadminTable(){
     sysadmin:   '所有功能 + 系統管理員後台',
     owner:      '所有功能 + 主管後台 + 修改員工名稱',
     supervisor: '所有功能 + 主管後台',
+    advisor:    '基本功能 + 每日戰報編輯',
     staff:      '基本功能'
   };
 
@@ -8237,6 +8398,7 @@ function renderSysadminTable(){
         ${!isFixed?`<select class="role-select" id="sysrole-${u.uid}" style="margin-top:4px;display:block">
           <option value="owner"${empRole==='owner'?' selected':''}>老闆</option>
           <option value="supervisor"${empRole==='supervisor'?' selected':''}>主管</option>
+          <option value="advisor"${empRole==='advisor'?' selected':''}>幕僚</option>
           <option value="staff"${empRole==='staff'?' selected':''}>員工</option>
         </select>
         <button class="role-save-btn" style="margin-top:3px" onclick="saveSysRole('${u.uid}')">更新身份組</button>`:''}
@@ -8347,6 +8509,7 @@ function renderAdminTable(){
             <span class="role-badge" style="background:${ROLE_COLORS[empRole]}">${ROLE_LABELS[empRole]}</span>
             <select class="role-select" id="role-sel-${u.uid}">
               <option value="supervisor"${empRole==='supervisor'?' selected':''}>主管</option>
+              <option value="advisor"${empRole==='advisor'?' selected':''}>幕僚</option>
               <option value="staff"${empRole==='staff'?' selected':''}>員工</option>
             </select>
             <button class="role-save-btn" onclick="saveEmpRole('${u.uid}')">更新</button>
@@ -8410,6 +8573,361 @@ async function saveEmpRole(empUid){
     if(btn){ btn.textContent = '✓ 已更新'; setTimeout(()=>renderAdminTable(), 1500); }
   }catch(e){
     alert('⚠️ 更新失敗：' + e.message);
+  }
+}
+
+// ══════════════════════════ 每日戰報（每日快照模式）══════════════════════════
+// 資料模型：
+//   war_report_roster/{personId}      → 業務基本資料（姓名／對應帳號／到職日）＋ latest（最近一次填寫的快取值，僅供預填表單用）
+//   war_report_snapshots/{date_personId} → 每人每天一筆完整快照，用於歷史回看，內容不會事後被覆蓋（除非當天再次編輯）
+let _warRoster = [];        // 業務名冊（war_report_roster 集合的快取）
+let _warUsersIndex = [];    // users_index 快取（供「對應帳號」下拉選單與一鍵套用使用，僅編輯者需要）
+let _warMonthCache = {};    // { 'YYYY-MM': [快照...] } 已抓取過的月份快取
+let _warSelectedDate = '';  // 目前檢視的日期 'YYYY-MM-DD'
+let _warEditMode = false;
+let _warEditingId = null;   // 目前 modal 編輯中的業務 id（null = 新增）
+let _warLoadError = null;
+
+function fmtWarNum(v){ return (v===undefined||v===null||v==='') ? 0 : v; }
+
+// 抓取某月份（ym='YYYY-MM'）的所有快照（單一 range query，同月所有業務只需一次讀取，並會快取）
+async function _warFetchMonth(ym, force){
+  if(!force && _warMonthCache[ym]) return _warMonthCache[ym];
+  const q = window._firebaseQuery(
+    window._firebaseWarSnapshotsColl(),
+    window._firebaseWhere('date', '>=', ym + '-01'),
+    window._firebaseWhere('date', '<=', ym + '-31')
+  );
+  const snap = await window._firebaseGetDocs(q);
+  const list = [];
+  snap.forEach(d => list.push(d.data() || {}));
+  _warMonthCache[ym] = list;
+  return list;
+}
+function _warFindSnapshot(personId, dateStr){
+  const list = _warMonthCache[dateStr.slice(0,7)] || [];
+  return list.find(s => s.personId === personId && s.date === dateStr) || null;
+}
+// 找同月份中，指定日期（含）以前最近一筆快照，供新增快照時預填參考值
+function _warFindLatestPrior(personId, dateStr){
+  const list = (_warMonthCache[dateStr.slice(0,7)] || []).filter(s => s.personId === personId && s.date <= dateStr);
+  if(!list.length) return null;
+  list.sort((a,b) => a.date < b.date ? 1 : -1);
+  return list[0];
+}
+
+// 進入「每日戰報」頁面時初始化
+async function initWarReportPage(){
+  const dateInp = document.getElementById('war-date');
+  const todayStr = nowDate();
+  if(dateInp){
+    if(!dateInp.value) dateInp.value = todayStr;
+    dateInp.max = todayStr; // 不可檢視未來日期
+    _warSelectedDate = dateInp.value;
+  } else {
+    _warSelectedDate = todayStr;
+  }
+  const canEdit = canEditWarReport();
+  const actionsEl = document.getElementById('war-edit-actions');
+  if(actionsEl) actionsEl.style.display = canEdit ? 'flex' : 'none';
+  if(!canEdit) _warEditMode = false;
+  await warLoadData();
+  renderWarReport();
+}
+
+function warGoToday(){
+  const dateInp = document.getElementById('war-date');
+  const todayStr = nowDate();
+  if(dateInp) dateInp.value = todayStr;
+  _warSelectedDate = todayStr;
+  renderWarReport();
+}
+
+function onWarDateChange(){
+  const dateInp = document.getElementById('war-date');
+  const todayStr = nowDate();
+  _warSelectedDate = (dateInp && dateInp.value) ? dateInp.value : todayStr;
+  if(_warSelectedDate > todayStr){ _warSelectedDate = todayStr; if(dateInp) dateInp.value = todayStr; }
+  renderWarReport();
+}
+
+function toggleWarEditMode(){
+  if(!canEditWarReport()) return;
+  _warEditMode = !_warEditMode;
+  const btn = document.getElementById('war-edit-toggle-btn');
+  if(btn) btn.textContent = _warEditMode ? '✅ 完成編輯' : '✏️ 編輯戰報';
+  renderWarReport();
+}
+
+// 讀取業務名冊（所有身份組皆可讀取，供檢視戰報）；users_index 僅編輯者（幕僚／系統管理員）需要讀取
+async function warLoadData(){
+  const updEl = document.getElementById('war-updated');
+  if(updEl) updEl.textContent = '載入中…';
+  _warLoadError = null;
+  _warMonthCache = {}; // 每次進入頁面重新整理，避免顯示過期快照
+  try{
+    const rosterSnap = await window._firebaseGetDocs(window._firebaseWarReportColl());
+    _warRoster = [];
+    rosterSnap.forEach(d=>{ const x = d.data()||{}; x.id = d.id; _warRoster.push(x); });
+    _warRoster.sort((a,b)=>(a.name||'').localeCompare(b.name||'','zh-TW'));
+    if(canEditWarReport()){
+      try{
+        const idxSnap = await window._firebaseGetDocs(window._firebaseIndexColl());
+        _warUsersIndex = [];
+        idxSnap.forEach(d=>{ if(!d.id.startsWith('__supnotes_')) _warUsersIndex.push(d.data()||{}); });
+      }catch(e2){
+        console.warn('每日戰報：無法讀取 users_index（對應帳號清單／一鍵套用將無法使用）', e2);
+      }
+    }
+    if(updEl) updEl.textContent = '更新：' + new Date().toLocaleTimeString('zh-TW');
+  }catch(e){
+    _warLoadError = e.message || '權限不足';
+    if(updEl) updEl.textContent = '⚠️ 載入失敗';
+    console.error('War report load error:', e);
+  }
+}
+
+async function renderWarReport(){
+  const tbody = document.getElementById('warreport-tbody');
+  if(!tbody) return;
+  const canEdit = canEditWarReport();
+  const editing = canEdit && _warEditMode;
+  const thActions = document.getElementById('war-th-actions');
+  if(thActions) thActions.style.display = editing ? '' : 'none';
+
+  if(_warLoadError){
+    tbody.innerHTML = `<tr><td class="empty-td" colspan="14">⚠️ 載入失敗：${escH(_warLoadError)}<br><span style="font-size:11px">請確認 Firestore 安全規則已開放讀取 war_report_roster／war_report_snapshots 集合</span></td></tr>`;
+    return;
+  }
+  if(!_warRoster.length){
+    tbody.innerHTML = `<tr><td class="empty-td" colspan="14">📭 尚無業務資料${canEdit?'，點選右上方「＋ 新增業務」開始建立':''}</td></tr>`;
+    return;
+  }
+
+  const dateStr = _warSelectedDate || nowDate();
+  const ym = dateStr.slice(0,7);
+  tbody.innerHTML = `<tr><td class="empty-td" colspan="14">⏳ 載入 ${escH(dateStr)} 快照中…</td></tr>`;
+
+  let monthList;
+  try{
+    monthList = await _warFetchMonth(ym);
+  }catch(e){
+    tbody.innerHTML = `<tr><td class="empty-td" colspan="14">⚠️ 載入快照失敗：${escH(e.message||'')}<br><span style="font-size:11px">請確認 Firestore 安全規則已開放讀取 war_report_snapshots 集合</span></td></tr>`;
+    return;
+  }
+  // 若使用者在讀取期間又切換了日期，放棄這次結果，避免畫面錯亂
+  if((_warSelectedDate || nowDate()) !== dateStr) return;
+
+  tbody.innerHTML = _warRoster.map(p=>{
+    const daySnap = monthList.find(s => s.personId === p.id && s.date === dateStr);
+    const actionsCell = editing ? `<td style="white-space:nowrap"><button class="btn btn-sm btn-edit" onclick="openWarPersonModal('${p.id}')">✏️ 編輯</button></td>` : '';
+    if(!daySnap){
+      return `<tr>
+        <td style="font-weight:700">${escH(p.name||'—')}</td>
+        <td style="font-size:12px">${escH(p.hireDate||'—')}</td>
+        <td colspan="11" style="text-align:center;color:var(--tx3);font-size:12px">（${escH(dateStr)} 尚無快照紀錄）</td>
+        ${actionsCell}
+      </tr>`;
+    }
+    return `<tr>
+      <td style="font-weight:700">${escH(p.name||'—')}</td>
+      <td style="font-size:12px">${escH(p.hireDate||'—')}</td>
+      <td style="font-size:12px">${fmtWarNum(daySnap.targetS)} / ${fmtWarNum(daySnap.targetB)} / ${fmtWarNum(daySnap.targetA)}</td>
+      <td>${fmtWarNum(daySnap.yearS)}</td>
+      <td>${fmtWarNum(daySnap.monthS)}</td>
+      <td>${fmtWarNum(daySnap.aCount)} / ${fmtWarNum(daySnap.abCount)}</td>
+      <td>${fmtWarNum(daySnap.inventory)}</td>
+      <td>${fmtWarNum(daySnap.monthTrack)}</td>
+      <td>${fmtWarNum(daySnap.monthRecruit)}</td>
+      <td>${fmtWarNum(daySnap.monthCall)}</td>
+      <td>${fmtWarNum(daySnap.todayTrack)}</td>
+      <td>${fmtWarNum(daySnap.todayRecruit)}</td>
+      <td>${fmtWarNum(daySnap.todayCall)}</td>
+      ${actionsCell}
+    </tr>`;
+  }).join('');
+}
+
+// 開啟「新增／編輯業務」modal（會針對「目前選擇的日期」建立或編輯當天的快照）
+async function openWarPersonModal(id){
+  if(!canEditWarReport()) return;
+  _warEditingId = id;
+  const dateStr = _warSelectedDate || nowDate();
+  const ym = dateStr.slice(0,7);
+  const titleEl = document.getElementById('warperson-modal-title');
+  const delBtn = document.getElementById('wp-delete-btn');
+  const todayLabel = document.getElementById('wp-today-label');
+  if(todayLabel) todayLabel.textContent = dateStr;
+
+  // 確保該月份快照已載入（切換日期後才開新增業務時，月快取可能還沒抓過）
+  try{ await _warFetchMonth(ym); }catch(e){ console.warn('讀取月快照失敗', e); }
+
+  // 對應帳號下拉選單（排除已被其他業務綁定的帳號）
+  const linkSel = document.getElementById('wp-linked-uid');
+  if(linkSel){
+    const usedUids = new Set(_warRoster.filter(p=>p.id!==id && p.linkedUid).map(p=>p.linkedUid));
+    const opts = ['<option value="">尚未綁定</option>'].concat(
+      _warUsersIndex.filter(u=>u.uid).sort((a,b)=>(a.name||'').localeCompare(b.name||'','zh-TW')).map(u=>{
+        const label = (u.customName || u.name || u.email || u.uid) + (u.email ? `（${u.email}）` : '');
+        const disabled = usedUids.has(u.uid);
+        return `<option value="${escH(u.uid)}"${disabled?' disabled':''}>${escH(label)}${disabled?'（已綁定其他業務）':''}</option>`;
+      })
+    );
+    linkSel.innerHTML = opts.join('');
+  }
+
+  let p = null;
+  if(id){
+    p = _warRoster.find(x=>x.id===id);
+    if(!p) return;
+  }
+  if(titleEl) titleEl.textContent = p ? `✏️ 編輯業務：${p.name||''}（${dateStr} 快照）` : `＋ 新增業務（${dateStr} 快照）`;
+  if(delBtn) delBtn.style.display = p ? '' : 'none';
+
+  document.getElementById('wp-name').value = p?.name || '';
+  if(linkSel) linkSel.value = p?.linkedUid || '';
+  document.getElementById('wp-hiredate').value = p?.hireDate || '';
+
+  // 預填順序：當天已有的快照 → 同月最近一筆快照 → 名冊上次填寫的快取值 → 空白
+  const daySnap = p ? _warFindSnapshot(p.id, dateStr) : null;
+  const priorSnap = (!daySnap && p) ? _warFindLatestPrior(p.id, dateStr) : null;
+  const base = daySnap || priorSnap || (p && p.latest) || {};
+
+  document.getElementById('wp-target-s').value = base.targetS ?? '';
+  document.getElementById('wp-target-b').value = base.targetB ?? '';
+  document.getElementById('wp-target-a').value = base.targetA ?? '';
+  document.getElementById('wp-year-s').value = base.yearS ?? '';
+  document.getElementById('wp-month-s').value = base.monthS ?? '';
+  document.getElementById('wp-a-count').value = base.aCount ?? '';
+  document.getElementById('wp-ab-count').value = base.abCount ?? '';
+  document.getElementById('wp-inventory').value = base.inventory ?? '';
+  document.getElementById('wp-month-track').value = base.monthTrack ?? 0;
+  document.getElementById('wp-month-recruit').value = base.monthRecruit ?? 0;
+  document.getElementById('wp-month-call').value = base.monthCall ?? 0;
+
+  const hintEl = document.getElementById('wp-month-auto-hint');
+  if(hintEl){
+    if(p){
+      const list = (_warMonthCache[ym]||[]).filter(s=>s.personId===p.id && s.date<=dateStr);
+      const sug = list.reduce((s,x)=>({
+        track:   s.track   + ((+x.todayTrack)  ||0),
+        recruit: s.recruit + ((+x.todayRecruit)||0),
+        call:    s.call    + ((+x.todayCall)   ||0)
+      }), {track:0,recruit:0,call:0});
+      hintEl.textContent = `依每日輸入加總（至 ${dateStr}）：追蹤 ${sug.track}・募集 ${sug.recruit}・電話 ${sug.call}`;
+    } else {
+      hintEl.textContent = '—';
+    }
+  }
+
+  document.getElementById('wp-today-track').value = daySnap?.todayTrack ?? '';
+  document.getElementById('wp-today-recruit').value = daySnap?.todayRecruit ?? '';
+  document.getElementById('wp-today-call').value = daySnap?.todayCall ?? '';
+
+  openOv('warperson');
+}
+
+// 從「對應帳號」的系統資料一鍵套用（年度S／當月S／A／A+B／庫存）
+function warAutoFillFromLinked(){
+  const linkSel = document.getElementById('wp-linked-uid');
+  const uid = linkSel ? linkSel.value : '';
+  if(!uid){ alert('請先選擇對應帳號'); return; }
+  const u = _warUsersIndex.find(x=>x.uid===uid);
+  if(!u){ alert('找不到該帳號的系統資料，該帳號可能尚未登入過系統'); return; }
+  document.getElementById('wp-year-s').value = u.warYearProfit ?? 0;
+  document.getElementById('wp-month-s').value = u.warMonthProfit ?? 0;
+  document.getElementById('wp-a-count').value = u.warMonthExclusiveCnt ?? 0;
+  document.getElementById('wp-ab-count').value = u.warMonthCommCnt ?? 0;
+  document.getElementById('wp-inventory').value = u.warInventoryCnt ?? 0;
+}
+
+// 儲存業務資料：寫入「所選日期」的快照，並更新名冊的基本資料與 latest 快取
+async function saveWarPerson(){
+  const name = (document.getElementById('wp-name').value||'').trim();
+  if(!name){ alert('請輸入業務姓名'); return; }
+  const dateStr = _warSelectedDate || nowDate();
+  const num = id => { const v = document.getElementById(id).value; return v===''? 0 : (parseFloat(v)||0); };
+  const nowIso = new Date().toISOString();
+  const myEmail = (window._currentUser && window._currentUser.email) || '';
+
+  const snapshotFields = {
+    targetS: num('wp-target-s'), targetB: num('wp-target-b'), targetA: num('wp-target-a'),
+    yearS: num('wp-year-s'), monthS: num('wp-month-s'),
+    aCount: num('wp-a-count'), abCount: num('wp-ab-count'), inventory: num('wp-inventory'),
+    monthTrack: num('wp-month-track'), monthRecruit: num('wp-month-recruit'), monthCall: num('wp-month-call'),
+    todayTrack: num('wp-today-track'), todayRecruit: num('wp-today-recruit'), todayCall: num('wp-today-call')
+  };
+
+  const linkSel = document.getElementById('wp-linked-uid');
+  const linkedUid = linkSel ? linkSel.value : '';
+  const linkedUser = linkedUid ? _warUsersIndex.find(u=>u.uid===linkedUid) : null;
+
+  const existing = _warEditingId ? _warRoster.find(x=>x.id===_warEditingId) : null;
+  const isNew = !existing;
+
+  const rosterPayload = {
+    name,
+    linkedUid: linkedUid || '',
+    linkedEmail: linkedUser?.email || (isNew ? '' : (existing.linkedEmail||'')),
+    hireDate: document.getElementById('wp-hiredate').value || '',
+    latest: {...snapshotFields},
+    updatedAt: nowIso,
+    updatedBy: myEmail
+  };
+
+  try{
+    let rosterRef, personId;
+    if(isNew){
+      rosterRef = window._firebaseWarReportNewRef();
+      personId = rosterRef.id;
+      rosterPayload.createdAt = nowIso;
+    } else {
+      rosterRef = window._firebaseWarReportRef(existing.id);
+      personId = existing.id;
+    }
+    const snapshotData = {
+      ...snapshotFields,
+      date: dateStr,
+      personId,
+      savedAt: nowIso,
+      savedBy: myEmail
+    };
+    await window._firebaseSetDoc(rosterRef, rosterPayload, {merge:true});
+    await window._firebaseSetDoc(window._firebaseWarSnapshotRef(dateStr, personId), snapshotData, {merge:true});
+
+    // 更新本地快取
+    if(isNew){
+      _warRoster.push({...rosterPayload, id:personId});
+    } else {
+      Object.assign(existing, rosterPayload);
+    }
+    _warRoster.sort((a,b)=>(a.name||'').localeCompare(b.name||'','zh-TW'));
+    const ym = dateStr.slice(0,7);
+    if(_warMonthCache[ym]){
+      const idx = _warMonthCache[ym].findIndex(s=>s.personId===personId && s.date===dateStr);
+      if(idx>=0) _warMonthCache[ym][idx] = snapshotData; else _warMonthCache[ym].push(snapshotData);
+    }
+
+    closeOv('warperson');
+    renderWarReport();
+  }catch(e){
+    alert('⚠️ 儲存失敗：' + e.message);
+  }
+}
+
+// 刪除業務（僅刪除名冊資料，歷史快照仍保留以供回看）
+async function deleteWarPerson(){
+  if(!_warEditingId) return;
+  const p = _warRoster.find(x=>x.id===_warEditingId);
+  if(!p) return;
+  if(!confirm(`確定要刪除業務「${p.name||''}」？（歷史每日快照仍會保留，但戰報列表將不再顯示此人）`)) return;
+  try{
+    await window._firebaseDeleteDoc(window._firebaseWarReportRef(p.id));
+    _warRoster = _warRoster.filter(x=>x.id!==p.id);
+    closeOv('warperson');
+    renderWarReport();
+  }catch(e){
+    alert('⚠️ 刪除失敗：' + e.message);
   }
 }
 
@@ -8824,9 +9342,9 @@ function renderProfileInfo() {
   }
   if (roleEl) {
     const role = window._myRole || window._userRole || 'staff';
-    const roleMap = { sysadmin:'🛡 系統管理員', owner:'👑 擁有者', supervisor:'👔 主管', staff:'👤 業務人員' };
-    const roleColor = role==='sysadmin'?'var(--red)':role==='owner'?'var(--gld)':role==='supervisor'?'var(--blu)':'var(--grn)';
-    const roleBg = role==='sysadmin'?'var(--redl)':role==='owner'?'var(--gldl)':role==='supervisor'?'var(--blul)':'var(--grnl)';
+    const roleMap = { sysadmin:'🛡 系統管理員', owner:'👑 擁有者', supervisor:'👔 主管', advisor:'🗂 幕僚', staff:'👤 業務人員' };
+    const roleColor = role==='sysadmin'?'var(--red)':role==='owner'?'var(--gld)':role==='supervisor'?'var(--blu)':role==='advisor'?'#0d9488':'var(--grn)';
+    const roleBg = role==='sysadmin'?'var(--redl)':role==='owner'?'var(--gldl)':role==='supervisor'?'var(--blul)':role==='advisor'?'#ccfbf1':'var(--grnl)';
     roleEl.innerHTML = `<span style="font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;background:${roleBg};color:${roleColor}">${roleMap[role]||role}</span>`;
   }
 }
