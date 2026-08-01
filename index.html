@@ -4713,7 +4713,9 @@ function toggleTheme(){
   if(t==='dark'){document.documentElement.dataset.theme='dark';}
 })();
 
-document.querySelectorAll('.ov').forEach(ov=>{ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('show');});});
+// 註：先前這裡會在點擊視窗外側空白處（背景遮罩）時自動關閉視窗，
+// 但這會讓輸入到一半的人不小心誤觸背景導致資料消失，故移除此行為。
+// 所有視窗一律只能透過右上角「✕」或視窗內的「取消」按鈕關閉（見 closeOv()）。
 
 function syncGoalTotal(type){
   const excl = parseInt(document.getElementById(`goal-${type}-excl`).value)||0;
@@ -10313,6 +10315,7 @@ if (typeof window.switchPage === 'function') {
   <div class="mbn-popup-handle"></div>
   <button class="mbn-popup-item" onclick="mbnGo('trip')"><span class="mbn-popup-item-icon">📍</span>行程規劃</button>
   <button class="mbn-popup-item" onclick="mbnGo('taxcalc')"><span class="mbn-popup-item-icon">🧮</span>稅務與貸款試算</button>
+  <button class="mbn-popup-item" onclick="mbnGo('warreport')"><span class="mbn-popup-item-icon">📊</span>每日戰報</button>
   <button class="mbn-popup-item" id="mbn-tools-admin" onclick="mbnGo('admin')" style="display:none"><span class="mbn-popup-item-icon" id="mbn-tools-admin-icon">🛡</span><span id="mbn-tools-admin-label">主管後台</span></button>
   <div class="mbn-popup-divider"></div>
   <button class="mbn-popup-item" onclick="mbnCloseAll();toggleTheme();updateDrawerThemeBtn()"><span class="mbn-popup-item-icon">🌙</span>切換主題</button>
@@ -10385,7 +10388,7 @@ function mbnUpdateActiveTab(page){
     closed:'owner',inventory:'owner',
     buyer:'buyer',
     stats:'home',
-    trip:'tools',taxcalc:'tools',admin:'tools',
+    trip:'tools',taxcalc:'tools',admin:'tools',warreport:'tools',
     profile:'profile'
   };
   const tabKey = map[page] || '';
