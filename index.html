@@ -796,8 +796,8 @@ function gm_authFailure() {
     <div class="topbar-right">
       <span id="sync-status" style="font-size:11px;color:var(--tx3);display:none"></span>
       <span id="storage-usage" class="storage-badge" style="display:none"></span>
-      <button id="topbar-rosterduty-btn" onclick="switchPage('rosterduty')" title="輪值表" style="height:36px;padding:0 14px;background:var(--acc);border:none;border-radius:8px;cursor:pointer;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0;white-space:nowrap;font-family:inherit">輪值表</button>
-      <button id="topbar-dutyroster-btn" onclick="switchPage('dutyroster')" title="每月出勤排休表" style="height:36px;padding:0 14px;background:var(--yel);border:none;border-radius:8px;cursor:pointer;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;color:#1a2332;flex-shrink:0;white-space:nowrap;font-family:inherit">每月出勤排休表</button>
+      <button id="topbar-rosterduty-btn" onclick="switchPage('rosterduty')" title="輪值表" class="topbar-textbtn" style="height:36px;padding:0 14px;background:var(--acc);border:none;border-radius:8px;cursor:pointer;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:4px;color:#fff;flex-shrink:0;white-space:nowrap;font-family:inherit"><span class="topbar-btn-icon">🧹</span><span class="topbar-btn-label">輪值表</span></button>
+      <button id="topbar-dutyroster-btn" onclick="switchPage('dutyroster')" title="每月出勤排休表" class="topbar-textbtn" style="height:36px;padding:0 14px;background:var(--yel);border:none;border-radius:8px;cursor:pointer;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:4px;color:#1a2332;flex-shrink:0;white-space:nowrap;font-family:inherit"><span class="topbar-btn-icon">🗓️</span><span class="topbar-btn-label">每月出勤排休表</span></button>
       <button id="notif-bell-btn" onclick="openNotifCenter()" title="通知中心">
         🔔<span id="notif-bell-dot"></span>
       </button>
@@ -2174,6 +2174,11 @@ function gm_authFailure() {
 <!-- PAGE: 每月出勤排休表 -->
 <style>
 @media(max-width:768px){#dr-table-wrap-desktop{display:none!important}#dr-mobile-view{display:block!important}}
+/* 頂部橫幅「輪值表」「每月出勤排休表」按鈕：手機版寬度有限，僅顯示圖示，隱藏文字標籤，避免與標題／通知鈴鐺／登出按鈕互相擠壓溢出；電腦版維持圖示＋文字的完整按鈕樣式 */
+@media(max-width:768px){
+  .topbar-textbtn{padding:0 8px!important}
+  .topbar-btn-label{display:none}
+}
 /* 排休表格線：橫線與直線都要清楚呈現，方便查看每一格 */
 #dr-table{border-collapse:collapse}
 #dr-table th,#dr-table td{border:1px solid var(--bdr2)}
