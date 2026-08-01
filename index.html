@@ -177,6 +177,12 @@
   window._firebaseWarSnapshotsColl = () => collection(db_fs, 'war_report_snapshots');
   window._firebaseQuery = query;
   window._firebaseWhere = where;
+  // 每月出勤排休表：業務名冊（幕僚維護，含類別／代理人／對應帳號）
+  window._firebaseDutyRosterRef   = (id) => doc(db_fs, 'duty_roster', id);
+  window._firebaseDutyRosterColl  = () => collection(db_fs, 'duty_roster');
+  window._firebaseDutyRosterNewRef = () => doc(collection(db_fs, 'duty_roster'));
+  // 每月出勤排休表：每月一份文件（doc id = 'YYYY-MM'），內含當月所有人每一天的狀態
+  window._firebaseDutyScheduleRef = (ym) => doc(db_fs, 'duty_schedules', ym);
 
   // 每次開啟網站：先登出 → 設 session persistence → 再監聽
   signOut(auth)
@@ -781,6 +787,7 @@ function gm_authFailure() {
     <div class="topbar-right">
       <span id="sync-status" style="font-size:11px;color:var(--tx3);display:none"></span>
       <span id="storage-usage" class="storage-badge" style="display:none"></span>
+      <button id="topbar-dutyroster-btn" onclick="switchPage('dutyroster')" title="每月出勤排休表" style="width:36px;height:36px;background:var(--accl);border:1px solid var(--bdr);border-radius:8px;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;color:var(--acc);flex-shrink:0">🗓️</button>
       <button id="notif-bell-btn" onclick="openNotifCenter()" title="通知中心">
         🔔<span id="notif-bell-dot"></span>
       </button>
@@ -2134,6 +2141,97 @@ function gm_authFailure() {
   </div>
 </div></div>
 
+<!-- PAGE: 每月出勤排休表 -->
+<style>
+@media(max-width:768px){#dr-table-wrap-desktop{display:none!important}#dr-mobile-view{display:block!important}}
+</style>
+<div class="page" id="page-dutyroster">
+  <div class="ph" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:space-between">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-g" style="font-size:12px;padding:6px 10px" onclick="dutyRosterPrevMonth()">‹ 上月</button>
+      <select class="fc" id="dr-year-sel" style="width:92px" onchange="dutyRosterJumpToSelected()"></select>
+      <select class="fc" id="dr-month-sel" style="width:70px" onchange="dutyRosterJumpToSelected()"></select>
+      <button class="btn btn-g" style="font-size:12px;padding:6px 10px" onclick="dutyRosterNextMonth()">下月 ›</button>
+      <button class="btn btn-g" style="font-size:12px;padding:6px 10px" onclick="dutyRosterGoThisMonth()">📅 回到本月</button>
+    </div>
+    <div id="dr-edit-actions" style="display:none;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-p" onclick="openDutyPersonModal(null)">＋ 新增人員</button>
+      <button class="btn btn-g" id="dr-edit-toggle-btn" onclick="toggleDutyEditMode()">✏️ 編輯排休表</button>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-g" style="font-size:12px;padding:6px 10px" onclick="printDutyRoster()">🖨️ 列印</button>
+      <button class="btn btn-g" style="font-size:12px;padding:6px 10px" onclick="exportDutyRosterPdf()">⬇️ 匯出 PDF</button>
+    </div>
+  </div>
+  <div style="font-size:12px;color:var(--tx3);padding:0 16px 10px;line-height:1.6">
+    💡 點「✏️ 編輯排休表」後，點擊表格中任一格即可設定當天狀態：<span style="color:var(--tx2);font-weight:700">休</span>＝公休、<span style="color:#c05621;font-weight:700">事</span>＝事假、<span style="color:#1a5fc8;font-weight:700">特</span>＝特休、<span style="color:#c0182a;font-weight:700">病</span>＝病假，未標記視為上班。右側「應上／實上／請假／公休」會依每天標記自動加總。每月 1 日與每週一為重要集會日，欄位標題會以淺色提醒。
+  </div>
+  <div id="dr-updated" style="font-size:11px;color:var(--tx3);padding:0 16px 8px"></div>
+
+  <!-- 桌面版：橫向 crosstab 表格 -->
+  <div class="admin-table-wrap" id="dr-table-wrap-desktop" style="margin:0 16px 24px">
+    <table id="dr-table">
+      <thead id="dr-thead"></thead>
+      <tbody id="dr-tbody">
+        <tr><td class="empty-td">⏳ 載入中…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 手機版：先選人，再顯示該人整月直式列表 -->
+  <div id="dr-mobile-view" style="display:none;padding:0 16px 24px">
+    <div class="fgp" style="margin-bottom:12px">
+      <label class="lbl">選擇人員</label>
+      <select class="fc" id="dr-mobile-person-sel" onchange="renderDutyRosterMobile()"></select>
+    </div>
+    <div id="dr-mobile-summary" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"></div>
+    <div id="dr-mobile-days"></div>
+  </div>
+</div>
+
+<!-- 排休狀態選單（點擊格子時彈出的小浮層，可點外側直接關閉，因為不涉及文字輸入不會有資料遺失風險）-->
+<div id="dr-cell-picker" style="display:none;position:fixed;z-index:1200;background:var(--surf);border:1px solid var(--bdr2);border-radius:var(--r);box-shadow:var(--shlg);padding:6px;flex-direction:column;gap:2px;min-width:104px"></div>
+
+<!-- Modal: 新增／編輯排休表人員 -->
+<div class="ov" id="ov-dutyperson">
+<div class="modal modal-sm">
+  <div class="mh"><div class="mt" id="dutyperson-modal-title">＋ 新增人員</div><button class="mc" onclick="closeOv('dutyperson')">✕</button></div>
+  <div class="mb">
+    <div class="fgp">
+      <label class="lbl">姓名</label>
+      <input class="fc" id="dp-name" placeholder="姓名">
+    </div>
+    <div class="fgp">
+      <label class="lbl">類別</label>
+      <select class="fc" id="dp-category">
+        <option value="店長">店長</option>
+        <option value="儲備主管">儲備主管</option>
+        <option value="業務">業務</option>
+        <option value="業助">業助</option>
+        <option value="部分工時">部分工時</option>
+        <option value="幕僚">幕僚</option>
+      </select>
+    </div>
+    <div class="fgp">
+      <label class="lbl">職務代理人</label>
+      <input class="fc" id="dp-backup" placeholder="例如：冠銘">
+    </div>
+    <div class="fgp">
+      <label class="lbl">對應帳號（可選，僅供未來串接使用）</label>
+      <select class="fc" id="dp-linked-uid">
+        <option value="">尚未綁定</option>
+      </select>
+    </div>
+  </div>
+  <div class="mf" style="justify-content:space-between">
+    <button class="btn btn-del" id="dp-delete-btn" style="display:none" onclick="deleteDutyPerson()">🗑 刪除此人員</button>
+    <div style="display:flex;gap:8px;margin-left:auto">
+      <button class="btn btn-g" onclick="closeOv('dutyperson')">取消</button>
+      <button class="btn btn-p" onclick="saveDutyPerson()">儲存</button>
+    </div>
+  </div>
+</div></div>
+
 <!-- PAGE: 主管後台（僅主管可見） -->
 <div class="page" id="page-admin">
 
@@ -3090,7 +3188,7 @@ function toggleFilter(pool){
   btn.textContent=open?'⚙ 收起篩選':'⚙ 進階篩選';
 }
 
-const PAGE_TITLES={'recruit':'募集線','track':'追蹤線','commission':'委託管理','stats':'首頁','trip':'行程規劃','closed':'已結案','admin':'管理後台','buyer':'買方管理','inventory':'公司庫存','taxcalc':'稅務與貸款試算','profile':'個人頁面','warreport':'每日戰報'};
+const PAGE_TITLES={'recruit':'募集線','track':'追蹤線','commission':'委託管理','stats':'首頁','trip':'行程規劃','closed':'已結案','admin':'管理後台','buyer':'買方管理','inventory':'公司庫存','taxcalc':'稅務與貸款試算','profile':'個人頁面','warreport':'每日戰報','dutyroster':'每月出勤排休表'};
 function switchPage(p){
   currentPage=p;
   document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));
@@ -3109,6 +3207,7 @@ function switchPage(p){
   else if(p==='buyer'){renderBuyer();checkBuyerBirthdays();}
   else if(p==='inventory'){renderInventory();}
   else if(p==='warreport'){initWarReportPage();}
+  else if(p==='dutyroster'){initDutyRosterPage();}
   if(p==='commission') _updateEndedBadge();
   else renderAll();
 }
@@ -9243,6 +9342,653 @@ async function saveWarSelf(){
   }
 }
 
+// ══════════════════════════════════════════════════════════════════
+// 每月出勤排休表
+// 資料模型：duty_roster/{id}（人員名冊：姓名／類別／代理人／對應帳號）
+//          duty_schedules/{'YYYY-MM'}（單一文件，內含當月所有人每一天的狀態）
+// 編輯權限比照每日戰報：canEditWarReport()（幕僚／系統管理員）；所有身份組皆可檢視。
+// ══════════════════════════════════════════════════════════════════
+let _dutyRoster = [];        // duty_roster 集合快取（含 id）
+let _dutyUsersIndex = [];    // users_index 快取（供「對應帳號」下拉選單使用，僅編輯者需要）
+let _dutySchedule = {};      // 目前檢視月份 duty_schedules/{ym} 文件內容：{ entries:{ personId:{days:{ '1':'off', ... }} } }
+let _dutyYear = 0;
+let _dutyMonth = 0;          // 0-11
+let _dutyEditMode = false;
+let _dutyEditingId = null;
+let _dutyLoadError = null;
+
+const DUTY_CATEGORIES = ['店長','儲備主管','業務','業助','部分工時','幕僚'];
+const DUTY_STATUS = {
+  '':        { label:'',     short:'',   color:'var(--tx2)', bg:'' },
+  'off':     { label:'公休', short:'休', color:'var(--tx2)', bg:'var(--bg2)' },
+  'personal':{ label:'事假', short:'事', color:'#c05621',    bg:'var(--orgl)' },
+  'annual':  { label:'特休', short:'特', color:'#1a5fc8',    bg:'var(--blul)' },
+  'sick':    { label:'病假', short:'病', color:'#c0182a',    bg:'var(--redl)' }
+};
+
+function _dutyYm(){ return _dutyYear + '-' + String(_dutyMonth+1).padStart(2,'0'); }
+function _dutyRosterMonthLabel(){ return `${_dutyYear}年${_dutyMonth+1}月`; }
+
+// 進入「每月出勤排休表」頁面時初始化
+async function initDutyRosterPage(){
+  if(!_dutyYear){ const now = new Date(); _dutyYear = now.getFullYear(); _dutyMonth = now.getMonth(); }
+  _dutyPopulateMonthSelectors();
+  const canEdit = canEditWarReport();
+  const actionsEl = document.getElementById('dr-edit-actions');
+  if(actionsEl) actionsEl.style.display = canEdit ? 'flex' : 'none';
+  if(!canEdit) _dutyEditMode = false;
+  await dutyRosterLoadData();
+  renderDutyRoster();
+}
+
+function _dutyPopulateMonthSelectors(){
+  const ySel = document.getElementById('dr-year-sel');
+  const mSel = document.getElementById('dr-month-sel');
+  if(ySel && !ySel.dataset.filled){
+    const nowY = new Date().getFullYear();
+    let opts = '';
+    for(let y=nowY-3; y<=nowY+1; y++) opts += `<option value="${y}">${y}年</option>`;
+    ySel.innerHTML = opts;
+    ySel.dataset.filled = '1';
+  }
+  if(mSel && !mSel.dataset.filled){
+    let opts = '';
+    for(let m=0; m<12; m++) opts += `<option value="${m}">${m+1}月</option>`;
+    mSel.innerHTML = opts;
+    mSel.dataset.filled = '1';
+  }
+  if(ySel) ySel.value = _dutyYear;
+  if(mSel) mSel.value = _dutyMonth;
+}
+
+function dutyRosterPrevMonth(){
+  _dutyMonth--; if(_dutyMonth<0){ _dutyMonth=11; _dutyYear--; }
+  _dutyPopulateMonthSelectors();
+  dutyRosterLoadData().then(renderDutyRoster);
+}
+function dutyRosterNextMonth(){
+  _dutyMonth++; if(_dutyMonth>11){ _dutyMonth=0; _dutyYear++; }
+  _dutyPopulateMonthSelectors();
+  dutyRosterLoadData().then(renderDutyRoster);
+}
+function dutyRosterJumpToSelected(){
+  const ySel = document.getElementById('dr-year-sel');
+  const mSel = document.getElementById('dr-month-sel');
+  if(ySel) _dutyYear = parseInt(ySel.value) || _dutyYear;
+  if(mSel) _dutyMonth = parseInt(mSel.value) || 0;
+  dutyRosterLoadData().then(renderDutyRoster);
+}
+function dutyRosterGoThisMonth(){
+  const now = new Date();
+  _dutyYear = now.getFullYear(); _dutyMonth = now.getMonth();
+  _dutyPopulateMonthSelectors();
+  dutyRosterLoadData().then(renderDutyRoster);
+}
+
+function toggleDutyEditMode(){
+  if(!canEditWarReport()) return;
+  _dutyEditMode = !_dutyEditMode;
+  const btn = document.getElementById('dr-edit-toggle-btn');
+  if(btn) btn.textContent = _dutyEditMode ? '✅ 完成編輯' : '✏️ 編輯排休表';
+  renderDutyRoster();
+}
+
+// 讀取人員名冊（所有身份組皆可讀取）＋ 目前檢視月份的排休表文件；users_index 僅編輯者需要（供「對應帳號」使用）
+async function dutyRosterLoadData(){
+  const updEl = document.getElementById('dr-updated');
+  if(updEl) updEl.textContent = '載入中…';
+  _dutyLoadError = null;
+  try{
+    const rosterSnap = await window._firebaseGetDocs(window._firebaseDutyRosterColl());
+    _dutyRoster = [];
+    rosterSnap.forEach(d=>{ const x = d.data()||{}; x.id = d.id; _dutyRoster.push(x); });
+    _dutyRoster.sort((a,b)=>{
+      const ci = DUTY_CATEGORIES.indexOf(a.category) - DUTY_CATEGORIES.indexOf(b.category);
+      if(ci!==0) return ci;
+      return (a.order??0)-(b.order??0) || (a.createdAt||'').localeCompare(b.createdAt||'');
+    });
+    const schedSnap = await window._firebaseGetDoc(window._firebaseDutyScheduleRef(_dutyYm()));
+    _dutySchedule = schedSnap.exists() ? (schedSnap.data()||{}) : {};
+    if(!_dutySchedule.entries) _dutySchedule.entries = {};
+    if(canEditWarReport()){
+      try{
+        const idxSnap = await window._firebaseGetDocs(window._firebaseIndexColl());
+        _dutyUsersIndex = [];
+        idxSnap.forEach(d=>{ if(!d.id.startsWith('__supnotes_')) _dutyUsersIndex.push(d.data()||{}); });
+      }catch(e2){
+        console.warn('出勤排休表：無法讀取 users_index（對應帳號清單將無法使用）', e2);
+      }
+    }
+    if(updEl) updEl.textContent = '更新：' + new Date().toLocaleTimeString('zh-TW');
+  }catch(e){
+    _dutyLoadError = e.message || '權限不足';
+    if(updEl) updEl.textContent = '⚠️ 載入失敗';
+    console.error('Duty roster load error:', e);
+  }
+}
+
+// 計算每一列（每位人員）本月的每日狀態與應上／實上／請假／公休統計，供桌面表格／手機檢視／列印／匯出共用
+function _dutyRosterComputeRows(){
+  const daysInMonth = new Date(_dutyYear, _dutyMonth+1, 0).getDate();
+  const catCounts = {};
+  _dutyRoster.forEach(p=>{ catCounts[p.category] = (catCounts[p.category]||0)+1; });
+  let lastCategory = null;
+  return _dutyRoster.map(p=>{
+    const entry = (_dutySchedule.entries && _dutySchedule.entries[p.id]) || {};
+    const days = entry.days || {};
+    let offCnt = 0, leaveCnt = 0;
+    const cells = [];
+    for(let d=1; d<=daysInMonth; d++){
+      const code = days[String(d)] || '';
+      const st = DUTY_STATUS[code] || DUTY_STATUS[''];
+      if(code==='off') offCnt++;
+      else if(code==='personal' || code==='annual' || code==='sick') leaveCnt++;
+      const dow = new Date(_dutyYear, _dutyMonth, d).getDay();
+      cells.push({ d, dow, code, short:st.short, color:st.color, bg: code ? st.bg : '', highlight: (d===1 || dow===1) });
+    }
+    const showCategory = lastCategory !== p.category;
+    lastCategory = p.category;
+    return {
+      id: p.id, category: p.category, name: p.name, backup: p.backup,
+      showCategory, rowspan: catCounts[p.category] || 1,
+      cells, should: daysInMonth - offCnt, actual: daysInMonth - offCnt - leaveCnt, leave: leaveCnt, off: offCnt
+    };
+  });
+}
+
+function renderDutyRoster(){
+  const thead = document.getElementById('dr-thead');
+  const tbody = document.getElementById('dr-tbody');
+  if(!thead || !tbody) return;
+  const canEdit = canEditWarReport();
+  const editing = canEdit && _dutyEditMode;
+
+  if(_dutyLoadError){
+    thead.innerHTML = '';
+    tbody.innerHTML = `<tr><td class="empty-td">⚠️ 載入失敗：${escH(_dutyLoadError)}<br><span style="font-size:11px">請確認 Firestore 安全規則已開放讀取 duty_roster／duty_schedules 集合</span></td></tr>`;
+    _dutyRenderMobileSelect();
+    return;
+  }
+
+  const daysInMonth = new Date(_dutyYear, _dutyMonth+1, 0).getDate();
+  let dayHeaders = '';
+  for(let d=1; d<=daysInMonth; d++){
+    const dow = new Date(_dutyYear, _dutyMonth, d).getDay();
+    const dowChar = ['日','一','二','三','四','五','六'][dow];
+    const isHighlight = (d===1 || dow===1);
+    const col = dow===0 ? 'var(--red)' : dow===6 ? 'var(--acc)' : 'var(--tx2)';
+    dayHeaders += `<th style="min-width:28px;text-align:center;font-size:10px;padding:6px 2px;${isHighlight?'background:var(--accl)':''}"><div style="color:${col}">${d}</div><div style="font-size:9px;font-weight:500;color:${col}">${dowChar}</div></th>`;
+  }
+  thead.innerHTML = `<tr>
+    <th style="min-width:52px">類別</th>
+    <th style="min-width:60px">姓名</th>
+    <th style="min-width:60px">代理人</th>
+    ${dayHeaders}
+    <th style="min-width:40px">應上</th><th style="min-width:40px">實上</th><th style="min-width:40px">請假</th><th style="min-width:40px">公休</th>
+    <th id="dr-th-actions" style="display:${editing?'':'none'}">操作</th>
+  </tr>`;
+
+  if(!_dutyRoster.length){
+    tbody.innerHTML = `<tr><td class="empty-td">📭 尚無人員資料${canEdit?'，點選右上方「＋ 新增人員」開始建立':''}</td></tr>`;
+    _dutyRenderMobileSelect();
+    return;
+  }
+
+  const rows = _dutyRosterComputeRows();
+  tbody.innerHTML = rows.map(r=>{
+    const catCell = r.showCategory ? `<td rowspan="${r.rowspan}" style="font-weight:700;background:var(--surf2);vertical-align:middle;text-align:center">${escH(r.category||'—')}</td>` : '';
+    const dayCellsHtml = r.cells.map(c=>{
+      const bg = c.bg || (c.highlight ? 'var(--surf2)' : '');
+      const clickAttr = editing
+        ? ` onclick="openDutyCellPicker(event,'${r.id}',${c.d})" style="cursor:pointer;background:${bg}"`
+        : (bg ? ` style="background:${bg}"` : '');
+      return `<td${clickAttr}><span style="font-weight:700;font-size:11px;color:${c.color}">${c.short}</span></td>`;
+    }).join('');
+    const actionsCell = editing ? `<td style="white-space:nowrap"><button class="btn btn-sm btn-edit" onclick="openDutyPersonModal('${r.id}')">✏️ 編輯</button></td>` : '';
+    return `<tr>
+      ${catCell}
+      <td style="font-weight:600;white-space:nowrap">${escH(r.name||'—')}</td>
+      <td style="font-size:12px;white-space:nowrap">${escH(r.backup||'—')}</td>
+      ${dayCellsHtml}
+      <td style="text-align:center;font-weight:700">${r.should}</td>
+      <td style="text-align:center;font-weight:700">${r.actual}</td>
+      <td style="text-align:center">${r.leave || ''}</td>
+      <td style="text-align:center">${r.off || ''}</td>
+      ${actionsCell}
+    </tr>`;
+  }).join('');
+
+  _dutyRenderMobileSelect();
+}
+
+// 點擊格子（編輯模式）：彈出狀態選單（僅供選擇，不涉及文字輸入，點外側關閉不會造成資料遺失）
+function openDutyCellPicker(evt, personId, day){
+  evt.stopPropagation();
+  const picker = document.getElementById('dr-cell-picker');
+  if(!picker) return;
+  const rect = evt.currentTarget.getBoundingClientRect();
+  const opts = [
+    { code:'',         label:'⬜ 上班（清除標記）' },
+    { code:'off',      label:'😴 公休' },
+    { code:'personal', label:'📄 事假' },
+    { code:'annual',   label:'🌴 特休' },
+    { code:'sick',     label:'🤒 病假' }
+  ];
+  picker.innerHTML = opts.map(o=>
+    `<button style="padding:8px 10px;font-size:12px;border-radius:6px;border:none;background:transparent;text-align:left;cursor:pointer;font-family:inherit;white-space:nowrap" onmouseover="this.style.background='var(--accl)'" onmouseout="this.style.background='transparent'" onclick="setDutyCellStatus('${personId}',${day},'${o.code}')">${o.label}</button>`
+  ).join('');
+  picker.style.display = 'flex';
+  const pw = 150, ph = 190;
+  let left = rect.left;
+  let top = rect.bottom + 4;
+  if(left + pw > window.innerWidth) left = window.innerWidth - pw - 8;
+  if(top + ph > window.innerHeight) top = rect.top - ph - 4;
+  picker.style.left = Math.max(4, left) + 'px';
+  picker.style.top = Math.max(4, top) + 'px';
+}
+document.addEventListener('click', (e)=>{
+  const picker = document.getElementById('dr-cell-picker');
+  if(picker && picker.style.display!=='none' && !picker.contains(e.target)){
+    picker.style.display = 'none';
+  }
+});
+
+// 設定某人某天的狀態並即時寫回 Firestore（僅異動該天的欄位，不影響其他人／其他天的資料）
+async function setDutyCellStatus(personId, day, code){
+  const picker = document.getElementById('dr-cell-picker');
+  if(picker) picker.style.display = 'none';
+  if(!_dutySchedule.entries) _dutySchedule.entries = {};
+  if(!_dutySchedule.entries[personId]) _dutySchedule.entries[personId] = { days:{} };
+  if(!_dutySchedule.entries[personId].days) _dutySchedule.entries[personId].days = {};
+  _dutySchedule.entries[personId].days[String(day)] = code;
+  renderDutyRoster();
+  try{
+    const payload = {
+      entries: { [personId]: { days: { [String(day)]: code } } },
+      updatedAt: new Date().toISOString(),
+      updatedBy: (window._currentUser && window._currentUser.email) || ''
+    };
+    await window._firebaseSetDoc(window._firebaseDutyScheduleRef(_dutyYm()), payload, {merge:true});
+  }catch(e){
+    alert('⚠️ 儲存失敗：' + e.message);
+  }
+}
+
+// ── 手機版：先選人員，再顯示該人整月直式列表 ──
+function _dutyRenderMobileSelect(){
+  const sel = document.getElementById('dr-mobile-person-sel');
+  if(!sel) return;
+  if(!_dutyRoster.length){
+    sel.innerHTML = '<option value="">（尚無人員資料）</option>';
+    const sumEl = document.getElementById('dr-mobile-summary');
+    const daysEl = document.getElementById('dr-mobile-days');
+    if(sumEl) sumEl.innerHTML = '';
+    if(daysEl) daysEl.innerHTML = '';
+    return;
+  }
+  const prevVal = sel.value;
+  let html = '';
+  DUTY_CATEGORIES.forEach(cat=>{
+    const ppl = _dutyRoster.filter(p=>p.category===cat);
+    if(!ppl.length) return;
+    html += `<optgroup label="${escH(cat)}">` + ppl.map(p=>`<option value="${p.id}">${escH(p.name||'—')}</option>`).join('') + `</optgroup>`;
+  });
+  sel.innerHTML = html;
+  if(prevVal && _dutyRoster.some(p=>p.id===prevVal)) sel.value = prevVal;
+  renderDutyRosterMobile();
+}
+
+function renderDutyRosterMobile(){
+  const sel = document.getElementById('dr-mobile-person-sel');
+  const sumEl = document.getElementById('dr-mobile-summary');
+  const daysEl = document.getElementById('dr-mobile-days');
+  if(!sel || !sumEl || !daysEl) return;
+  const personId = sel.value;
+  const p = _dutyRoster.find(x=>x.id===personId);
+  if(!p){ sumEl.innerHTML=''; daysEl.innerHTML=''; return; }
+  const canEdit = canEditWarReport();
+  const editing = canEdit && _dutyEditMode;
+  const daysInMonth = new Date(_dutyYear, _dutyMonth+1, 0).getDate();
+  const entry = (_dutySchedule.entries && _dutySchedule.entries[personId]) || {};
+  const days = entry.days || {};
+  let offCnt = 0, leaveCnt = 0;
+  let rowsHtml = '';
+  for(let d=1; d<=daysInMonth; d++){
+    const code = days[String(d)] || '';
+    const st = DUTY_STATUS[code] || DUTY_STATUS[''];
+    if(code==='off') offCnt++;
+    else if(code==='personal' || code==='annual' || code==='sick') leaveCnt++;
+    const dow = new Date(_dutyYear, _dutyMonth, d).getDay();
+    const dowChar = ['日','一','二','三','四','五','六'][dow];
+    const isHighlight = (d===1 || dow===1);
+    const rowBg = code ? st.bg : (isHighlight ? 'var(--surf2)' : '');
+    const clickAttr = editing ? ` onclick="openDutyCellPicker(event,'${personId}',${d})" style="cursor:pointer"` : '';
+    rowsHtml += `<div ${clickAttr} style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-bottom:1px solid var(--bdr);background:${rowBg}">
+      <span style="font-size:12px;color:var(--tx2)">${_dutyYear}/${_dutyMonth+1}/${d}（${dowChar}）</span>
+      <span style="font-weight:700;font-size:12px;color:${st.color}">${st.label || '上班'}</span>
+    </div>`;
+  }
+  const should = daysInMonth - offCnt;
+  const actual = should - leaveCnt;
+  sumEl.innerHTML = `
+    <div class="sc" style="flex:1;min-width:70px;padding:8px 10px"><div class="sn" style="font-size:18px">${should}</div><div class="sl">應上</div></div>
+    <div class="sc" style="flex:1;min-width:70px;padding:8px 10px"><div class="sn" style="font-size:18px">${actual}</div><div class="sl">實上</div></div>
+    <div class="sc" style="flex:1;min-width:70px;padding:8px 10px"><div class="sn" style="font-size:18px">${leaveCnt}</div><div class="sl">請假</div></div>
+    <div class="sc" style="flex:1;min-width:70px;padding:8px 10px"><div class="sn" style="font-size:18px">${offCnt}</div><div class="sl">公休</div></div>
+  `;
+  daysEl.innerHTML = `<div style="border:1px solid var(--bdr);border-radius:var(--r);overflow:hidden">${rowsHtml}</div>`;
+}
+
+// ── 新增／編輯／刪除人員（僅編輯者可操作）──
+function openDutyPersonModal(id){
+  if(!canEditWarReport()) return;
+  _dutyEditingId = id;
+  const titleEl = document.getElementById('dutyperson-modal-title');
+  const delBtn = document.getElementById('dp-delete-btn');
+  const linkSel = document.getElementById('dp-linked-uid');
+  if(linkSel){
+    const usedUids = new Set(_dutyRoster.filter(p=>p.id!==id && p.linkedUid).map(p=>p.linkedUid));
+    const opts = ['<option value="">尚未綁定</option>'].concat(
+      _dutyUsersIndex.filter(u=>u.uid).sort((a,b)=>(a.name||'').localeCompare(b.name||'','zh-TW')).map(u=>{
+        const label = (u.customName || u.name || u.email || u.uid) + (u.email ? `（${u.email}）` : '');
+        const disabled = usedUids.has(u.uid);
+        return `<option value="${escH(u.uid)}"${disabled?' disabled':''}>${escH(label)}${disabled?'（已綁定其他人員）':''}</option>`;
+      })
+    );
+    linkSel.innerHTML = opts.join('');
+  }
+  let p = null;
+  if(id){ p = _dutyRoster.find(x=>x.id===id); if(!p) return; }
+  if(titleEl) titleEl.textContent = p ? `✏️ 編輯人員：${p.name||''}` : '＋ 新增人員';
+  if(delBtn) delBtn.style.display = p ? '' : 'none';
+  document.getElementById('dp-name').value = p?.name || '';
+  document.getElementById('dp-category').value = p?.category || '業務';
+  document.getElementById('dp-backup').value = p?.backup || '';
+  if(linkSel) linkSel.value = p?.linkedUid || '';
+  openOv('dutyperson');
+}
+
+async function saveDutyPerson(){
+  const name = (document.getElementById('dp-name').value || '').trim();
+  if(!name){ alert('請輸入姓名'); return; }
+  const category = document.getElementById('dp-category').value;
+  const backup = (document.getElementById('dp-backup').value || '').trim();
+  const linkedUid = document.getElementById('dp-linked-uid').value || '';
+  const nowIso = new Date().toISOString();
+  const existing = _dutyEditingId ? _dutyRoster.find(x=>x.id===_dutyEditingId) : null;
+  const payload = {
+    name, category, backup, linkedUid,
+    order: existing ? (existing.order ?? 0) : _dutyRoster.filter(p=>p.category===category).length,
+    createdAt: existing ? (existing.createdAt || nowIso) : nowIso,
+    updatedAt: nowIso,
+    updatedBy: (window._currentUser && window._currentUser.email) || ''
+  };
+  try{
+    const ref = existing ? window._firebaseDutyRosterRef(existing.id) : window._firebaseDutyRosterNewRef();
+    await window._firebaseSetDoc(ref, payload, {merge:true});
+    closeOv('dutyperson');
+    await dutyRosterLoadData();
+    renderDutyRoster();
+  }catch(e){
+    alert('⚠️ 儲存失敗：' + e.message);
+  }
+}
+
+async function deleteDutyPerson(){
+  if(!_dutyEditingId) return;
+  const p = _dutyRoster.find(x=>x.id===_dutyEditingId);
+  if(!confirm(`確定要刪除「${p?.name||''}」嗎？此人員本月已標記的排休記錄也會一併清除，此動作無法復原。`)) return;
+  try{
+    await window._firebaseDeleteDoc(window._firebaseDutyRosterRef(_dutyEditingId));
+    if(_dutySchedule.entries && _dutySchedule.entries[_dutyEditingId]){
+      delete _dutySchedule.entries[_dutyEditingId];
+      await window._firebaseSetDoc(
+        window._firebaseDutyScheduleRef(_dutyYm()),
+        { entries: _dutySchedule.entries, updatedAt: new Date().toISOString(), updatedBy: (window._currentUser && window._currentUser.email) || '' },
+        {merge:false}
+      );
+    }
+    closeOv('dutyperson');
+    await dutyRosterLoadData();
+    renderDutyRoster();
+  }catch(e){
+    alert('⚠️ 刪除失敗：' + e.message);
+  }
+}
+
+// ── 列印（開新視窗列印，橫向 A4，自動縮字撐滿一頁）──
+function printDutyRoster(){
+  if(!_dutyRoster.length){ alert('尚無人員資料可列印'); return; }
+  const daysInMonth = new Date(_dutyYear, _dutyMonth+1, 0).getDate();
+  const rows = _dutyRosterComputeRows();
+  let colWidths = '<col style="width:36px"><col style="width:52px"><col style="width:44px">';
+  for(let d=1; d<=daysInMonth; d++) colWidths += '<col>';
+  colWidths += '<col style="width:30px"><col style="width:30px"><col style="width:30px"><col style="width:30px">';
+
+  let dayHeaders = '';
+  for(let d=1; d<=daysInMonth; d++){
+    const dow = new Date(_dutyYear, _dutyMonth, d).getDay();
+    const dowChar = ['日','一','二','三','四','五','六'][dow];
+    const hl = (d===1 || dow===1) ? ' th-hl' : '';
+    dayHeaders += `<th class="th-day${hl}">${d}<br><span class="th-dow">${dowChar}</span></th>`;
+  }
+
+  let bodyRows = '';
+  rows.forEach(r=>{
+    let cells = r.showCategory ? `<td class="td-cat" rowspan="${r.rowspan}">${escHtml(r.category||'')}</td>` : '';
+    cells += `<td class="td-name">${escHtml(r.name||'')}</td><td class="td-backup">${escHtml(r.backup||'')}</td>`;
+    r.cells.forEach(c=>{
+      const style = c.bg ? ` style="background:${c.bg};color:${c.color}"` : (c.highlight ? ' class="td-hl"' : '');
+      cells += `<td${style}>${c.short}</td>`;
+    });
+    cells += `<td class="td-sum">${r.should}</td><td class="td-sum">${r.actual}</td><td class="td-sum">${r.leave||''}</td><td class="td-sum">${r.off||''}</td>`;
+    bodyRows += `<tr>${cells}</tr>`;
+  });
+
+  const html = `<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8"><title>出勤排休表</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+@page{size:A4 landscape;margin:0mm}
+@media print{html,body{width:297mm!important;height:210mm!important;overflow:visible!important;margin:0!important}#page{width:297mm!important;height:210mm!important;transform:none!important;padding:6mm!important;overflow:hidden!important}}
+html,body{margin:0;padding:0;background:#fff;font-family:'Noto Sans TC',system-ui,sans-serif;color:#1a2332;-webkit-print-color-adjust:exact;print-color-adjust:exact;--fs:9px}
+#page{width:1123px;height:794px;padding:10px;display:flex;flex-direction:column;overflow:hidden;transform-origin:top left}
+.hdr{flex-shrink:0;padding-bottom:4px}
+.hdr h1{font-size:13px;font-weight:800;display:inline}
+.hdr span{font-size:9px;color:#555;margin-left:8px}
+.wrap{flex:1;min-height:0;overflow:hidden}
+table{width:100%;height:100%;border-collapse:collapse;table-layout:fixed}
+th{font-weight:800;font-size:var(--fs);text-align:center;border:1px solid #888;padding:2px 1px;vertical-align:middle;background:#0f519b;color:#fff}
+.th-hl{background:#c05621}
+.th-dow{font-size:calc(var(--fs) - 1px);font-weight:600}
+td{border:1px solid #ccc;padding:2px 1px;vertical-align:middle;text-align:center;font-size:var(--fs);font-weight:700}
+.td-cat{background:#e8f1fb;color:#0f519b;font-weight:800;white-space:nowrap}
+.td-name{background:#f6f9fd;font-weight:800;white-space:nowrap;text-align:left;padding-left:4px}
+.td-backup{color:#555;font-weight:500;white-space:nowrap}
+.td-hl{background:#fdf3ec}
+.td-sum{background:#f6f9fd;font-weight:800;color:#0f519b}
+</style>
+<script>
+(function(){
+  function fitContent(){
+    var wrap=document.querySelector('.wrap');
+    var table=wrap?wrap.querySelector('table'):null;
+    if(!wrap||!table)return;
+    var root=document.documentElement;
+    var fs=9,minFs=5,guard=0;
+    root.style.setProperty('--fs',fs+'px');
+    while((table.scrollWidth>wrap.clientWidth || table.scrollHeight>wrap.clientHeight) && fs>minFs && guard<60){
+      fs-=0.5;
+      root.style.setProperty('--fs',fs+'px');
+      guard++;
+    }
+  }
+  function fit(){
+    var el=document.getElementById('page');
+    if(!el)return;
+    var sw=window.innerWidth,sh=window.innerHeight;
+    var sx=sw/1123,sy=sh/794,s=Math.min(sx,sy,1);
+    el.style.transform='scale('+s+')';
+    document.body.style.width=Math.round(1123*s)+'px';
+    document.body.style.height=Math.round(794*s)+'px';
+  }
+  window.addEventListener('load',function(){ fitContent(); fit(); });
+  window.addEventListener('resize',fit);
+  window.addEventListener('beforeprint',function(){
+    var el=document.getElementById('page');
+    if(el){el.style.transform='none';}
+    document.body.style.width='297mm';
+    document.body.style.height='210mm';
+    document.body.style.overflow='visible';
+    fitContent();
+  });
+  window.addEventListener('afterprint',function(){fit();});
+})();
+<\/script>
+</head><body>
+<div id="page">
+<div class="hdr"><h1>🗓️ 每月出勤排休表</h1><span>${_dutyRosterMonthLabel()}</span></div>
+<div class="wrap"><table>
+<colgroup>${colWidths}</colgroup>
+<thead><tr><th>類別</th><th>姓名</th><th>代理人</th>${dayHeaders}<th>應上</th><th>實上</th><th>請假</th><th>公休</th></tr></thead>
+<tbody>${bodyRows}</tbody>
+</table></div>
+</div>
+</body></html>`;
+
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => win.print(), 400);
+}
+
+// ── 匯出 PDF（html2canvas + jsPDF，不彈出列印視窗，直接下載檔案，橫向 A4）──
+function exportDutyRosterPdf(){
+  if(!_dutyRoster.length){ alert('尚無人員資料可匯出'); return; }
+  const daysInMonth = new Date(_dutyYear, _dutyMonth+1, 0).getDate();
+  const rows = _dutyRosterComputeRows();
+  let colWidths = '<col style="width:36px"><col style="width:52px"><col style="width:44px">';
+  for(let d=1; d<=daysInMonth; d++) colWidths += '<col>';
+  colWidths += '<col style="width:30px"><col style="width:30px"><col style="width:30px"><col style="width:30px">';
+
+  let dayHeaders = '';
+  for(let d=1; d<=daysInMonth; d++){
+    const dow = new Date(_dutyYear, _dutyMonth, d).getDay();
+    const dowChar = ['日','一','二','三','四','五','六'][dow];
+    const hl = (d===1 || dow===1) ? ' th-hl' : '';
+    dayHeaders += `<th class="th-day${hl}">${d}<br><span class="th-dow">${dowChar}</span></th>`;
+  }
+
+  let bodyRows = '';
+  rows.forEach(r=>{
+    let cells = r.showCategory ? `<td class="td-cat" rowspan="${r.rowspan}">${escHtml(r.category||'')}</td>` : '';
+    cells += `<td class="td-name">${escHtml(r.name||'')}</td><td class="td-backup">${escHtml(r.backup||'')}</td>`;
+    r.cells.forEach(c=>{
+      const style = c.bg ? ` style="background:${c.bg};color:${c.color}"` : (c.highlight ? ' class="td-hl"' : '');
+      cells += `<td${style}>${c.short}</td>`;
+    });
+    cells += `<td class="td-sum">${r.should}</td><td class="td-sum">${r.actual}</td><td class="td-sum">${r.leave||''}</td><td class="td-sum">${r.off||''}</td>`;
+    bodyRows += `<tr>${cells}</tr>`;
+  });
+
+  const fileName = `出勤排休表_${_dutyYear}${String(_dutyMonth+1).padStart(2,'0')}.pdf`;
+
+  async function _loadScript(src, integrity) {
+    if (document.querySelector(`script[src="${src}"]`)) return;
+    return new Promise((res, rej) => {
+      const s = document.createElement('script');
+      s.src = src;
+      if (integrity) { s.integrity = integrity; s.crossOrigin = 'anonymous'; s.referrerPolicy = 'no-referrer'; }
+      s.onload = res; s.onerror = rej;
+      document.head.appendChild(s);
+    });
+  }
+
+  const innerHtml = `<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8"><title>${fileName}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1123px;background:#fff;font-family:'Noto Sans TC',system-ui,sans-serif;color:#1a2332;--fs:9px}
+body{display:flex;flex-direction:column;height:794px;padding:14px}
+.hdr{padding:2px 2px 4px;flex-shrink:0}
+.hdr h1{font-size:13px;font-weight:800;display:inline}
+.hdr span{font-size:9px;color:#555;margin-left:8px}
+.wrap{flex:1;min-height:0;overflow:hidden}
+table{width:100%;height:100%;border-collapse:collapse;table-layout:fixed}
+th{font-weight:800;font-size:var(--fs);text-align:center;border:1px solid #888;padding:2px 1px;vertical-align:middle;background:#0f519b;color:#fff}
+.th-hl{background:#c05621}
+.th-dow{font-size:calc(var(--fs) - 1px);font-weight:600}
+td{border:1px solid #ccc;padding:2px 1px;vertical-align:middle;text-align:center;font-size:var(--fs);font-weight:700}
+.td-cat{background:#e8f1fb;color:#0f519b;font-weight:800;white-space:nowrap}
+.td-name{background:#f6f9fd;font-weight:800;white-space:nowrap;text-align:left;padding-left:4px}
+.td-backup{color:#555;font-weight:500;white-space:nowrap}
+.td-hl{background:#fdf3ec}
+.td-sum{background:#f6f9fd;font-weight:800;color:#0f519b}
+</style></head><body>
+<div class="hdr"><h1>🗓️ 每月出勤排休表</h1><span>${_dutyRosterMonthLabel()}</span></div>
+<div class="wrap"><table>
+<colgroup>${colWidths}</colgroup>
+<thead><tr><th>類別</th><th>姓名</th><th>代理人</th>${dayHeaders}<th>應上</th><th>實上</th><th>請假</th><th>公休</th></tr></thead>
+<tbody>${bodyRows}</tbody>
+</table></div>
+<script>
+(function(){
+  function fitContent(){
+    var wrap=document.querySelector('.wrap');
+    var table=wrap?wrap.querySelector('table'):null;
+    if(!wrap||!table)return;
+    var root=document.documentElement;
+    var fs=9,minFs=5,guard=0;
+    root.style.setProperty('--fs',fs+'px');
+    while((table.scrollWidth>wrap.clientWidth || table.scrollHeight>wrap.clientHeight) && fs>minFs && guard<60){
+      fs-=0.5;
+      root.style.setProperty('--fs',fs+'px');
+      guard++;
+    }
+  }
+  fitContent();
+  window.addEventListener('load',fitContent);
+})();
+<\/script>
+</body></html>`;
+
+  (async () => {
+    try {
+      await _loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js','sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoeqMV/TJlSKda6FXzoEyYGjTe+vXA==');
+      await _loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js','sha512-qZvrmS2ekKPF2mSznTQsxqPgnpkI4DNTlrdUmTzrDgektczlKNRRhy5X5AAOnx5S09ydFYWWNSfcEqDTTHgtNA==');
+
+      const iframe = document.createElement('iframe');
+      iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:1123px;height:794px;border:none;z-index:-1;';
+      iframe.srcdoc = innerHtml;
+      document.body.appendChild(iframe);
+
+      await new Promise(r => iframe.onload = r);
+      await new Promise(r => setTimeout(r, 600));
+
+      const canvas = await html2canvas(iframe.contentDocument.body, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        width: 1123,
+        height: 794,
+        windowWidth: 1123,
+        windowHeight: 794,
+      });
+
+      document.body.removeChild(iframe);
+
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      const imgData = canvas.toDataURL('image/jpeg', 0.97);
+      pdf.addImage(imgData, 'JPEG', 0, 0, 297, 210);
+      pdf.save(fileName);
+    } catch(e) {
+      console.error('PDF 下載失敗:', e);
+      alert('PDF 產生失敗，請確認網路連線後再試。\n' + e.message);
+    }
+  })();
+}
+
 // 展開/收起員工列
 function toggleAdminUser(uid){
   _adminOpenUid = (_adminOpenUid === uid) ? null : uid;
@@ -9297,8 +10043,18 @@ let _adminCalData = {};
 let _adminCalYear = 0;
 let _adminCalMonth = 0;
 let _adminCalSelectedDate = '';
+let _adminCalUpdatedAt = ''; // 該員工行事曆文件最後一次儲存（含行程與心得）的時間戳（ISO 字串）
 
 function _adminCalDateKey(y,m,d){ return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
+
+// 將 ISO 時間字串格式化為「YYYY/MM/DD HH:mm」，無資料時顯示提示文字
+function _fmtAdminCalUpdatedAt(iso){
+  if(!iso) return '尚無更新紀錄';
+  const d = new Date(iso);
+  if(isNaN(d.getTime())) return '尚無更新紀錄';
+  const pad = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 function adminCalPrevMonth(){
   _adminCalMonth--;
@@ -9420,11 +10176,12 @@ function _adminCalRenderDayPanel(){
 
   if(journalEl){
     const journal = dayData.journal || '';
+    const updatedLine = `<div style="margin-top:8px;font-size:11px;color:var(--tx3);display:flex;align-items:center;gap:4px"><span>🕐</span><span>最後更新行程與心得：${_fmtAdminCalUpdatedAt(_adminCalUpdatedAt)}</span></div>`;
+    journalEl.style.display = '';
     if(journal.trim()){
-      journalEl.style.display = '';
-      journalEl.innerHTML = `<div style="font-size:11px;font-weight:700;color:var(--tx2);margin-bottom:4px;display:flex;align-items:center;gap:4px"><span>📝</span><span>心得</span></div><div style="font-size:12px;color:var(--tx2);white-space:pre-wrap;line-height:1.6">${escH(journal)}</div>`;
+      journalEl.innerHTML = `<div style="font-size:11px;font-weight:700;color:var(--tx2);margin-bottom:4px;display:flex;align-items:center;gap:4px"><span>📝</span><span>心得</span></div><div style="font-size:12px;color:var(--tx2);white-space:pre-wrap;line-height:1.6">${escH(journal)}</div>${updatedLine}`;
     } else {
-      journalEl.style.display = 'none';
+      journalEl.innerHTML = `<div style="font-size:11px;color:var(--tx3)">（無心得）</div>${updatedLine}`;
     }
   }
 }
@@ -9433,6 +10190,7 @@ function _adminCalRenderDayPanel(){
 function _renderUserDetailContent(area, u, calDataObj, displayName){
   _adminCalUid = u.uid;
   _adminCalData = (calDataObj && calDataObj.calData) || {};
+  _adminCalUpdatedAt = (calDataObj && calDataObj.updatedAt) || '';
   const now = new Date();
   _adminCalYear = now.getFullYear();
   _adminCalMonth = now.getMonth();
