@@ -2009,7 +2009,9 @@ function gm_authFailure() {
         <tr>
           <th>業務</th>
           <th>到職日</th>
-          <th>目標 年S/月S/B/A</th>
+          <th>月排名</th>
+          <th>年排名</th>
+          <th>目標 月S/B/A</th>
           <th>年度 S</th>
           <th>當月 S</th>
           <th>A / A+B</th>
@@ -2025,7 +2027,7 @@ function gm_authFailure() {
         </tr>
       </thead>
       <tbody id="warreport-tbody">
-        <tr><td class="empty-td" colspan="15">⏳ 載入中…</td></tr>
+        <tr><td class="empty-td" colspan="17">⏳ 載入中…</td></tr>
       </tbody>
     </table>
   </div>
@@ -2099,8 +2101,7 @@ function gm_authFailure() {
       <div style="font-size:12px;font-weight:700;color:var(--tx2)">目標設定</div>
       <button class="btn btn-g" style="font-size:11px;padding:4px 10px" onclick="warAutoFillTargetsFromLinked()">🔄 從對應帳號一鍵套用</button>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:12px">
-      <div class="fgp" style="margin-bottom:0"><label class="lbl">年度目標 S（萬）</label><input class="fc" type="number" id="wp-target-s" placeholder="0"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">
       <div class="fgp" style="margin-bottom:0"><label class="lbl">當月目標 S（萬）</label><input class="fc" type="number" id="wp-target-month-s" placeholder="0"></div>
       <div class="fgp" style="margin-bottom:0"><label class="lbl">目標 B（一般約）</label><input class="fc" type="number" id="wp-target-b" placeholder="0"></div>
       <div class="fgp" style="margin-bottom:0"><label class="lbl">目標 A（專任約）</label><input class="fc" type="number" id="wp-target-a" placeholder="0"></div>
@@ -3249,8 +3250,7 @@ function _computeSelfGoalTargets(){
     const key = monthGoalKey(now.getFullYear(), now.getMonth()+1);
     const mg = g[key] || {};
     return {
-      warYearProfitTarget:  parseFloat(g.yearProfit) || 0,
-      warMonthProfitTarget: parseFloat(mg.profit)     || 0,
+      warMonthProfitTarget: parseFloat(mg.profit) || 0,
       warMonthGenTarget:    parseFloat(mg.gen)   || 0,
       warMonthExclTarget:   parseFloat(mg.excl)  || 0
     };
@@ -8967,6 +8967,38 @@ let _warMyPerson = null;    // 目前登入者對應到的業務名冊資料（l
 
 function fmtWarNum(v){ return (v===undefined||v===null||v==='') ? 0 : v; }
 
+// 依「當天快照」計算月排名（依當月S）／年排名（依年度S）：由高到低排序，數值並列者名次相同、
+// 下一個相異數值的名次會依照已排過的人數往後跳（標準名次法，例如兩人並列第1名，下一位是第3名）。
+// 當天沒有快照的人不參與排名（該員名次顯示 —）。回傳 { monthRank:{personId:rank}, yearRank:{personId:rank} }
+function _warComputeRanks(monthList, dateStr){
+  const monthVals = [], yearVals = [];
+  _warRoster.forEach(p=>{
+    const s = monthList.find(x=>x.personId===p.id && x.date===dateStr);
+    if(s){
+      monthVals.push({ id: p.id, val: parseFloat(s.monthS) || 0 });
+      yearVals.push({ id: p.id, val: parseFloat(s.yearS) || 0 });
+    }
+  });
+  const rankOf = vals => {
+    const sorted = vals.slice().sort((a,b)=>b.val-a.val);
+    const rankMap = {};
+    let rank = 0, prevVal = null, seen = 0;
+    sorted.forEach(v=>{
+      seen++;
+      if(v.val !== prevVal){ rank = seen; prevVal = v.val; }
+      rankMap[v.id] = rank;
+    });
+    return rankMap;
+  };
+  return { monthRank: rankOf(monthVals), yearRank: rankOf(yearVals) };
+}
+// 名次徽章顯示：前三名附上獎牌 emoji，其餘僅顯示數字；沒有名次（當天無快照）顯示 —
+function _warRankBadge(rank){
+  if(rank===undefined || rank===null) return '<span style="color:var(--tx3)">—</span>';
+  const medal = rank===1 ? '🥇' : rank===2 ? '🥈' : rank===3 ? '🥉' : '';
+  return `${medal}${rank}`;
+}
+
 // 業務排序：依「新增業務」的先後順序，最舊的排最上面、最新的排最下面
 function _warSortRoster(list){
   list.sort((a,b)=>(a.createdAt||'').localeCompare(b.createdAt||''));
@@ -9084,27 +9116,30 @@ async function renderWarReport(){
   if(thActions) thActions.style.display = editing ? '' : 'none';
 
   if(_warLoadError){
-    tbody.innerHTML = `<tr><td class="empty-td" colspan="15">⚠️ 載入失敗：${escH(_warLoadError)}<br><span style="font-size:11px">請確認 Firestore 安全規則已開放讀取 war_report_roster／war_report_snapshots 集合</span></td></tr>`;
+    tbody.innerHTML = `<tr><td class="empty-td" colspan="17">⚠️ 載入失敗：${escH(_warLoadError)}<br><span style="font-size:11px">請確認 Firestore 安全規則已開放讀取 war_report_roster／war_report_snapshots 集合</span></td></tr>`;
     return;
   }
   if(!_warRoster.length){
-    tbody.innerHTML = `<tr><td class="empty-td" colspan="15">📭 尚無業務資料${canEdit?'，點選右上方「＋ 新增業務」開始建立':''}</td></tr>`;
+    tbody.innerHTML = `<tr><td class="empty-td" colspan="17">📭 尚無業務資料${canEdit?'，點選右上方「＋ 新增業務」開始建立':''}</td></tr>`;
     return;
   }
 
   const dateStr = _warSelectedDate || nowDate();
   const ym = dateStr.slice(0,7);
-  tbody.innerHTML = `<tr><td class="empty-td" colspan="15">⏳ 載入 ${escH(dateStr)} 快照中…</td></tr>`;
+  tbody.innerHTML = `<tr><td class="empty-td" colspan="17">⏳ 載入 ${escH(dateStr)} 快照中…</td></tr>`;
 
   let monthList;
   try{
     monthList = await _warFetchMonth(ym);
   }catch(e){
-    tbody.innerHTML = `<tr><td class="empty-td" colspan="15">⚠️ 載入快照失敗：${escH(e.message||'')}<br><span style="font-size:11px">請確認 Firestore 安全規則已開放讀取 war_report_snapshots 集合</span></td></tr>`;
+    tbody.innerHTML = `<tr><td class="empty-td" colspan="17">⚠️ 載入快照失敗：${escH(e.message||'')}<br><span style="font-size:11px">請確認 Firestore 安全規則已開放讀取 war_report_snapshots 集合</span></td></tr>`;
     return;
   }
   // 若使用者在讀取期間又切換了日期，放棄這次結果，避免畫面錯亂
   if((_warSelectedDate || nowDate()) !== dateStr) return;
+
+  // 排名：依「當天快照」的當月S／年度S 高到低排序（有並列名次、下一名次會依人數往後跳），沒有當天快照者不參與排名
+  const { monthRank, yearRank } = _warComputeRanks(monthList, dateStr);
 
   tbody.innerHTML = _warRoster.map(p=>{
     const daySnap = monthList.find(s => s.personId === p.id && s.date === dateStr);
@@ -9113,14 +9148,16 @@ async function renderWarReport(){
       return `<tr>
         <td style="font-weight:700">${escH(p.name||'—')}</td>
         <td style="font-size:12px">${escH(p.hireDate||'—')}</td>
-        <td colspan="12" style="text-align:center;color:var(--tx3);font-size:12px">（${escH(dateStr)} 尚無快照紀錄）</td>
+        <td colspan="14" style="text-align:center;color:var(--tx3);font-size:12px">（${escH(dateStr)} 尚無快照紀錄）</td>
         ${actionsCell}
       </tr>`;
     }
     return `<tr>
       <td style="font-weight:700">${escH(p.name||'—')}</td>
       <td style="font-size:12px">${escH(p.hireDate||'—')}</td>
-      <td style="font-size:12px">${fmtWarNum(daySnap.targetS)} / ${fmtWarNum(daySnap.targetMonthS)} / ${fmtWarNum(daySnap.targetB)} / ${fmtWarNum(daySnap.targetA)}</td>
+      <td style="text-align:center;font-weight:700">${_warRankBadge(monthRank[p.id])}</td>
+      <td style="text-align:center;font-weight:700">${_warRankBadge(yearRank[p.id])}</td>
+      <td style="font-size:12px">${fmtWarNum(daySnap.targetMonthS)} / ${fmtWarNum(daySnap.targetB)} / ${fmtWarNum(daySnap.targetA)}</td>
       <td>${fmtWarNum(daySnap.yearS)}</td>
       <td>${fmtWarNum(daySnap.monthS)}</td>
       <td>${fmtWarNum(daySnap.aCount)} / ${fmtWarNum(daySnap.abCount)}</td>
@@ -9191,7 +9228,6 @@ async function openWarPersonModal(id){
   const priorSnap = (!daySnap && p) ? _warFindLatestPrior(p.id, dateStr) : null;
   const base = daySnap || priorSnap || (p && p.latest) || {};
 
-  document.getElementById('wp-target-s').value = base.targetS ?? '';
   document.getElementById('wp-target-month-s').value = base.targetMonthS ?? '';
   document.getElementById('wp-target-b').value = base.targetB ?? '';
   document.getElementById('wp-target-a').value = base.targetA ?? '';
@@ -9243,16 +9279,14 @@ function warAutoFillFromLinked(){
   document.getElementById('wp-ab-count').value = u.warMonthCommCnt ?? 0;
   document.getElementById('wp-inventory').value = u.warInventoryCnt ?? 0;
 }
-// 目標欄位一鍵套用（年度目標S／當月目標S／目標B／目標A）：讀取「對應帳號」的系統資料
-// 年度目標S ← 個人頁面「年度業績目標」；當月目標S ← 個人頁面「月目標設定」當月業績目標；
-// 目標B ← 「月目標設定」一般委託目標；目標A ← 「月目標設定」專任委託目標（皆取當月）
+// 目標欄位一鍵套用（當月目標S／目標B／目標A）：讀取「對應帳號」個人頁面的月目標設定
+// 當月目標S ← 個人頁面「月目標設定」當月業績目標；目標B ← 一般委託目標；目標A ← 專任委託目標（皆取當月）
 function warAutoFillTargetsFromLinked(){
   const linkSel = document.getElementById('wp-linked-uid');
   const uid = linkSel ? linkSel.value : '';
   if(!uid){ alert('請先選擇對應帳號'); return; }
   const u = _warUsersIndex.find(x=>x.uid===uid);
   if(!u){ alert('找不到該帳號的系統資料，該帳號可能尚未登入過系統'); return; }
-  document.getElementById('wp-target-s').value = u.warYearProfitTarget ?? 0;
   document.getElementById('wp-target-month-s').value = u.warMonthProfitTarget ?? 0;
   document.getElementById('wp-target-b').value = u.warMonthGenTarget ?? 0;
   document.getElementById('wp-target-a').value = u.warMonthExclTarget ?? 0;
@@ -9299,7 +9333,7 @@ async function saveWarPerson(){
   }
 
   const snapshotFields = {
-    targetS: num('wp-target-s'), targetMonthS: num('wp-target-month-s'), targetB: num('wp-target-b'), targetA: num('wp-target-a'),
+    targetMonthS: num('wp-target-month-s'), targetB: num('wp-target-b'), targetA: num('wp-target-a'),
     yearS: num('wp-year-s'), monthS: num('wp-month-s'),
     aCount: num('wp-a-count'), abCount: num('wp-ab-count'), inventory: num('wp-inventory'),
     monthTrack: mTrack, monthRecruit: mRecruit, monthCall: mCall,
