@@ -187,6 +187,11 @@
   window._firebaseAnnounceRef    = (id) => doc(db_fs, 'announcements', id);
   window._firebaseAnnounceColl   = () => collection(db_fs, 'announcements');
   window._firebaseAnnounceNewRef = () => doc(collection(db_fs, 'announcements'));
+  // 輪值表：當月值星官（以「週一日期」為文件 id，跨月的週共用同一筆資料，不受月份頁面切換影響）
+  window._firebaseDutyOfficerWeekRef   = (weekKey) => doc(db_fs, 'duty_officer_weeks', weekKey);
+  window._firebaseDutyOfficerWeeksColl = () => collection(db_fs, 'duty_officer_weeks');
+  // 輪值表：清潔分工（以月為單位，doc id = 'YYYY-MM'）
+  window._firebaseRosterCleaningRef = (ym) => doc(db_fs, 'roster_cleaning', ym);
 
   // 每次開啟網站：先登出 → 設 session persistence → 再監聽
   signOut(auth)
@@ -791,6 +796,7 @@ function gm_authFailure() {
     <div class="topbar-right">
       <span id="sync-status" style="font-size:11px;color:var(--tx3);display:none"></span>
       <span id="storage-usage" class="storage-badge" style="display:none"></span>
+      <button id="topbar-rosterduty-btn" onclick="switchPage('rosterduty')" title="輪值表" style="height:36px;padding:0 14px;background:var(--acc);border:none;border-radius:8px;cursor:pointer;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0;white-space:nowrap;font-family:inherit">輪值表</button>
       <button id="topbar-dutyroster-btn" onclick="switchPage('dutyroster')" title="每月出勤排休表" style="height:36px;padding:0 14px;background:var(--yel);border:none;border-radius:8px;cursor:pointer;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;color:#1a2332;flex-shrink:0;white-space:nowrap;font-family:inherit">每月出勤排休表</button>
       <button id="notif-bell-btn" onclick="openNotifCenter()" title="通知中心">
         🔔<span id="notif-bell-dot"></span>
@@ -2206,6 +2212,46 @@ function gm_authFailure() {
   </div>
 </div>
 
+<!-- PAGE: 輪值表 -->
+<style>
+#rd-officer-table th,#rd-officer-table td,#rd-cleaning-table th,#rd-cleaning-table td{border:1px solid var(--bdr2)}
+#rd-officer-table,#rd-cleaning-table{border-collapse:collapse}
+</style>
+<div class="page" id="page-rosterduty">
+  <div class="ph" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:space-between">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-g" style="font-size:12px;padding:6px 10px" onclick="rdPrevMonth()">‹ 上月</button>
+      <select class="fc" id="rd-year-sel" style="width:92px" onchange="rdJumpToSelected()"></select>
+      <select class="fc" id="rd-month-sel" style="width:70px" onchange="rdJumpToSelected()"></select>
+      <button class="btn btn-g" style="font-size:12px;padding:6px 10px" onclick="rdNextMonth()">下月 ›</button>
+      <button class="btn btn-g" style="font-size:12px;padding:6px 10px" onclick="rdGoThisMonth()">📅 回到本月</button>
+    </div>
+  </div>
+  <div class="subtabs" style="margin:0 16px 16px">
+    <div class="stab active" id="rd-tab-officer" onclick="rdSwitchTab('officer')">當月值星官</div>
+    <div class="stab" id="rd-tab-cleaning" onclick="rdSwitchTab('cleaning')">清潔分工</div>
+  </div>
+
+  <div id="rd-officer-panel" style="margin:0 16px 24px">
+    <div class="admin-table-wrap">
+      <table id="rd-officer-table">
+        <thead><tr><th>週期</th><th>值星人員</th></tr></thead>
+        <tbody id="rd-officer-tbody"><tr><td class="empty-td" colspan="2">⏳ 載入中…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="rd-cleaning-panel" style="display:none;margin:0 16px 24px">
+    <div class="admin-table-wrap">
+      <table id="rd-cleaning-table">
+        <thead><tr><th style="min-width:170px">項目</th><th>早上</th><th>下午</th></tr></thead>
+        <tbody id="rd-cleaning-tbody"><tr><td class="empty-td" colspan="3">⏳ 載入中…</td></tr></tbody>
+      </table>
+    </div>
+    <div style="font-size:12px;color:var(--tx3);padding:10px 2px">💡 每週一、四 16:30 有垃圾車（值星負責）</div>
+  </div>
+</div>
+
 <!-- 排休狀態選單（點擊格子時彈出的小浮層，可點外側直接關閉，因為不涉及文字輸入不會有資料遺失風險）-->
 <div id="dr-cell-picker" style="display:none;position:fixed;z-index:1200;background:var(--surf);border:1px solid var(--bdr2);border-radius:var(--r);box-shadow:var(--shlg);padding:6px;flex-direction:column;gap:2px;min-width:104px"></div>
 
@@ -3279,7 +3325,7 @@ function toggleFilter(pool){
   btn.textContent=open?'⚙ 收起篩選':'⚙ 進階篩選';
 }
 
-const PAGE_TITLES={'recruit':'募集線','track':'追蹤線','commission':'委託管理','stats':'首頁','trip':'行程規劃','closed':'已結案','admin':'管理後台','buyer':'買方管理','inventory':'公司庫存','taxcalc':'稅務與貸款試算','profile':'個人頁面','warreport':'每日戰報','dutyroster':'每月出勤排休表'};
+const PAGE_TITLES={'recruit':'募集線','track':'追蹤線','commission':'委託管理','stats':'首頁','trip':'行程規劃','closed':'已結案','admin':'管理後台','buyer':'買方管理','inventory':'公司庫存','taxcalc':'稅務與貸款試算','profile':'個人頁面','warreport':'每日戰報','dutyroster':'每月出勤排休表','rosterduty':'輪值表'};
 function switchPage(p){
   currentPage=p;
   document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));
@@ -3299,6 +3345,7 @@ function switchPage(p){
   else if(p==='inventory'){renderInventory();}
   else if(p==='warreport'){initWarReportPage();}
   else if(p==='dutyroster'){initDutyRosterPage();}
+  else if(p==='rosterduty'){initRosterDutyPage();}
   if(p==='commission') _updateEndedBadge();
   else renderAll();
 }
@@ -10437,6 +10484,273 @@ async function deleteAnnouncement(){
     renderAnnounceList();
   }catch(e){
     alert('⚠️ 刪除失敗：' + e.message);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// 輪值表：當月值星官 ＋ 清潔分工
+// 人員名單沿用「每月出勤排休表」的名冊（duty_roster）；編輯權限比照 canEditWarReport()（系統管理員／幕僚）。
+// 值星官資料以「週一日期」為文件 id（跨月的同一週共用同一筆資料，不論從哪個月份頁面檢視都一致）。
+// 清潔分工資料以月為單位（doc id = 'YYYY-MM'）。
+// ══════════════════════════════════════════════════════════════════
+let _rdYear = 0;
+let _rdMonth = 0; // 0-11
+let _rdRoster = [];        // 沿用出勤排休表人員名冊
+let _rdOfficerData = {};   // { weekKey('YYYY-MM-DD'): personId }
+let _rdCleaningData = {};  // { tasks: { taskKey: { am:[personId,...], pm:[personId,...] } } }
+let _rdLoadError = null;
+
+const RD_CLEAN_TASKS = [
+  { key:'outdoor',  label:'外掃區(騎樓+人行道+停車格)',    am:true,  pm:true },
+  { key:'windows',  label:'擦玻璃(大玻璃+門面玻璃)',        am:true,  pm:true },
+  { key:'sweep',    label:'室內掃地+拖地',                  am:true,  pm:true },
+  { key:'tables',   label:'擦桌椅(大廳與會議室桌椅+櫃子)',  am:true,  pm:true },
+  { key:'restroom', label:'廁所(530與532號)',               am:true,  pm:true },
+  { key:'trash',    label:'整理垃圾',                       am:false, pm:true },
+  { key:'watering', label:'澆花(週一、三、五)',             am:false, pm:true }
+];
+
+function _rdYm(){ return `${_rdYear}-${String(_rdMonth+1).padStart(2,'0')}`; }
+function _rdDateKey(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function _rdFmtMD(d){ const dow=['日','一','二','三','四','五','六'][d.getDay()]; return `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}(${dow})`; }
+function _rdPersonName(id){ const p = _rdRoster.find(x=>x.id===id); return p ? (p.name||'') : ''; }
+
+// 計算某月涵蓋到的所有「週一～週六」週次：只要該週內有任一天落在該月（週日不計入任何週次），該週就會被列出，
+// 即使該週的週一或週六落在鄰近月份也一樣（例如檢視 8 月時，仍會顯示 07/27(一)~08/01(六) 這一週）。
+function _rdWeeksForMonth(year, month){
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const mondayMap = new Map();
+  for(let d=1; d<=daysInMonth; d++){
+    const dt = new Date(year, month, d);
+    const dow = dt.getDay();
+    if(dow===0) continue; // 週日不屬於任何值星週次（值星週為週一～週六）
+    const mon = new Date(dt);
+    mon.setDate(dt.getDate() + (1 - dow));
+    const key = _rdDateKey(mon);
+    if(!mondayMap.has(key)) mondayMap.set(key, mon);
+  }
+  return Array.from(mondayMap.entries())
+    .sort((a,b)=>a[1]-b[1])
+    .map(([key,mon])=>{
+      const sat = new Date(mon); sat.setDate(mon.getDate()+5);
+      return { key, monday:mon, saturday:sat };
+    });
+}
+
+function _rdPopulateMonthSelectors(){
+  const ySel = document.getElementById('rd-year-sel');
+  const mSel = document.getElementById('rd-month-sel');
+  if(ySel && !ySel.dataset.filled){
+    const nowY = new Date().getFullYear();
+    let opts = '';
+    for(let y=nowY-3; y<=nowY+1; y++) opts += `<option value="${y}">${y}年</option>`;
+    ySel.innerHTML = opts;
+    ySel.dataset.filled = '1';
+  }
+  if(mSel && !mSel.dataset.filled){
+    let opts = '';
+    for(let m=0; m<12; m++) opts += `<option value="${m}">${m+1}月</option>`;
+    mSel.innerHTML = opts;
+    mSel.dataset.filled = '1';
+  }
+  if(ySel) ySel.value = _rdYear;
+  if(mSel) mSel.value = _rdMonth;
+}
+
+async function initRosterDutyPage(){
+  if(!_rdYear){ const now = new Date(); _rdYear = now.getFullYear(); _rdMonth = now.getMonth(); }
+  _rdPopulateMonthSelectors();
+  _rdLoadError = null;
+  await _rdLoadRoster();
+  await Promise.all([rdLoadOfficerData(), rdLoadCleaningData()]);
+  renderRosterDutyOfficer();
+  renderRosterDutyCleaning();
+}
+
+async function _rdLoadRoster(){
+  try{
+    const snap = await window._firebaseGetDocs(window._firebaseDutyRosterColl());
+    const list = [];
+    snap.forEach(d=>{ const x = d.data()||{}; x.id = d.id; list.push(x); });
+    _rdRoster = list;
+  }catch(e){
+    _rdLoadError = e.message || '權限不足';
+    console.error('輪值表：讀取人員名冊失敗', e);
+  }
+}
+
+async function rdLoadOfficerData(){
+  try{
+    const snap = await window._firebaseGetDocs(window._firebaseDutyOfficerWeeksColl());
+    const data = {};
+    snap.forEach(d=>{ data[d.id] = (d.data()||{}).personId || ''; });
+    _rdOfficerData = data;
+  }catch(e){
+    _rdLoadError = e.message || '權限不足';
+    console.error('輪值表：讀取值星官資料失敗', e);
+  }
+}
+
+async function rdLoadCleaningData(){
+  try{
+    const snap = await window._firebaseGetDoc(window._firebaseRosterCleaningRef(_rdYm()));
+    _rdCleaningData = snap.exists() ? (snap.data()||{}) : {};
+    if(!_rdCleaningData.tasks) _rdCleaningData.tasks = {};
+  }catch(e){
+    _rdLoadError = e.message || '權限不足';
+    console.error('輪值表：讀取清潔分工資料失敗', e);
+  }
+}
+
+function rdSwitchTab(tab){
+  const officerTab = document.getElementById('rd-tab-officer');
+  const cleaningTab = document.getElementById('rd-tab-cleaning');
+  const officerPanel = document.getElementById('rd-officer-panel');
+  const cleaningPanel = document.getElementById('rd-cleaning-panel');
+  if(officerTab) officerTab.classList.toggle('active', tab==='officer');
+  if(cleaningTab) cleaningTab.classList.toggle('active', tab==='cleaning');
+  if(officerPanel) officerPanel.style.display = tab==='officer' ? '' : 'none';
+  if(cleaningPanel) cleaningPanel.style.display = tab==='cleaning' ? '' : 'none';
+}
+
+function rdPrevMonth(){
+  _rdMonth--; if(_rdMonth<0){ _rdMonth=11; _rdYear--; }
+  _rdPopulateMonthSelectors();
+  renderRosterDutyOfficer();
+  rdLoadCleaningData().then(renderRosterDutyCleaning);
+}
+function rdNextMonth(){
+  _rdMonth++; if(_rdMonth>11){ _rdMonth=0; _rdYear++; }
+  _rdPopulateMonthSelectors();
+  renderRosterDutyOfficer();
+  rdLoadCleaningData().then(renderRosterDutyCleaning);
+}
+function rdJumpToSelected(){
+  const ySel = document.getElementById('rd-year-sel');
+  const mSel = document.getElementById('rd-month-sel');
+  if(ySel) _rdYear = parseInt(ySel.value) || _rdYear;
+  if(mSel) _rdMonth = parseInt(mSel.value) || 0;
+  renderRosterDutyOfficer();
+  rdLoadCleaningData().then(renderRosterDutyCleaning);
+}
+function rdGoThisMonth(){
+  const now = new Date();
+  _rdYear = now.getFullYear(); _rdMonth = now.getMonth();
+  _rdPopulateMonthSelectors();
+  renderRosterDutyOfficer();
+  rdLoadCleaningData().then(renderRosterDutyCleaning);
+}
+
+// ── 當月值星官 ──
+function renderRosterDutyOfficer(){
+  const tbody = document.getElementById('rd-officer-tbody');
+  if(!tbody) return;
+  if(_rdLoadError){
+    tbody.innerHTML = `<tr><td class="empty-td" colspan="2">⚠️ 載入失敗：${escH(_rdLoadError)}<br><span style="font-size:11px">請確認 Firestore 安全規則已開放讀取 duty_officer_weeks 集合</span></td></tr>`;
+    return;
+  }
+  if(!_rdRoster.length){
+    tbody.innerHTML = `<tr><td class="empty-td" colspan="2">📭 尚無人員資料，請先於「每月出勤排休表」新增人員</td></tr>`;
+    return;
+  }
+  const canEdit = canEditWarReport();
+  const weeks = _rdWeeksForMonth(_rdYear, _rdMonth);
+  tbody.innerHTML = weeks.map(w=>{
+    const label = `${_rdFmtMD(w.monday)}~${_rdFmtMD(w.saturday)}`;
+    const assigned = _rdOfficerData[w.key] || '';
+    const cell = canEdit
+      ? `<select class="fc" style="max-width:200px" onchange="rdSetOfficer('${w.key}', this.value)">
+          <option value="">尚未指派</option>
+          ${_rdRoster.map(p=>`<option value="${p.id}"${assigned===p.id?' selected':''}>${escH(p.name||'—')}</option>`).join('')}
+        </select>`
+      : `<span style="font-weight:600">${escH(_rdPersonName(assigned) || '尚未指派')}</span>`;
+    return `<tr><td style="font-weight:700;white-space:nowrap">${label}</td><td>${cell}</td></tr>`;
+  }).join('');
+}
+
+async function rdSetOfficer(weekKey, personId){
+  const prev = _rdOfficerData[weekKey];
+  _rdOfficerData[weekKey] = personId;
+  try{
+    await window._firebaseSetDoc(window._firebaseDutyOfficerWeekRef(weekKey), {
+      personId,
+      updatedAt: new Date().toISOString(),
+      updatedBy: (window._currentUser && window._currentUser.email) || ''
+    }, {merge:true});
+  }catch(e){
+    _rdOfficerData[weekKey] = prev;
+    alert('⚠️ 儲存失敗：' + e.message);
+    renderRosterDutyOfficer();
+  }
+}
+
+// ── 清潔分工 ──
+function renderRosterDutyCleaning(){
+  const tbody = document.getElementById('rd-cleaning-tbody');
+  if(!tbody) return;
+  if(_rdLoadError){
+    tbody.innerHTML = `<tr><td class="empty-td" colspan="3">⚠️ 載入失敗：${escH(_rdLoadError)}<br><span style="font-size:11px">請確認 Firestore 安全規則已開放讀取 roster_cleaning 集合</span></td></tr>`;
+    return;
+  }
+  if(!_rdRoster.length){
+    tbody.innerHTML = `<tr><td class="empty-td" colspan="3">📭 尚無人員資料，請先於「每月出勤排休表」新增人員</td></tr>`;
+    return;
+  }
+  const canEdit = canEditWarReport();
+  let rows = RD_CLEAN_TASKS.map(t=>{
+    const amCell = t.am ? _rdCleanCellHtml(t.key, 'am', canEdit) : '<td style="text-align:center;color:var(--tx3)">—</td>';
+    const pmCell = t.pm ? _rdCleanCellHtml(t.key, 'pm', canEdit) : '<td style="text-align:center;color:var(--tx3)">—</td>';
+    return `<tr><td style="font-weight:600">${escH(t.label)}</td>${amCell}${pmCell}</tr>`;
+  }).join('');
+  rows += `<tr><td style="font-weight:600">17點洗花盆(每月一、三週週一)</td><td style="text-align:center;color:var(--tx3)">—</td><td style="font-weight:700;color:var(--acc)">全體人員</td></tr>`;
+  tbody.innerHTML = rows;
+}
+
+function _rdCleanCellHtml(taskKey, period, canEdit){
+  const list = (_rdCleaningData.tasks && _rdCleaningData.tasks[taskKey] && _rdCleaningData.tasks[taskKey][period]) || [];
+  if(!canEdit){
+    if(!list.length) return '<td><span style="color:var(--tx3)">尚未指派</span></td>';
+    return `<td>${list.map(pid=>`<span class="tag" style="background:var(--accl);color:var(--acc);margin:2px 2px 0 0">${escH(_rdPersonName(pid)||'?')}</span>`).join('')}</td>`;
+  }
+  const usedIds = new Set(list);
+  const options = _rdRoster.filter(p=>!usedIds.has(p.id)).map(p=>`<option value="${p.id}">${escH(p.name||'—')}</option>`).join('');
+  const tags = list.map(pid=>`<span class="tag" style="background:var(--accl);color:var(--acc);display:inline-flex;align-items:center;gap:4px;margin:0 4px 4px 0">${escH(_rdPersonName(pid)||'?')}<span onclick="rdRemoveCleaningPerson('${taskKey}','${period}','${pid}')" style="cursor:pointer;font-weight:700">✕</span></span>`).join('');
+  return `<td>
+    <div style="display:flex;flex-wrap:wrap;margin-bottom:4px">${tags}</div>
+    <select class="fc" style="max-width:170px" onchange="if(this.value){rdAddCleaningPerson('${taskKey}','${period}',this.value);this.value='';}">
+      <option value="">＋ 新增人員</option>
+      ${options}
+    </select>
+  </td>`;
+}
+
+async function rdAddCleaningPerson(taskKey, period, personId){
+  if(!_rdCleaningData.tasks) _rdCleaningData.tasks = {};
+  if(!_rdCleaningData.tasks[taskKey]) _rdCleaningData.tasks[taskKey] = {};
+  if(!_rdCleaningData.tasks[taskKey][period]) _rdCleaningData.tasks[taskKey][period] = [];
+  if(_rdCleaningData.tasks[taskKey][period].includes(personId)){ renderRosterDutyCleaning(); return; }
+  _rdCleaningData.tasks[taskKey][period].push(personId);
+  renderRosterDutyCleaning();
+  await _rdSaveCleaning();
+}
+async function rdRemoveCleaningPerson(taskKey, period, personId){
+  if(_rdCleaningData.tasks && _rdCleaningData.tasks[taskKey] && _rdCleaningData.tasks[taskKey][period]){
+    _rdCleaningData.tasks[taskKey][period] = _rdCleaningData.tasks[taskKey][period].filter(id=>id!==personId);
+  }
+  renderRosterDutyCleaning();
+  await _rdSaveCleaning();
+}
+async function _rdSaveCleaning(){
+  try{
+    await window._firebaseSetDoc(window._firebaseRosterCleaningRef(_rdYm()), {
+      tasks: _rdCleaningData.tasks || {},
+      updatedAt: new Date().toISOString(),
+      updatedBy: (window._currentUser && window._currentUser.email) || ''
+    }, {merge:false});
+  }catch(e){
+    alert('⚠️ 儲存失敗：' + e.message);
+    await rdLoadCleaningData();
+    renderRosterDutyCleaning();
   }
 }
 
