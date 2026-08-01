@@ -8987,19 +8987,44 @@ async function openWarSelfModal(){
 async function saveWarSelf(){
   if(!_warMyPerson){ alert('您的帳號尚未綁定「對應業務」，請聯繫幕僚協助綁定後再填寫。'); return; }
   const todayStr = nowDate();
+  const ym = todayStr.slice(0,7);
   const num = id => { const v = document.getElementById(id).value; return v===''? 0 : (parseFloat(v)||0); };
+
+  try{ await _warFetchMonth(ym); }catch(e){ console.warn('讀取本月快照失敗', e); }
+
+  const newTodayTrack   = num('ws-track');
+  const newTodayRecruit = num('ws-recruit');
+  const newTodayCall    = num('ws-call');
+
+  // 月統計採「累加」邏輯：
+  // ・若今天已經填過，先扣掉今天原本的數字，再加上這次新輸入的數字（避免重複編輯造成重複累加）
+  // ・若今天是本月第一次填寫，以「本月最近一筆快照」的月統計為基礎繼續累加
+  // ・若本月完全沒有任何快照（跨月第一筆），月統計歸零重新累加，不沿用上個月的總數
+  const daySnap = _warFindSnapshot(_warMyPerson.id, todayStr);
+  const priorSnap = !daySnap ? _warFindLatestPrior(_warMyPerson.id, todayStr) : null;
+  const base = daySnap
+    ? { track: daySnap.monthTrack||0,   recruit: daySnap.monthRecruit||0,   call: daySnap.monthCall||0 }
+    : priorSnap
+      ? { track: priorSnap.monthTrack||0, recruit: priorSnap.monthRecruit||0, call: priorSnap.monthCall||0 }
+      : { track: 0, recruit: 0, call: 0 };
+  const oldTodayTrack   = daySnap?.todayTrack   || 0;
+  const oldTodayRecruit = daySnap?.todayRecruit || 0;
+  const oldTodayCall    = daySnap?.todayCall    || 0;
+
   const payload = {
     date: todayStr,
     personId: _warMyPerson.id,
-    todayTrack: num('ws-track'),
-    todayRecruit: num('ws-recruit'),
-    todayCall: num('ws-call'),
+    todayTrack: newTodayTrack,
+    todayRecruit: newTodayRecruit,
+    todayCall: newTodayCall,
+    monthTrack:   base.track   + (newTodayTrack   - oldTodayTrack),
+    monthRecruit: base.recruit + (newTodayRecruit - oldTodayRecruit),
+    monthCall:    base.call    + (newTodayCall    - oldTodayCall),
     savedAt: new Date().toISOString(),
     savedBy: (window._currentUser && window._currentUser.email) || ''
   };
   try{
     await window._firebaseSetDoc(window._firebaseWarSnapshotRef(todayStr, _warMyPerson.id), payload, {merge:true});
-    const ym = todayStr.slice(0,7);
     if(_warMonthCache[ym]){
       const idx = _warMonthCache[ym].findIndex(s=>s.personId===_warMyPerson.id && s.date===todayStr);
       if(idx>=0) Object.assign(_warMonthCache[ym][idx], payload); else _warMonthCache[ym].push(payload);
@@ -9215,6 +9240,7 @@ const CAL_SLOTS = [
   { key:'16-17',     label:'16:00 – 17:00', special:false },
   { key:'17-1715',   label:'17:00 – 17:15', special:true,  specialLabel:'📊 完成今日報表及明日預排' },
   { key:'1715-1745', label:'17:15 – 17:45', special:true,  specialLabel:'🌆 晚會' },
+  { key:'1745-1800', label:'17:45 – 18:00', special:true,  specialLabel:'🧹 打掃時間' },
 ];
 
 // ─── 月曆狀態 ────────────────────────────────────────────────────
@@ -9850,30 +9876,44 @@ function printWeekReport() {
 *{box-sizing:border-box;margin:0;padding:0}
 @page{size:A4 portrait;margin:0mm}
 @media print{html,body{width:210mm!important;height:297mm!important;overflow:visible!important;margin:0!important}#page{width:210mm!important;height:297mm!important;transform:none!important;padding:6mm 6mm!important;overflow:hidden!important}}
-html,body{margin:0;padding:0;background:#fff;font-family:'Noto Sans TC',system-ui,sans-serif;color:#1a2332;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+html,body{margin:0;padding:0;background:#fff;font-family:'Noto Sans TC',system-ui,sans-serif;color:#1a2332;-webkit-print-color-adjust:exact;print-color-adjust:exact;--fs:12px}
 #page{width:794px;height:1123px;padding:10px 10px;display:flex;flex-direction:column;overflow:hidden;transform-origin:top left}
 .hdr{flex-shrink:0;padding-bottom:4px}
 .hdr h1{font-size:12px;font-weight:800;display:inline}
 .hdr span{font-size:9px;color:#555;margin-left:8px}
 .wrap{flex:1;min-height:0;overflow:hidden}
 table{width:100%;height:100%;border-collapse:collapse;table-layout:fixed}
-th{font-weight:800;font-size:12px;text-align:center;border:1px solid #888;padding:3px 2px;vertical-align:middle}
-td{border:1px solid #ccc;padding:2px 3px;vertical-align:middle;text-align:center;font-size:12px;word-break:break-word}
+th{font-weight:800;font-size:var(--fs);text-align:center;border:1px solid #888;padding:3px 2px;vertical-align:middle}
+td{border:1px solid #ccc;padding:2px 3px;vertical-align:middle;text-align:center;font-size:var(--fs);word-break:break-word}
 .th-slot{background:#0f519b;color:#fff}
 .th-day{background:#1a4fa0;color:#fff}
 .th-sat{background:#2a5abf;color:#fff}
 .th-sun{background:#b01020;color:#fff}
-.td-slot{background:#dce8f8;color:#0f519b;font-weight:800;font-size:12px;text-align:center;vertical-align:middle;white-space:nowrap}
-.td-special-slot{background:#e0e0e0;color:#555;font-weight:800;font-size:12px;text-align:center;vertical-align:middle}
-.td-special-span{background:#ebebeb;color:#999;text-align:center;vertical-align:middle;font-size:12px}
-.td-sun{background:#fdf0f0;text-align:center;vertical-align:middle;color:#c0182a;font-size:12px}
+.td-slot{background:#dce8f8;color:#0f519b;font-weight:800;font-size:var(--fs);text-align:center;vertical-align:middle;white-space:nowrap}
+.td-special-slot{background:#e0e0e0;color:#555;font-weight:800;font-size:var(--fs);text-align:center;vertical-align:middle}
+.td-special-span{background:#ebebeb;color:#999;text-align:center;vertical-align:middle;font-size:var(--fs)}
+.td-sun{background:#fdf0f0;text-align:center;vertical-align:middle;color:#c0182a;font-size:var(--fs)}
 .row-odd .td-data{background:#f3f6fb}
 .row-even .td-data{background:#ffffff}
-.todo-item{display:block;line-height:1.5;padding:1px 0;border-bottom:1px dotted #ccc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.todo-item{display:block;line-height:1.3;padding:1px 0;border-bottom:1px dotted #ccc;white-space:normal;word-break:break-word;overflow-wrap:anywhere}
 .todo-item:last-child{border-bottom:none}
 </style>
 <script>
 (function(){
+  // 若「待辦名稱」換行後整張表格仍超出可印刷區域，逐步縮小字級直到剛好塞進一頁 A4
+  function fitContent(){
+    var wrap=document.querySelector('.wrap');
+    var table=wrap?wrap.querySelector('table'):null;
+    if(!wrap||!table)return;
+    var root=document.documentElement;
+    var fs=12,minFs=6.5,guard=0;
+    root.style.setProperty('--fs',fs+'px');
+    while(table.scrollHeight>wrap.clientHeight && fs>minFs && guard<60){
+      fs-=0.5;
+      root.style.setProperty('--fs',fs+'px');
+      guard++;
+    }
+  }
   function fit(){
     var el=document.getElementById('page');
     if(!el)return;
@@ -9883,7 +9923,7 @@ td{border:1px solid #ccc;padding:2px 3px;vertical-align:middle;text-align:center
     document.body.style.width=Math.round(794*s)+'px';
     document.body.style.height=Math.round(1123*s)+'px';
   }
-  window.addEventListener('load',fit);
+  window.addEventListener('load',function(){ fitContent(); fit(); });
   window.addEventListener('resize',fit);
   window.addEventListener('beforeprint',function(){
     var el=document.getElementById('page');
@@ -9891,6 +9931,8 @@ td{border:1px solid #ccc;padding:2px 3px;vertical-align:middle;text-align:center
     document.body.style.width='210mm';
     document.body.style.height='297mm';
     document.body.style.overflow='visible';
+    // 列印時的頁面尺寸／邊距與螢幕預覽略有不同，重新計算一次字級避免超出邊界
+    fitContent();
   });
   window.addEventListener('afterprint',function(){fit();});
 })();
@@ -9994,26 +10036,26 @@ function exportWeekReportPDF() {
   const innerHtml = `<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8"><title>${fileName}</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{width:794px;background:#fff;font-family:'Noto Sans TC',system-ui,sans-serif;color:#1a2332}
+html,body{width:794px;background:#fff;font-family:'Noto Sans TC',system-ui,sans-serif;color:#1a2332;--fs:12px}
 body{display:flex;flex-direction:column;height:1123px;padding:17px 17px}
 .hdr{padding:2px 2px 4px;flex-shrink:0}
 .hdr h1{font-size:12px;font-weight:800;display:inline}
 .hdr span{font-size:9px;color:#555;margin-left:8px}
 .wrap{flex:1;min-height:0;overflow:hidden}
 table{width:100%;height:100%;border-collapse:collapse;table-layout:fixed}
-th{font-weight:800;font-size:12px;text-align:center;border:1px solid #888;padding:3px 2px;vertical-align:middle}
-td{border:1px solid #ccc;padding:2px 3px;vertical-align:middle;text-align:center;font-size:12px;word-break:break-word}
+th{font-weight:800;font-size:var(--fs);text-align:center;border:1px solid #888;padding:3px 2px;vertical-align:middle}
+td{border:1px solid #ccc;padding:2px 3px;vertical-align:middle;text-align:center;font-size:var(--fs);word-break:break-word}
 .th-slot{background:#0f519b;color:#fff}
 .th-day{background:#1a4fa0;color:#fff}
 .th-sat{background:#2a5abf;color:#fff}
 .th-sun{background:#b01020;color:#fff}
-.td-slot{background:#dce8f8;color:#0f519b;font-weight:800;font-size:12px;text-align:center;vertical-align:middle;white-space:nowrap}
-.td-special-slot{background:#e0e0e0;color:#555;font-weight:800;font-size:12px;text-align:center;vertical-align:middle}
-.td-special-span{background:#ebebeb;color:#999;text-align:center;vertical-align:middle;font-size:12px}
-.td-sun{background:#fdf0f0;text-align:center;vertical-align:middle;color:#c0182a;font-size:12px}
+.td-slot{background:#dce8f8;color:#0f519b;font-weight:800;font-size:var(--fs);text-align:center;vertical-align:middle;white-space:nowrap}
+.td-special-slot{background:#e0e0e0;color:#555;font-weight:800;font-size:var(--fs);text-align:center;vertical-align:middle}
+.td-special-span{background:#ebebeb;color:#999;text-align:center;vertical-align:middle;font-size:var(--fs)}
+.td-sun{background:#fdf0f0;text-align:center;vertical-align:middle;color:#c0182a;font-size:var(--fs)}
 .row-odd .td-data{background:#f3f6fb}
 .row-even .td-data{background:#ffffff}
-.todo-item{display:block;line-height:1.5;padding:1px 0;border-bottom:1px dotted #ccc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.todo-item{display:block;line-height:1.3;padding:1px 0;border-bottom:1px dotted #ccc;white-space:normal;word-break:break-word;overflow-wrap:anywhere}
 .todo-item:last-child{border-bottom:none}
 </style></head><body>
 <div class="hdr"><h1>📋 業務週報表</h1><span>日期：${fmt(fromDate)} ～ ${fmt(toDate)}　業務：${escHtml(agent)}</span></div>
@@ -10022,6 +10064,26 @@ td{border:1px solid #ccc;padding:2px 3px;vertical-align:middle;text-align:center
 <thead><tr><th class="th-slot">時段</th>${thCols}</tr></thead>
 <tbody>${rows}</tbody>
 </table></div>
+<script>
+(function(){
+  // 若「待辦名稱」換行後整張表格仍超出可截圖區域，逐步縮小字級直到剛好塞進一頁 A4 再讓外層截圖
+  function fitContent(){
+    var wrap=document.querySelector('.wrap');
+    var table=wrap?wrap.querySelector('table'):null;
+    if(!wrap||!table)return;
+    var root=document.documentElement;
+    var fs=12,minFs=6.5,guard=0;
+    root.style.setProperty('--fs',fs+'px');
+    while(table.scrollHeight>wrap.clientHeight && fs>minFs && guard<60){
+      fs-=0.5;
+      root.style.setProperty('--fs',fs+'px');
+      guard++;
+    }
+  }
+  fitContent();
+  window.addEventListener('load',fitContent);
+})();
+<\/script>
 </body></html>`;
 
   // 載入 html2canvas 與 jsPDF 後執行截圖並下載
