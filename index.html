@@ -1961,6 +1961,7 @@ function gm_authFailure() {
     <div id="war-edit-actions" style="display:none;gap:8px;flex-wrap:wrap">
       <button class="btn btn-p" onclick="openWarPersonModal(null)">＋ 新增業務</button>
       <button class="btn btn-g" id="war-edit-toggle-btn" onclick="toggleWarEditMode()">✏️ 編輯戰報</button>
+      <button class="btn btn-g" id="war-recalc-btn" onclick="recalcAllMonthlyStats()" title="依每一天已記錄的今日追蹤／募集／電話，重新歸零加總每個人每個月的月統計">🔄 重新計算月統計</button>
     </div>
   </div>
   <div style="font-size:12px;color:var(--tx3);padding:0 16px 10px;line-height:1.6">
@@ -8996,6 +8997,86 @@ async function deleteWarPerson(){
     renderWarReport();
   }catch(e){
     alert('⚠️ 刪除失敗：' + e.message);
+  }
+}
+
+// 重新計算「所有業務」每個月的月追蹤／募集／電話數：從 0 開始，依每一天已記錄的「今日追蹤／募集／電話」
+// 依日期由舊到新累加，用正確的累計值覆蓋掉目前存在每筆快照裡的 monthTrack/monthRecruit/monthCall，
+// 用來修正過去因手動輸入或編輯順序造成的月統計數字不一致。僅幕僚／系統管理員可執行。
+async function recalcAllMonthlyStats(){
+  if(!canEditWarReport()) return;
+  if(!confirm('確定要重新計算「所有業務」每個月的月追蹤／募集／電話數嗎？\n\n系統會把每個人每個月的月統計歸零，並依照每一天已記錄的「今日追蹤／募集／電話」由舊到新重新累加，覆蓋目前儲存的月統計數字（今日欄位本身不會被更動）。此操作無法復原，執行前請確認每日數字都已正確填寫。')) return;
+
+  const btn = document.getElementById('war-recalc-btn');
+  const originalLabel = btn ? btn.textContent : '';
+  if(btn){ btn.disabled = true; btn.textContent = '⏳ 讀取快照中…'; }
+
+  try{
+    const snap = await window._firebaseGetDocs(window._firebaseWarSnapshotsColl());
+    const all = [];
+    snap.forEach(d => { const x = d.data()||{}; if(x.personId && x.date) all.push(x); });
+
+    // 依 personId 分組，組內依日期由舊到新排序
+    const byPerson = {};
+    all.forEach(s => { (byPerson[s.personId] = byPerson[s.personId] || []).push(s); });
+
+    const updates = [];       // 需要寫回 Firestore 的快照
+    const latestByPerson = {}; // 每人最新一筆（重算後），供更新名冊 latest 快取
+
+    Object.keys(byPerson).forEach(personId => {
+      const list = byPerson[personId].slice().sort((a,b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+      const runningByYm = {}; // 'YYYY-MM' -> {track,recruit,call}
+      list.forEach(s => {
+        const ym = s.date.slice(0,7);
+        if(!runningByYm[ym]) runningByYm[ym] = {track:0, recruit:0, call:0};
+        runningByYm[ym].track   += (+s.todayTrack)   || 0;
+        runningByYm[ym].recruit += (+s.todayRecruit) || 0;
+        runningByYm[ym].call    += (+s.todayCall)    || 0;
+        const newMonthTrack   = runningByYm[ym].track;
+        const newMonthRecruit = runningByYm[ym].recruit;
+        const newMonthCall    = runningByYm[ym].call;
+        if((s.monthTrack||0) !== newMonthTrack || (s.monthRecruit||0) !== newMonthRecruit || (s.monthCall||0) !== newMonthCall){
+          updates.push({
+            ref: window._firebaseWarSnapshotRef(s.date, personId),
+            data: { monthTrack:newMonthTrack, monthRecruit:newMonthRecruit, monthCall:newMonthCall }
+          });
+        }
+        s.monthTrack = newMonthTrack; s.monthRecruit = newMonthRecruit; s.monthCall = newMonthCall;
+        latestByPerson[personId] = s; // 依排序後順序，最後一筆即為最新
+      });
+    });
+
+    if(btn) btn.textContent = `⏳ 寫回中…（0/${updates.length}）`;
+    let done = 0;
+    for(const u of updates){
+      await window._firebaseSetDoc(u.ref, u.data, {merge:true});
+      done++;
+      if(btn) btn.textContent = `⏳ 寫回中…（${done}/${updates.length}）`;
+    }
+
+    // 同步更新名冊的 latest 快取，讓下次開啟編輯表單時帶入正確的月統計
+    const rosterUpdates = [];
+    Object.keys(latestByPerson).forEach(personId => {
+      const p = _warRoster.find(x => x.id === personId);
+      if(!p) return;
+      const s = latestByPerson[personId];
+      const newLatest = { ...(p.latest||{}), monthTrack: s.monthTrack, monthRecruit: s.monthRecruit, monthCall: s.monthCall };
+      rosterUpdates.push(
+        window._firebaseSetDoc(window._firebaseWarReportRef(personId), { latest: newLatest }, {merge:true})
+          .then(()=>{ p.latest = newLatest; })
+      );
+    });
+    await Promise.all(rosterUpdates);
+
+    // 清空月快取，強制重新讀取最新資料後重繪表格
+    _warMonthCache = {};
+    await renderWarReport();
+
+    alert(`✅ 重新計算完成！共檢查 ${all.length} 筆每日快照，更新了 ${updates.length} 筆月統計數字。`);
+  }catch(e){
+    alert('⚠️ 重新計算失敗：' + e.message);
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = originalLabel || '🔄 重新計算月統計'; }
   }
 }
 
