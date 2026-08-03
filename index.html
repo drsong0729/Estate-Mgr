@@ -9940,12 +9940,20 @@ function _dutyRosterComputeRows(){
     let offCnt = 0, leaveCnt = 0;
     const cells = [];
     for(let d=1; d<=daysInMonth; d++){
-      const { am, pm } = _dutyNormalizeDay(days[String(d)]);
-      [am, pm].forEach(code=>{
-        if(code==='off') offCnt += 0.5;
-        else if(code==='personal' || code==='annual' || code==='sick') leaveCnt += 0.5;
-      });
       const dow = new Date(_dutyYear, _dutyMonth, d).getDay();
+      let am, pm;
+      if(dow===0){
+        // 禮拜日固定公休：不論資料庫是否有值一律顯示公休，且不計入請假／公休統計
+        // （「應上」天數已預先扣除週日天數，此處若再併入 offCnt 會被重複扣除一次）
+        am = 'off'; pm = 'off';
+      } else {
+        const norm = _dutyNormalizeDay(days[String(d)]);
+        am = norm.am; pm = norm.pm;
+        [am, pm].forEach(code=>{
+          if(code==='off') offCnt += 0.5;
+          else if(code==='personal' || code==='annual' || code==='sick') leaveCnt += 0.5;
+        });
+      }
       const stAm = DUTY_STATUS[am] || DUTY_STATUS[''];
       const stPm = DUTY_STATUS[pm] || DUTY_STATUS[''];
       cells.push({ d, dow, am, pm, split: am!==pm, stAm, stPm, highlight: (d===1 || dow===1) });
@@ -10022,7 +10030,7 @@ function renderDutyRoster(){
     const dayCellsHtml = r.cells.map(c=>{
       const visual = _dutyCellVisual(c);
       const bgStyle = visual.bg ? `background:${visual.bg};` : '';
-      const clickAttr = editing
+      const clickAttr = (editing && c.dow!==0)
         ? ` onclick="openDutyCellPicker(event,'${r.id}',${c.d})" style="cursor:pointer;padding:0;${bgStyle}"`
         : ` style="padding:0;${bgStyle}"`;
       return `<td${clickAttr}>${visual.html}</td>`;
@@ -10051,6 +10059,8 @@ let _dutyPickerTarget = null;    // { personId, day, rect }
 
 function openDutyCellPicker(evt, personId, day){
   evt.stopPropagation();
+  const dow = new Date(_dutyYear, _dutyMonth, day).getDay();
+  if(dow===0) return; // 禮拜日固定公休，不開放編輯
   _dutyPickerPortion = 'full';
   _dutyPickerTarget = { personId, day, rect: evt.currentTarget.getBoundingClientRect() };
   _renderDutyCellPicker();
@@ -10168,19 +10178,26 @@ function renderDutyRosterMobile(){
   let offCnt = 0, leaveCnt = 0;
   let rowsHtml = '';
   for(let d=1; d<=daysInMonth; d++){
-    const { am, pm } = _dutyNormalizeDay(days[String(d)]);
+    const dow = new Date(_dutyYear, _dutyMonth, d).getDay();
+    let am, pm;
+    if(dow===0){
+      // 禮拜日固定公休：不論資料庫是否有值一律顯示公休，且不計入請假／公休統計
+      am = 'off'; pm = 'off';
+    } else {
+      const norm = _dutyNormalizeDay(days[String(d)]);
+      am = norm.am; pm = norm.pm;
+      [am, pm].forEach(code=>{
+        if(code==='off') offCnt += 0.5;
+        else if(code==='personal' || code==='annual' || code==='sick') leaveCnt += 0.5;
+      });
+    }
     const stAm = DUTY_STATUS[am] || DUTY_STATUS[''];
     const stPm = DUTY_STATUS[pm] || DUTY_STATUS[''];
-    [am, pm].forEach(code=>{
-      if(code==='off') offCnt += 0.5;
-      else if(code==='personal' || code==='annual' || code==='sick') leaveCnt += 0.5;
-    });
-    const dow = new Date(_dutyYear, _dutyMonth, d).getDay();
     const dowChar = ['日','一','二','三','四','五','六'][dow];
     const isHighlight = (d===1 || dow===1);
     const split = am !== pm;
     const rowBg = (!split && am) ? stAm.bg : (isHighlight ? 'var(--surf2)' : '');
-    const clickAttr = editing ? ` onclick="openDutyCellPicker(event,'${personId}',${d})" style="cursor:pointer"` : '';
+    const clickAttr = (editing && dow!==0) ? ` onclick="openDutyCellPicker(event,'${personId}',${d})" style="cursor:pointer"` : '';
     const statusHtml = split
       ? `<span style="font-size:11px;text-align:right"><span style="font-weight:700;color:${stAm.color}">上午 ${stAm.label||'上班'}</span><br><span style="font-weight:700;color:${stPm.color}">下午 ${stPm.label||'上班'}</span></span>`
       : `<span style="font-weight:700;font-size:12px;color:${stAm.color}">${stAm.label || '上班'}</span>`;
@@ -11478,6 +11495,81 @@ function getCalSlots(email){
   return CAL_SLOTS_OVERRIDE_BY_EMAIL[e] || CAL_SLOTS_DEFAULT;
 }
 
+// ─── 首頁行事曆結合「每月出勤排休表」假別（休／事／特／病）───────────────
+// 依目前登入者在 duty_roster 綁定的帳號（linkedUid）找出對應人員 id，
+// 再讀取該月 duty_schedules 文件取得請假／公休狀態；週日一律視為固定公休。
+let _myDutyPersonId; // undefined＝尚未查詢；null＝查無綁定人員
+let _myDutyPersonIdPromise = null;
+function _resolveMyDutyPersonId(){
+  if(_myDutyPersonId !== undefined) return Promise.resolve(_myDutyPersonId);
+  if(_myDutyPersonIdPromise) return _myDutyPersonIdPromise;
+  _myDutyPersonIdPromise = (async()=>{
+    let found = null;
+    try{
+      const uid = window._currentUser && window._currentUser.uid;
+      if(uid){
+        const snap = await window._firebaseGetDocs(window._firebaseDutyRosterColl());
+        snap.forEach(d=>{ const x = d.data()||{}; if(x.linkedUid===uid) found = d.id; });
+      }
+    }catch(e){
+      console.warn('無法讀取每月出勤排休表人員名冊，首頁行事曆將不顯示假別標記', e);
+    }
+    _myDutyPersonId = found;
+    return found;
+  })();
+  return _myDutyPersonIdPromise;
+}
+
+let _myDutyLeaveCache = {};    // ym('YYYY-MM') -> { [day]: {am,pm} }（僅包含有假別狀態的日期）
+let _myDutyLeaveFetching = {}; // ym -> 進行中的 Promise，避免重複讀取
+
+// 確保指定年月的假別資料已載入（非同步；載入完成後若目前畫面仍停留在同一個月/日會自動重新渲染）
+function _ensureMyDutyLeaveLoaded(year, month){
+  const ym = year + '-' + String(month+1).padStart(2,'0');
+  if(_myDutyLeaveCache[ym] || _myDutyLeaveFetching[ym]) return;
+  _myDutyLeaveFetching[ym] = (async()=>{
+    const map = {};
+    try{
+      const personId = await _resolveMyDutyPersonId();
+      if(personId){
+        const schedSnap = await window._firebaseGetDoc(window._firebaseDutyScheduleRef(ym));
+        const sched = schedSnap.exists() ? (schedSnap.data()||{}) : {};
+        const days = (sched.entries && sched.entries[personId] && sched.entries[personId].days) || {};
+        const daysInMonth = new Date(year, month+1, 0).getDate();
+        for(let d=1; d<=daysInMonth; d++){
+          const dow = new Date(year, month, d).getDay();
+          if(dow===0){ map[d] = { am:'off', pm:'off' }; continue; } // 週日固定公休
+          const norm = _dutyNormalizeDay(days[String(d)]);
+          if(norm.am || norm.pm) map[d] = norm;
+        }
+      }
+    }catch(e){
+      console.warn('無法讀取本月排休資料，首頁行事曆將不顯示假別標記', e);
+    }
+    _myDutyLeaveCache[ym] = map;
+    delete _myDutyLeaveFetching[ym];
+    if(typeof calYear!=='undefined' && calYear===year && calMonth===month && typeof calRender==='function') calRender();
+    if(typeof _todayPanelDate!=='undefined' && _todayPanelDate && _todayPanelDate.slice(0,7)===ym && typeof renderTodayPanel==='function') renderTodayPanel();
+  })();
+}
+
+// 取得某日的假別短標籤（供首頁月曆格與今日待辦面板共用）；沒有假別狀態時回傳 null
+function _myDutyDayBadge(dateKey){
+  const ym = dateKey.slice(0,7);
+  const d = parseInt(dateKey.slice(8,10), 10);
+  const info = (_myDutyLeaveCache[ym] || {})[d];
+  if(!info) return null;
+  const stAm = DUTY_STATUS[info.am] || DUTY_STATUS[''];
+  const stPm = DUTY_STATUS[info.pm] || DUTY_STATUS[''];
+  const same = info.am === info.pm;
+  return {
+    short: same ? stAm.short : `${stAm.short||'上'}/${stPm.short||'上'}`,
+    label: same ? (stAm.label||'上班') : `上午${stAm.label||'上班'}／下午${stPm.label||'上班'}`,
+    color: same ? stAm.color : 'var(--tx2)',
+    bg: same ? stAm.bg : 'var(--bg2)'
+  };
+}
+
 // ─── 月曆狀態 ────────────────────────────────────────────────────
 let calYear, calMonth; // 0-based month
 
@@ -11511,6 +11603,8 @@ function calRender() {
   if (mSel) mSel.value = calMonth;
   if (titleEl) titleEl.textContent = calYear + '年 ' + (calMonth+1) + '月';
 
+  _ensureMyDutyLeaveLoaded(calYear, calMonth); // 非同步載入本月排休假別，載入完成後會自動重新渲染
+
   const firstDay = new Date(calYear, calMonth, 1).getDay(); // 0=Sun
   const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
   const today = new Date();
@@ -11539,9 +11633,14 @@ function calRender() {
 
     const dayColor = isSun ? 'var(--red)' : isSat ? 'var(--acc)' : 'var(--tx)';
     const todayStyle = isToday ? 'background:var(--accl);border-color:var(--acc);' : '';
+    const dutyBadge = _myDutyDayBadge(dateKey);
+    const dutyBadgeHtml = dutyBadge ? `<span title="${dutyBadge.label}" style="font-size:9px;font-weight:700;color:${dutyBadge.color};background:${dutyBadge.bg};padding:0 5px;border-radius:8px">${dutyBadge.short}</span>` : '';
 
     html += `<div onclick="openScheduleModal('${dateKey}')" style="min-height:64px;padding:6px;border-right:1px solid var(--bdr);border-bottom:1px solid var(--bdr);cursor:pointer;transition:.15s;${todayStyle}" onmouseover="if(!this.dataset.today)this.style.background='var(--surf2)'" onmouseout="if(!this.dataset.today)this.style.background=''" ${isToday ? 'data-today="1"' : ''}>
-      <div style="font-size:13px;font-weight:${isToday?'800':'600'};color:${dayColor};${isToday?'background:var(--acc);color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;':''}">${d}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:4px">
+        <div style="font-size:13px;font-weight:${isToday?'800':'600'};color:${dayColor};${isToday?'background:var(--acc);color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;':''}">${d}</div>
+        ${dutyBadgeHtml}
+      </div>
       ${todoCount > 0 ? `<div style="margin-top:4px"><span style="font-size:10px;font-weight:700;background:var(--acc);color:#fff;padding:1px 6px;border-radius:20px">${todoCount} 件</span></div>` : ''}
     </div>`;
   }
@@ -11604,6 +11703,10 @@ function renderTodayPanel() {
 
   const dayData = calData[_todayPanelDate] || { slots: {} };
 
+  // 結合「每月出勤排休表」假別：非同步載入本月排休資料，載入完成後會自動重新渲染
+  _ensureMyDutyLeaveLoaded(parseInt(y,10), parseInt(m,10)-1);
+  const dutyBadge = _myDutyDayBadge(_todayPanelDate);
+
   // 今日心得：切換日期時同步帶入該日已儲存的心得文字
   const journalEl = document.getElementById('cal-today-journal');
   const journalLabelEl = document.getElementById('cal-journal-label');
@@ -11612,6 +11715,9 @@ function renderTodayPanel() {
   if (journalLabelEl) journalLabelEl.textContent = isToday ? '今日心得' : `${parseInt(m)}月${parseInt(d)}日心得`;
   if (journalHintEl) journalHintEl.textContent = '';
   let html = '<div style="padding:0 0 4px">';
+  if (dutyBadge) {
+    html += `<div style="padding:6px 16px;background:${dutyBadge.bg};border-bottom:1px solid var(--bdr);font-size:12px;font-weight:700;color:${dutyBadge.color}">🗓️ ${dutyBadge.label}</div>`;
+  }
   for (const slot of getCalSlots()) {
     const todos = (dayData.slots && dayData.slots[slot.key]) || [];
     const bg = slot.special ? 'background:var(--bg2)' : 'background:var(--surf)';
