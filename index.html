@@ -764,6 +764,9 @@ function gm_authFailure() {
     <button class="drawer-nav" id="dnav-warreport" onclick="switchPage('warreport');toggleDrawer()">
       <span>📊</span> 每日戰報
     </button>
+    <button class="drawer-nav" id="dnav-staffdirectory" onclick="switchPage('staffdirectory');toggleDrawer()" style="display:none">
+      <span>🗒️</span> 員工總表
+    </button>
     <button class="drawer-nav" id="dnav-admin" onclick="switchPage('admin');toggleDrawer()" style="display:none">
       <span id="dnav-admin-icon">🛡</span> <span id="dnav-admin-label">主管後台</span>
     </button>
@@ -943,6 +946,12 @@ function gm_authFailure() {
     <span style="font-size:16px">🎂</span>
     <strong style="font-size:13px;color:var(--grn)">買方生日提醒</strong>
     <div id="stats-bday-list" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+  </div>
+  <!-- 本月同仁生日提醒（首頁，所有身份組皆會顯示）-->
+  <div id="stats-staff-bday-bar" style="display:none;background:var(--gldl);border:1px solid var(--gld);border-radius:var(--r);padding:10px 16px;margin-bottom:16px;align-items:center;gap:10px;flex-wrap:wrap">
+    <span style="font-size:16px">🎂</span>
+    <strong style="font-size:13px;color:var(--gld)">本月同仁生日提醒</strong>
+    <div id="stats-staff-bday-list" style="display:flex;flex-wrap:wrap;gap:6px"></div>
   </div>
   <!-- ═══════════════════════ 月行事曆 ═══════════════════════ -->
   <div id="cal-section" style="background:var(--surf);border:1px solid var(--bdr);border-radius:var(--rlg);box-shadow:var(--sh);margin-bottom:20px;overflow:hidden">
@@ -2215,7 +2224,7 @@ function gm_authFailure() {
     </div>
   </div>
   <div style="font-size:12px;color:var(--tx3);padding:0 16px 10px;line-height:1.6">
-    💡 點「✏️ 編輯排休表」後，點擊表格中任一格即可設定當天狀態：<span style="color:var(--tx2);font-weight:700">休</span>＝公休、<span style="color:#c05621;font-weight:700">事</span>＝事假、<span style="color:#1a5fc8;font-weight:700">特</span>＝特休、<span style="color:#c0182a;font-weight:700">病</span>＝病假，未標記視為上班。右側「應上／實上／請假／公休」會依每天標記自動加總。每月 1 日與每週一為重要集會日，欄位標題會以淺色提醒。
+    💡 點「✏️ 編輯排休表」後，點擊表格中任一格即可設定當天狀態：<span style="color:var(--tx2);font-weight:700">休</span>＝公休、<span style="color:#c05621;font-weight:700">事</span>＝事假、<span style="color:#1a5fc8;font-weight:700">特</span>＝特休、<span style="color:#c0182a;font-weight:700">病</span>＝病假、<span style="color:var(--gld);font-weight:700">補</span>＝補休，未標記視為上班。右側「應上／實上／請假／公休」會依每天標記自動加總。每月 1 日與每週一為重要集會日，欄位標題會以淺色提醒。
   </div>
   <div id="dr-updated" style="font-size:11px;color:var(--tx3);padding:0 16px 8px"></div>
 
@@ -2282,6 +2291,49 @@ function gm_authFailure() {
     </div>
     <div style="font-size:12px;color:var(--tx3);padding:10px 2px">💡 每週一、四 16:30 有垃圾車（值星負責）</div>
   </div>
+</div>
+
+<!-- PAGE: 員工總表（工具選單，店秘書／系統管理員專屬）-->
+<style>
+#staffdir-table{border-collapse:collapse}
+#staffdir-table th,#staffdir-table td{border:1px solid var(--bdr2)}
+</style>
+<div class="page" id="page-staffdirectory">
+  <div class="ph">
+    <div style="font-size:12px;color:var(--tx3);line-height:1.6">💡 姓名／到職日沿用「每日戰報」業務名冊；點擊欄位標題可依該欄位排序；點「✏️ 編輯」可設定員工編號／生日／電話。</div>
+  </div>
+  <div id="staffdir-updated" style="font-size:11px;color:var(--tx3);padding:0 16px 8px"></div>
+  <div class="admin-table-wrap" style="margin:0 16px 24px">
+    <table id="staffdir-table">
+      <thead id="staffdir-thead"></thead>
+      <tbody id="staffdir-tbody"><tr><td class="empty-td">⏳ 載入中…</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal: 編輯員工總表資料（員工編號／生日／電話）-->
+<div class="ov" id="ov-staffdir">
+<div class="modal modal-sm">
+  <div class="mh"><div class="mt" id="staffdir-modal-title">編輯員工資料</div><button class="mc" onclick="closeOv('staffdir')">✕</button></div>
+  <div class="mb">
+    <div class="fgp">
+      <label class="lbl">員工編號</label>
+      <input class="fc" id="sd-empid" placeholder="例如：A001">
+    </div>
+    <div class="fgp">
+      <label class="lbl">生日</label>
+      <input class="fc" id="sd-birthday" type="date">
+    </div>
+    <div class="fgp">
+      <label class="lbl">電話</label>
+      <input class="fc" id="sd-phone" placeholder="例如：0912-345-678">
+    </div>
+  </div>
+  <div class="mf">
+    <button class="btn btn-g" onclick="closeOv('staffdir')">取消</button>
+    <button class="btn btn-p" onclick="saveStaffDirEntry()">儲存</button>
+  </div>
+</div>
 </div>
 
 <!-- 排休狀態選單（點擊格子時彈出的小浮層，可點外側直接關閉，因為不涉及文字輸入不會有資料遺失風險）-->
@@ -2534,11 +2586,13 @@ function gm_authFailure() {
         <button type="button" class="btn-addowner" onclick="addOwnerRow()">＋ 新增屋主</button>
       </div>
       <div id="owners-list"></div>
-      <div class="fg fg2" style="margin-top:10px">
+      <div class="fg fg3" style="margin-top:10px">
         <div class="fgp"><label class="lbl">建案名稱</label>
           <input class="fc" id="f-bldg" placeholder="（選填）"></div>
         <div class="fgp"><label class="lbl">案名</label>
           <input class="fc" id="f-casename" placeholder="（選填）"></div>
+        <div class="fgp"><label class="lbl">委託編號</label>
+          <input class="fc" id="f-listingno" placeholder="（選填）"></div>
       </div>
     </div>
     <div class="fsec">
@@ -2658,9 +2712,11 @@ function gm_authFailure() {
     <div class="tbox" id="tocomm-info"></div>
     <div class="fsec">
       <div class="fsec-t">案名</div>
-      <div class="fg">
+      <div class="fg fg2">
         <div class="fgp"><label class="lbl">案名（選填）</label>
           <input class="fc" id="c-casename" placeholder="（選填）"></div>
+        <div class="fgp"><label class="lbl">委託編號（選填）</label>
+          <input class="fc" id="c-listingno" placeholder="（選填）"></div>
       </div>
     </div>
     <div class="fsec">
@@ -3041,6 +3097,7 @@ const ROLES = {
   OWNER:      'owner',      // 老闆
   SUPERVISOR: 'supervisor', // 主管
   ADVISOR:    'advisor',    // 幕僚（基本功能 + 每日戰報編輯）
+  SECRETARY:  'secretary',  // 店秘書（權限目前與幕僚相同，其他權限日後再調整）
   STAFF:      'staff'       // 員工（預設）
 };
 // 硬編碼：系統管理員與老闆（不可被任何人更動）
@@ -3056,6 +3113,7 @@ const ROLE_LABELS = {
   owner:      '老闆',
   supervisor: '主管',
   advisor:    '幕僚',
+  secretary:  '店秘書',
   staff:      '員工'
 };
 // 身份組顯示顏色
@@ -3064,21 +3122,26 @@ const ROLE_COLORS = {
   owner:      '#7c3aed',
   supervisor: '#0f519b',
   advisor:    '#0d9488',
+  secretary:  '#b45309',
   staff:      '#6b7280'
 };
 // 本登入者的角色（登入後由 onFirebaseLogin 或 Firestore 設定）
 window._myRole = ROLES.STAFF;
-// 可編輯「每日戰報」的身份組：幕僚 + 系統管理員（系統管理員固定身份，確保永遠有人能維運此功能）
+// 可編輯「每日戰報」的身份組：幕僚、店秘書（權限比照幕僚）、系統管理員（系統管理員固定身份，確保永遠有人能維運此功能）
 function canEditWarReport(){
-  return window._myRole === ROLES.ADVISOR || window._myRole === ROLES.SYSADMIN;
+  return window._myRole === ROLES.ADVISOR || window._myRole === ROLES.SECRETARY || window._myRole === ROLES.SYSADMIN;
 }
 // 可新增「公司委託」（代其他業務登記、歸入該業務公司庫存）者：幕僚或系統管理員，與每日戰報編輯權限一致
 function canAddCompanyListing(){
   return canEditWarReport();
 }
-// 首頁公布欄可發布公告者：系統管理員、老闆、主管、幕僚
+// 首頁公布欄可發布公告者：系統管理員、老闆、主管、幕僚、店秘書（權限比照幕僚）
 function canPostAnnouncement(){
-  return SUPERVISOR_ROLES.includes(window._myRole) || window._myRole === ROLES.ADVISOR;
+  return SUPERVISOR_ROLES.includes(window._myRole) || window._myRole === ROLES.ADVISOR || window._myRole === ROLES.SECRETARY;
+}
+// 可檢視／編輯「員工總表」（工具選單）：店秘書專屬新頁面，系統管理員亦可檢視作為後盾
+function canViewStaffDirectory(){
+  return window._myRole === ROLES.SECRETARY || window._myRole === ROLES.SYSADMIN;
 }
 // 特定一則公告是否可被目前登入者編輯／刪除：僅發布者本人，系統管理員例外（可編輯／刪除任何人的公告）
 function canEditThisAnnouncement(a){
@@ -3470,7 +3533,7 @@ function toggleFilter(pool){
   btn.textContent=open?'⚙ 收起篩選':'⚙ 進階篩選';
 }
 
-const PAGE_TITLES={'recruit':'募集線','track':'追蹤線','commission':'委託管理','stats':'首頁','trip':'行程規劃','closed':'已結案','admin':'管理後台','buyer':'買方管理','inventory':'公司庫存','taxcalc':'稅務與貸款試算','profile':'個人頁面','warreport':'每日戰報','dutyroster':'每月出勤排休表','rosterduty':'輪值表'};
+const PAGE_TITLES={'recruit':'募集線','track':'追蹤線','commission':'委託管理','stats':'首頁','trip':'行程規劃','closed':'已結案','admin':'管理後台','buyer':'買方管理','inventory':'公司庫存','taxcalc':'稅務與貸款試算','profile':'個人頁面','warreport':'每日戰報','dutyroster':'每月出勤排休表','rosterduty':'輪值表','staffdirectory':'員工總表'};
 function switchPage(p){
   currentPage=p;
   document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));
@@ -3481,7 +3544,7 @@ function switchPage(p){
   if(dn) dn.classList.add('active');
   const tb=document.getElementById('topbar-title');
   if(tb)tb.textContent=PAGE_TITLES[p]||'';
-  if(p==='stats'){initStatsYears();renderDailyQuote();renderStats();checkBuyerBirthdays();calTodayPanelInit();initAnnounceBoard();}
+  if(p==='stats'){initStatsYears();renderDailyQuote();renderStats();checkBuyerBirthdays();calTodayPanelInit();initAnnounceBoard();_renderStaffBdayBar();}
   else if(p==='profile'){initStatsYears();renderStats();loadGoals();loadMonthGoal();renderProfileInfo();}
   else if(p==='closed'){renderClosed();}
   else if(p==='trip'){tripInitHCitySelect();renderTripList();renderTripSelected();updateMapsBtn();_syncTripLocationBar();}
@@ -3491,6 +3554,7 @@ function switchPage(p){
   else if(p==='warreport'){initWarReportPage();}
   else if(p==='dutyroster'){initDutyRosterPage();}
   else if(p==='rosterduty'){initRosterDutyPage();}
+  else if(p==='staffdirectory'){initStaffDirectoryPage();}
   if(p==='commission') _updateEndedBadge();
   else renderAll();
 }
@@ -3773,7 +3837,7 @@ function openRecruitModal(id,pool){
   const list = isComm ? db.commission : (editPool==='track'?db.track:db.recruit);
   const f=id?list.find(r=>r.id===id):null;
   // clear fixed fields
-  ['p-city','p-dist','p-addr','f-bldg','f-casename','f-proptype','f-area','f-total','f-unit','f-rooms','f-halls','f-baths','f-url','f-notes','ec2-fee','ec2-start','ec2-end','ec2-bonus'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
+  ['p-city','p-dist','p-addr','f-bldg','f-casename','f-listingno','f-proptype','f-area','f-total','f-unit','f-rooms','f-halls','f-baths','f-url','f-notes','ec2-fee','ec2-start','ec2-end','ec2-bonus'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
   // 委託類型 radio 重置
   const defRadio=document.querySelector('input[name="ec2type"][value="general"]');
   if(defRadio) defRadio.checked=true;
@@ -3797,6 +3861,7 @@ function openRecruitModal(id,pool){
     document.getElementById('p-addr').value=f.propAddr||'';
     document.getElementById('f-bldg').value=f.bldg||'';
     document.getElementById('f-casename').value=f.caseName||'';
+    document.getElementById('f-listingno').value=f.listingNo||'';
     document.getElementById('f-proptype').value=f.propType||''; onPropTypeChange();
     document.getElementById('f-area').value=f.area||'';
     document.getElementById('f-total').value=f.total||'';
@@ -3930,6 +3995,7 @@ function saveRecruit(){
     owners,
     bldg:document.getElementById('f-bldg').value,
     caseName:(document.getElementById('f-casename')?.value||'').trim(),
+    listingNo:(document.getElementById('f-listingno')?.value||'').trim(),
     propType,
     area:parseFloat(area),total:parseFloat(total),unit,
     rooms:noLayout?'':document.getElementById('f-rooms').value,
@@ -3984,6 +4050,7 @@ function openToComm(id){
   const r=db.track.find(x=>x.id===id);
   document.getElementById('tocomm-info').innerHTML=infoBox(r);
   document.getElementById('c-casename').value=r.caseName||r.bldg||'';
+  document.getElementById('c-listingno').value=r.listingNo||'';
   document.getElementById('c-start').value=nowDate();
   document.getElementById('c-end').value='';
   document.getElementById('c-fee').value='';
@@ -3995,10 +4062,11 @@ function confirmToComm(){
   const end=document.getElementById('c-end').value;
   const ctype=document.querySelector('input[name="ctype"]:checked').value;
   const caseName=(document.getElementById('c-casename')?.value||'').trim();
+  const listingNo=(document.getElementById('c-listingno')?.value||'').trim();
   const bonus='';
   if(!fee||!start||!end){alert('請填寫服務費、起始日、終止日');return;}
   const r=db.track.find(x=>x.id===pendingId);
-  if(r){r.commDate=nowDate();r.commFee=fee;r.commStart=start;r.commEnd=end;r.commType=ctype;r.companyBonus=bonus;r.caseName=caseName;
+  if(r){r.commDate=nowDate();r.commFee=fee;r.commStart=start;r.commEnd=end;r.commType=ctype;r.companyBonus=bonus;r.caseName=caseName;r.listingNo=listingNo;
     db.commission.push({...r});db.track=db.track.filter(x=>x.id!==pendingId);}
   save();renderAll();closeOv('tocomm');checkNotifs();
 }
@@ -4816,6 +4884,20 @@ function _getAllNotifs(){
     }
   });
 
+  // 3.5 本月同仁生日（公司共用名冊，所有身份組皆會看到）
+  (window._staffBirthdaysThisMonth || []).forEach(p=>{
+    const isToday = p.day === new Date().getDate();
+    notifs.push({
+      type:'staff_birthday', priority: isToday ? 0 : 1,
+      icon: '🎂',
+      title: `${escH(p.name)}`,
+      sub: isToday ? `今天生日！記得祝賀 🎉` : `本月 ${p.day} 日生日`,
+      badge: isToday ? '今天！' : `${p.day}日`,
+      badgeColor: 'var(--gld)', badgeBg: 'var(--gldl)',
+      action: ()=>{ closeNotifCenter(); if(canViewStaffDirectory()) switchPage('staffdirectory'); }
+    });
+  });
+
   // 4. 已結束委託超過 60 天未有後續
   const ended = db.endedCommission || [];
   ended.forEach(r=>{
@@ -4914,6 +4996,7 @@ function _renderNotifCenter(){
       { key:'expired',     label:'⛔ 委託已逾期',    types:['expired'] },
       { key:'expiring',    label:'⚠️ 委託即將到期',   types:['expiring'] },
       { key:'birthday',    label:'🎂 買方生日提醒',   types:['birthday'] },
+      { key:'staff_birthday', label:'🎂 本月同仁生日提醒', types:['staff_birthday'] },
       { key:'stale_ended', label:'📁 已結束委託待確認', types:['stale_ended'] },
     ];
     let html = '';
@@ -7196,6 +7279,13 @@ window.onFirebaseLogin = async function(user){
 
   window._isSupervisor = SUPERVISOR_ROLES.includes(window._myRole);
 
+  // 「員工總表」導覽按鈕：僅店秘書／系統管理員可見
+  const sdNav = document.getElementById('dnav-staffdirectory');
+  if(sdNav) sdNav.style.display = canViewStaffDirectory() ? '' : 'none';
+
+  // 本月同仁生日提醒（所有身份組皆檢查，因資料來源為公司共用名冊）
+  checkStaffBirthdays();
+
   // 初始化 UI
   Object.keys(CITIES).forEach(c=>{
     const o=document.createElement('option');
@@ -8535,6 +8625,7 @@ function renderInventory(){
           ${r.propType?`<span style="background:var(--accl);color:var(--acc);padding:1px 7px;border-radius:4px;font-size:11px">${escH(r.propType)}</span>`:''}
           <strong style="font-size:14px;color:${r.caseName?'var(--acc)':'var(--tx)'}">${mainTitle}</strong>
         </div>
+        ${r.listingNo?`<div style="font-size:11px;color:var(--tx3);margin-bottom:2px">🔖 委託編號：${escH(r.listingNo)}</div>`:''}
         ${r.caseName?`<div style="font-size:12px;color:var(--tx2);margin-bottom:4px">👤 ${escH(ownLabel)}</div>`:''}
         <div style="font-size:12px;color:var(--tx3);margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📍 ${escH(addr)}</div>
         <div style="display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:var(--tx2)">
@@ -8915,6 +9006,7 @@ function renderSysadminTable(){
     owner:      '所有功能 + 主管後台 + 修改員工名稱',
     supervisor: '所有功能 + 主管後台',
     advisor:    '基本功能 + 每日戰報編輯',
+    secretary:  '基本功能 + 每日戰報編輯（同幕僚）+ 員工總表',
     staff:      '基本功能'
   };
 
@@ -8948,6 +9040,7 @@ function renderSysadminTable(){
           <option value="owner"${empRole==='owner'?' selected':''}>老闆</option>
           <option value="supervisor"${empRole==='supervisor'?' selected':''}>主管</option>
           <option value="advisor"${empRole==='advisor'?' selected':''}>幕僚</option>
+          <option value="secretary"${empRole==='secretary'?' selected':''}>店秘書</option>
           <option value="staff"${empRole==='staff'?' selected':''}>員工</option>
         </select>
         <button class="role-save-btn" style="margin-top:3px" onclick="saveSysRole('${u.uid}')">更新身份組</button>`:''}
@@ -9059,6 +9152,7 @@ function renderAdminTable(){
             <select class="role-select" id="role-sel-${u.uid}">
               <option value="supervisor"${empRole==='supervisor'?' selected':''}>主管</option>
               <option value="advisor"${empRole==='advisor'?' selected':''}>幕僚</option>
+              <option value="secretary"${empRole==='secretary'?' selected':''}>店秘書</option>
               <option value="staff"${empRole==='staff'?' selected':''}>員工</option>
             </select>
             <button class="role-save-btn" onclick="saveEmpRole('${u.uid}')">更新</button>
@@ -9814,7 +9908,8 @@ const DUTY_STATUS = {
   'off':     { label:'公休', short:'休', color:'var(--tx2)', bg:'var(--bg2)' },
   'personal':{ label:'事假', short:'事', color:'#c05621',    bg:'var(--orgl)' },
   'annual':  { label:'特休', short:'特', color:'#1a5fc8',    bg:'var(--blul)' },
-  'sick':    { label:'病假', short:'病', color:'#c0182a',    bg:'var(--redl)' }
+  'sick':    { label:'病假', short:'病', color:'#c0182a',    bg:'var(--redl)' },
+  'comp':    { label:'補休', short:'補', color:'var(--gld)', bg:'var(--gldl)' }
 };
 
 function _dutyYm(){ return _dutyYear + '-' + String(_dutyMonth+1).padStart(2,'0'); }
@@ -9958,7 +10053,7 @@ function _dutyRosterComputeRows(){
         am = norm.am; pm = norm.pm;
         [am, pm].forEach(code=>{
           if(code==='off') offCnt += 0.5;
-          else if(code==='personal' || code==='annual' || code==='sick') leaveCnt += 0.5;
+          else if(code==='personal' || code==='annual' || code==='sick' || code==='comp') leaveCnt += 0.5;
         });
       }
       const stAm = DUTY_STATUS[am] || DUTY_STATUS[''];
@@ -10090,7 +10185,8 @@ function _renderDutyCellPicker(){
     { code:'off',      label:'😴 公休' },
     { code:'personal', label:'📄 事假' },
     { code:'annual',   label:'🌴 特休' },
-    { code:'sick',     label:'🤒 病假' }
+    { code:'sick',     label:'🤒 病假' },
+    { code:'comp',     label:'🔁 補休' }
   ];
   const portionHtml = `<div style="display:flex;gap:3px;padding:2px 2px 6px;border-bottom:1px solid var(--bdr);margin-bottom:4px">` +
     portions.map(p=>{
@@ -10198,7 +10294,7 @@ function renderDutyRosterMobile(){
       am = norm.am; pm = norm.pm;
       [am, pm].forEach(code=>{
         if(code==='off') offCnt += 0.5;
-        else if(code==='personal' || code==='annual' || code==='sick') leaveCnt += 0.5;
+        else if(code==='personal' || code==='annual' || code==='sick' || code==='comp') leaveCnt += 0.5;
       });
     }
     const stAm = DUTY_STATUS[am] || DUTY_STATUS[''];
@@ -11235,6 +11331,177 @@ body{padding:36px}
   })();
 }
 
+// ══════════════════════════════════════════════════════════════════
+// 員工總表（工具選單，店秘書／系統管理員專屬新頁面）
+// 資料來源：war_report_roster（與「每日戰報」共用同一份業務名冊）。
+// 姓名／到職日沿用該集合既有欄位（唯讀，如需異動請至「每日戰報」編輯業務資料）；
+// 員工編號／生日／電話為此頁新增的欄位，直接寫回同一份文件，不另建新集合。
+// ══════════════════════════════════════════════════════════════════
+let _sdRoster = [];
+let _sdLoadError = null;
+let _sdSortState = { col:null, dir:'asc' };
+let _sdEditingId = null;
+
+async function initStaffDirectoryPage(){
+  await _sdLoadData();
+  renderStaffDirectory();
+}
+
+async function _sdLoadData(){
+  const updEl = document.getElementById('staffdir-updated');
+  if(updEl) updEl.textContent = '載入中…';
+  _sdLoadError = null;
+  try{
+    const snap = await window._firebaseGetDocs(window._firebaseWarReportColl());
+    const list = [];
+    snap.forEach(d=>{ const x = d.data()||{}; x.id = d.id; list.push(x); });
+    _sdRoster = list;
+    if(updEl) updEl.textContent = '更新：' + new Date().toLocaleTimeString('zh-TW');
+  }catch(e){
+    _sdLoadError = e.message || '權限不足';
+    if(updEl) updEl.textContent = '⚠️ 載入失敗';
+    console.error('員工總表：讀取業務名冊失敗', e);
+  }
+}
+
+function _sdSetSort(col){
+  const s = _sdSortState;
+  if(s.col===col){ s.dir = s.dir==='asc' ? 'desc' : 'asc'; }
+  else { s.col = col; s.dir = 'asc'; }
+  renderStaffDirectory();
+}
+
+function _sdThSort(col, label){
+  const s = _sdSortState;
+  const cls = s.col===col ? (s.dir==='asc'?'asc':'desc') : '';
+  return `<th class="sortable ${cls}" onclick="_sdSetSort('${col}')">${label}<span class="sort-icon"></span></th>`;
+}
+
+// 生日／到職日皆以文字比較排序（格式皆為 YYYY-MM-DD）；生日刻意忽略年份，依「月-日」排序較符合實際需求
+function _sdSortRows(rows){
+  const { col, dir } = _sdSortState;
+  if(!col) return rows;
+  const mult = dir==='asc' ? 1 : -1;
+  return [...rows].sort((a,b)=>{
+    let va, vb;
+    if(col==='empId')          { va=a.empId||'';   vb=b.empId||'';   }
+    else if(col==='name')      { va=a.name||'';     vb=b.name||'';   }
+    else if(col==='hireDate')  { va=a.hireDate||''; vb=b.hireDate||''; }
+    else if(col==='birthday')  { va=(a.birthday||'').slice(5); vb=(b.birthday||'').slice(5); }
+    else if(col==='phone')     { va=a.phone||'';    vb=b.phone||'';  }
+    else return 0;
+    return va.localeCompare(vb,'zh-TW')*mult;
+  });
+}
+
+function renderStaffDirectory(){
+  const thead = document.getElementById('staffdir-thead');
+  const tbody = document.getElementById('staffdir-tbody');
+  if(!thead || !tbody) return;
+  const canEdit = canViewStaffDirectory();
+
+  thead.innerHTML = `<tr>
+    ${_sdThSort('empId','員工編號')}
+    ${_sdThSort('name','姓名')}
+    ${_sdThSort('hireDate','到職日')}
+    ${_sdThSort('birthday','生日')}
+    ${_sdThSort('phone','電話')}
+    ${canEdit?'<th>操作</th>':''}
+  </tr>`;
+
+  if(_sdLoadError){
+    tbody.innerHTML = `<tr><td class="empty-td" colspan="6">⚠️ 載入失敗：${escH(_sdLoadError)}<br><span style="font-size:11px">請確認 Firestore 安全規則已開放讀取 war_report_roster 集合</span></td></tr>`;
+    return;
+  }
+  if(!_sdRoster.length){
+    tbody.innerHTML = `<tr><td class="empty-td" colspan="6">📭 尚無員工資料，請先於「每日戰報」新增業務人員</td></tr>`;
+    return;
+  }
+
+  const rows = _sdSortRows(_sdRoster);
+  tbody.innerHTML = rows.map(p=>{
+    const editCell = canEdit ? `<td style="white-space:nowrap"><button class="btn btn-sm btn-edit" onclick="openStaffDirModal('${p.id}')">✏️ 編輯</button></td>` : '';
+    return `<tr>
+      <td style="font-weight:700">${escH(p.empId||'—')}</td>
+      <td style="font-weight:600;white-space:nowrap">${escH(p.name||'—')}</td>
+      <td style="white-space:nowrap">${escH(p.hireDate||'—')}</td>
+      <td style="white-space:nowrap">${escH(p.birthday||'—')}</td>
+      <td style="white-space:nowrap">${escH(p.phone||'—')}</td>
+      ${editCell}
+    </tr>`;
+  }).join('');
+}
+
+function openStaffDirModal(id){
+  if(!canViewStaffDirectory()) return;
+  const p = _sdRoster.find(x=>x.id===id);
+  if(!p) return;
+  _sdEditingId = id;
+  const titleEl = document.getElementById('staffdir-modal-title');
+  if(titleEl) titleEl.textContent = `編輯員工資料：${p.name||''}`;
+  document.getElementById('sd-empid').value = p.empId || '';
+  document.getElementById('sd-birthday').value = p.birthday || '';
+  document.getElementById('sd-phone').value = p.phone || '';
+  openOv('staffdir');
+}
+
+async function saveStaffDirEntry(){
+  if(!_sdEditingId) return;
+  const empId = (document.getElementById('sd-empid').value || '').trim();
+  const birthday = document.getElementById('sd-birthday').value || '';
+  const phone = (document.getElementById('sd-phone').value || '').trim();
+  try{
+    await window._firebaseSetDoc(window._firebaseWarReportRef(_sdEditingId), { empId, birthday, phone }, {merge:true});
+    const p = _sdRoster.find(x=>x.id===_sdEditingId);
+    if(p){ p.empId = empId; p.birthday = birthday; p.phone = phone; }
+    closeOv('staffdir');
+    renderStaffDirectory();
+    checkStaffBirthdays(); // 生日資料可能剛更新，重新檢查本月壽星提醒（影響所有人首頁與通知鈴鐺）
+  }catch(e){
+    alert('⚠️ 儲存失敗：' + e.message);
+  }
+}
+
+// ── 本月同仁生日提醒：所有身份組登入後皆會檢查（資料來源為公司共用的每日戰報業務名冊，非個人私有資料）──
+window._staffBirthdaysThisMonth = [];
+async function checkStaffBirthdays(){
+  try{
+    const snap = await window._firebaseGetDocs(window._firebaseWarReportColl());
+    const nowMonth = new Date().getMonth() + 1;
+    const list = [];
+    snap.forEach(d=>{
+      const x = d.data() || {};
+      if(!x.birthday) return;
+      const bMonth = parseInt(x.birthday.slice(5,7), 10);
+      if(bMonth === nowMonth){
+        list.push({ name: x.name || '（未命名）', day: parseInt(x.birthday.slice(8,10), 10) });
+      }
+    });
+    list.sort((a,b)=>a.day-b.day);
+    window._staffBirthdaysThisMonth = list;
+  }catch(e){
+    console.warn('無法讀取本月同仁生日資料', e);
+    window._staffBirthdaysThisMonth = [];
+  }
+  _renderStaffBdayBar();
+  if(typeof checkNotifs==='function') checkNotifs();
+}
+
+// 首頁「本月同仁生日提醒」橫幅
+function _renderStaffBdayBar(){
+  const bar = document.getElementById('stats-staff-bday-bar');
+  const listEl = document.getElementById('stats-staff-bday-list');
+  if(!bar || !listEl) return;
+  const list = window._staffBirthdaysThisMonth || [];
+  if(!list.length){ bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  const todayD = new Date().getDate();
+  listEl.innerHTML = list.map(p=>{
+    const isToday = p.day === todayD;
+    return `<span class="ntag" style="${isToday?'background:var(--gld);color:#fff;font-weight:700':''}">${isToday?'🎉 ':''}${escH(p.name)}（${p.day}日）</span>`;
+  }).join('');
+}
+
 // 展開/收起員工列
 function toggleAdminUser(uid){
   _adminOpenUid = (_adminOpenUid === uid) ? null : uid;
@@ -11948,9 +12215,9 @@ function renderProfileInfo() {
   }
   if (roleEl) {
     const role = window._myRole || window._userRole || 'staff';
-    const roleMap = { sysadmin:'🛡 系統管理員', owner:'👑 擁有者', supervisor:'👔 主管', advisor:'🗂 幕僚', staff:'👤 業務人員' };
-    const roleColor = role==='sysadmin'?'var(--red)':role==='owner'?'var(--gld)':role==='supervisor'?'var(--blu)':role==='advisor'?'#0d9488':'var(--grn)';
-    const roleBg = role==='sysadmin'?'var(--redl)':role==='owner'?'var(--gldl)':role==='supervisor'?'var(--blul)':role==='advisor'?'#ccfbf1':'var(--grnl)';
+    const roleMap = { sysadmin:'🛡 系統管理員', owner:'👑 擁有者', supervisor:'👔 主管', advisor:'🗂 幕僚', secretary:'🗒 店秘書', staff:'👤 業務人員' };
+    const roleColor = role==='sysadmin'?'var(--red)':role==='owner'?'var(--gld)':role==='supervisor'?'var(--blu)':role==='advisor'?'#0d9488':role==='secretary'?'#b45309':'var(--grn)';
+    const roleBg = role==='sysadmin'?'var(--redl)':role==='owner'?'var(--gldl)':role==='supervisor'?'var(--blul)':role==='advisor'?'#ccfbf1':role==='secretary'?'#fef3c7':'var(--grnl)';
     roleEl.innerHTML = `<span style="font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;background:${roleBg};color:${roleColor}">${roleMap[role]||role}</span>`;
   }
 }
