@@ -3289,36 +3289,50 @@ function _computeSelfGoalTargets(){
 
 // ── 年度業績起始數據 ─────────────────────────────────────────────
 // 系統於 2026/08 正式啟用前，以下幾位業務在 7 月已成交，但當時尚未列入系統的委託／已結案紀錄，
-// 故先以此預設清單（依「每日戰報」業務姓名比對）做為其年度累積業績的起始基礎（萬元）。
+// 故先以此預設清單（依 Google 帳號 email 比對，不受業務名冊姓名字串影響，最可靠）
+// 做為其年度累積業績的起始基礎（萬元）。
 // 若管理者之後在「每日戰報」的業務資料中手動設定了「年度業績起始數據」欄位，一律以該欄位數值為準，
 // 此預設清單僅在尚未手動設定時使用。本人的「已結案」頁面「今年累積業績」與每日戰報的「年度S」，
 // 都會在起始數據的基礎上，疊加系統內實際計算出的當年度業績，直到今年結束（隔年重新歸零）。
+const YEAR_PROFIT_BASELINE_SEED_BY_EMAIL = {
+  'guanming0517@gmail.com': 47.8,   // 陳冠銘
+  'guthchen@gmail.com':     28.032, // 陳郁弘
+  'singeewu@gmail.com':     42.048  // 吳欣儀
+};
+// 舊版以業務名冊姓名比對的預設清單（保留做為 email 對不到時的次要備援）
 const YEAR_PROFIT_BASELINE_SEED = {
   '陳冠銘': 47.8,
   '陳郁弘': 28.032,
   '吳欣儀': 42.048
 };
 let _myYearProfitBaseline = 0;
-// 讀取「本人」的年度業績起始數據：以本人 uid 對應「每日戰報」業務名冊（linkedUid）查詢，
-// 找到後優先採用該筆資料手動設定的 yearProfitBaseline 欄位，若未設定則退回上方預設清單（依姓名比對）。
-// 查無綁定資料或讀取失敗時安全回傳 0，不影響其餘功能。
+// 讀取「本人」的年度業績起始數據，判斷優先順序：
+// 1) 每日戰報業務名冊中該員（以 linkedUid 對應）手動設定的 yearProfitBaseline 欄位（管理者覆蓋值，最優先）
+// 2) 依本人登入 Google 帳號 email 對照上方預設清單（不受業務名冊姓名字串是否完全一致影響）
+// 3) 依業務名冊姓名對照舊版預設清單（備援）
+// 皆查無資料或讀取失敗時安全回傳 0，不影響其餘功能。
 function _fetchMyYearProfitBaseline(){
-  const myUid = window._currentUser && window._currentUser.uid;
+  const user = window._currentUser;
+  const myUid = user && user.uid;
+  const myEmail = ((user && user.email) || '').toLowerCase();
+  const emailSeed = YEAR_PROFIT_BASELINE_SEED_BY_EMAIL[myEmail];
+  const fallback = emailSeed !== undefined ? emailSeed : 0;
   if(!myUid || !window._firebaseWarReportColl || !window._firebaseQuery || !window._firebaseWhere || !window._firebaseGetDocs){
-    return Promise.resolve(0);
+    return Promise.resolve(fallback);
   }
   try{
     const q = window._firebaseQuery(window._firebaseWarReportColl(), window._firebaseWhere('linkedUid','==',myUid));
     return window._firebaseGetDocs(q).then(snap=>{
       let found = null;
       snap.forEach(d=>{ if(!found) found = d.data()||{}; });
-      if(!found) return 0;
-      if(found.yearProfitBaseline !== undefined && found.yearProfitBaseline !== null && found.yearProfitBaseline !== ''){
+      if(found && found.yearProfitBaseline !== undefined && found.yearProfitBaseline !== null && found.yearProfitBaseline !== ''){
         return parseFloat(found.yearProfitBaseline) || 0;
       }
-      return YEAR_PROFIT_BASELINE_SEED[found.name] || 0;
-    }).catch(()=>0);
-  }catch(e){ return Promise.resolve(0); }
+      if(emailSeed !== undefined) return emailSeed;
+      if(found && found.name && YEAR_PROFIT_BASELINE_SEED[found.name] !== undefined) return YEAR_PROFIT_BASELINE_SEED[found.name];
+      return 0;
+    }).catch(()=>fallback);
+  }catch(e){ return Promise.resolve(fallback); }
 }
 function _syncUserIndex(user){
   if(!window._firebaseIndexRef) return;
