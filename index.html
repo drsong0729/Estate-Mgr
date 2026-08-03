@@ -974,6 +974,8 @@ function gm_authFailure() {
       <div style="text-align:center;padding:8px 4px;font-size:11px;font-weight:700;color:var(--tx2)">五</div>
       <div style="text-align:center;padding:8px 4px;font-size:11px;font-weight:700;color:var(--acc)">六</div>
     </div>
+    <!-- 提示：目前登入帳號尚未在「每月出勤排休表」綁定對應人員，因此無法顯示個人假別標記 -->
+    <div id="cal-duty-bind-hint" style="display:none;padding:8px 16px;background:var(--orgl);border-bottom:1px solid var(--bdr);font-size:12px;color:#c05621">⚠️ 你的帳號尚未在「每月出勤排休表」的人員名冊中設定「對應帳號」，因此行事曆無法顯示你的休假標記；請聯絡幕僚協助綁定。</div>
     <!-- 月曆格子 -->
     <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:0"></div>
     <!-- 當日行程快速面板 -->
@@ -2251,6 +2253,10 @@ function gm_authFailure() {
       <select class="fc" id="rd-month-sel" style="width:70px" onchange="rdJumpToSelected()"></select>
       <button class="btn btn-g" style="font-size:12px;padding:6px 10px" onclick="rdNextMonth()">下月 ›</button>
       <button class="btn btn-g" style="font-size:12px;padding:6px 10px" onclick="rdGoThisMonth()">📅 回到本月</button>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-g" style="font-size:12px;padding:6px 10px" onclick="printRosterDuty()">🖨️ 列印</button>
+      <button class="btn btn-g" style="font-size:12px;padding:6px 10px" onclick="exportRosterDutyPdf()">⬇️ 匯出 PDF</button>
     </div>
   </div>
   <div class="subtabs" style="margin:0 16px 16px">
@@ -11096,6 +11102,139 @@ async function _rdSaveCleaning(){
   }
 }
 
+// ── 列印／匯出 PDF：當月值星官＋清潔分工合併於同一頁（直式 A4）──
+const _RD_PRINT_STYLE = `
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#fff;font-family:'Noto Sans TC',system-ui,sans-serif;color:#1a2332;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.hdr{padding-bottom:10px}
+.hdr h1{font-size:16px;font-weight:800;display:inline}
+.hdr span{font-size:11px;color:#555;margin-left:10px}
+.sec-title{font-size:13px;font-weight:800;color:#0f519b;background:#e8f1fb;padding:6px 10px;margin:14px 0 6px;border-left:4px solid #0f519b}
+table{width:100%;border-collapse:collapse;margin-bottom:4px}
+th{font-weight:800;font-size:12px;text-align:center;border:1px solid #888;padding:6px 4px;background:#0f519b;color:#fff}
+td{border:1px solid #999;padding:6px 8px;vertical-align:middle;font-size:12px;text-align:center}
+.td-label{font-weight:700;background:#f6f9fd;white-space:nowrap;text-align:left}
+.td-all{font-weight:700;color:#0f519b}
+.hint{font-size:10.5px;color:#777;margin-top:8px}
+`;
+
+// 產生「當月值星官」「清潔分工」兩張表格的純文字版 HTML（不含互動元素），供列印／PDF 共用
+function _rdPrintTablesHtml(){
+  const weeks = _rdWeeksForMonth(_rdYear, _rdMonth);
+  const officerRows = weeks.map(w=>{
+    const label = `${_rdFmtMD(w.monday)}~${_rdFmtMD(w.saturday)}`;
+    const assigned = _rdOfficerData[w.key] || '';
+    return `<tr><td class="td-label">${label}</td><td>${escH(_rdPersonName(assigned) || '尚未指派')}</td></tr>`;
+  }).join('');
+
+  let cleaningRows = RD_CLEAN_TASKS.map(t=>{
+    const amList = t.am ? ((_rdCleaningData.tasks && _rdCleaningData.tasks[t.key] && _rdCleaningData.tasks[t.key].am) || []).map(pid=>_rdPersonName(pid)).filter(Boolean) : null;
+    const pmList = t.pm ? ((_rdCleaningData.tasks && _rdCleaningData.tasks[t.key] && _rdCleaningData.tasks[t.key].pm) || []).map(pid=>_rdPersonName(pid)).filter(Boolean) : null;
+    const amCell = amList===null ? '—' : (amList.length ? escH(amList.join('、')) : '尚未指派');
+    const pmCell = pmList===null ? '—' : (pmList.length ? escH(pmList.join('、')) : '尚未指派');
+    return `<tr><td class="td-label">${escH(t.label)}</td><td>${amCell}</td><td>${pmCell}</td></tr>`;
+  }).join('');
+  cleaningRows += `<tr><td class="td-label">17點洗花盆(每月一、三週的禮拜一)</td><td>—</td><td class="td-all">全體人員</td></tr>`;
+
+  return { officerRows, cleaningRows };
+}
+
+function printRosterDuty(){
+  if(!_rdRoster.length){ alert('尚無人員資料可列印'); return; }
+  const { officerRows, cleaningRows } = _rdPrintTablesHtml();
+  const monthLabel = `${_rdYear}年${_rdMonth+1}月`;
+
+  const html = `<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8"><title>輪值表</title>
+<style>
+${_RD_PRINT_STYLE}
+@page{size:A4 portrait;margin:14mm}
+</style>
+</head><body>
+<div class="hdr"><h1>🗓️ 輪值表</h1><span>${monthLabel}</span></div>
+<div class="sec-title">當月值星官</div>
+<table><thead><tr><th style="width:40%">週期</th><th>值星人員</th></tr></thead><tbody>${officerRows}</tbody></table>
+<div class="sec-title">清潔分工</div>
+<table><thead><tr><th style="width:40%">項目</th><th>早上</th><th>下午</th></tr></thead><tbody>${cleaningRows}</tbody></table>
+<div class="hint">💡 每週一、四 16:30 有垃圾車（值星負責）</div>
+</body></html>`;
+
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => win.print(), 400);
+}
+
+// ── 匯出 PDF（html2canvas + jsPDF，不彈出列印視窗，直接下載檔案，直式 A4）──
+function exportRosterDutyPdf(){
+  if(!_rdRoster.length){ alert('尚無人員資料可匯出'); return; }
+  const { officerRows, cleaningRows } = _rdPrintTablesHtml();
+  const monthLabel = `${_rdYear}年${_rdMonth+1}月`;
+  const fileName = `輪值表_${_rdYear}${String(_rdMonth+1).padStart(2,'0')}.pdf`;
+
+  async function _loadScript(src, integrity) {
+    if (document.querySelector(`script[src="${src}"]`)) return;
+    return new Promise((res, rej) => {
+      const s = document.createElement('script');
+      s.src = src;
+      if (integrity) { s.integrity = integrity; s.crossOrigin = 'anonymous'; s.referrerPolicy = 'no-referrer'; }
+      s.onload = res; s.onerror = rej;
+      document.head.appendChild(s);
+    });
+  }
+
+  const innerHtml = `<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8"><title>${fileName}</title>
+<style>
+${_RD_PRINT_STYLE}
+html,body{width:794px}
+body{padding:36px}
+</style></head><body>
+<div class="hdr"><h1>🗓️ 輪值表</h1><span>${monthLabel}</span></div>
+<div class="sec-title">當月值星官</div>
+<table><thead><tr><th style="width:40%">週期</th><th>值星人員</th></tr></thead><tbody>${officerRows}</tbody></table>
+<div class="sec-title">清潔分工</div>
+<table><thead><tr><th style="width:40%">項目</th><th>早上</th><th>下午</th></tr></thead><tbody>${cleaningRows}</tbody></table>
+<div class="hint">💡 每週一、四 16:30 有垃圾車（值星負責）</div>
+</body></html>`;
+
+  (async () => {
+    try {
+      await _loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js','sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoeqMV/TJlSKda6FXzoEyYGjTe+vXA==');
+      await _loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js','sha512-qZvrmS2ekKPF2mSznTQsxqPgnpkI4DNTlrdUmTzrDgektczlKNRRhy5X5AAOnx5S09ydFYWWNSfcEqDTTHgtNA==');
+
+      const iframe = document.createElement('iframe');
+      iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;border:none;z-index:-1;';
+      iframe.srcdoc = innerHtml;
+      document.body.appendChild(iframe);
+
+      await new Promise(r => iframe.onload = r);
+      await new Promise(r => setTimeout(r, 500));
+
+      const bodyEl = iframe.contentDocument.body;
+      const canvas = await html2canvas(bodyEl, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        width: 794,
+        windowWidth: 794,
+      });
+
+      document.body.removeChild(iframe);
+
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const imgH = Math.min(canvas.height * 210 / canvas.width, 297); // 依內容比例縮放寬度至210mm，高度不超過A4一頁
+      const imgData = canvas.toDataURL('image/jpeg', 0.97);
+      pdf.addImage(imgData, 'JPEG', 0, 0, 210, imgH);
+      pdf.save(fileName);
+    } catch(e) {
+      console.error('PDF 下載失敗:', e);
+      alert('PDF 產生失敗，請確認網路連線後再試。\n' + e.message);
+    }
+  })();
+}
+
 // 展開/收起員工列
 function toggleAdminUser(uid){
   _adminOpenUid = (_adminOpenUid === uid) ? null : uid;
@@ -11614,6 +11753,8 @@ function calRender() {
   if (titleEl) titleEl.textContent = calYear + '年 ' + (calMonth+1) + '月';
 
   _ensureMyDutyLeaveLoaded(calYear, calMonth); // 非同步載入本月排休假別，載入完成後會自動重新渲染
+  const bindHintEl = document.getElementById('cal-duty-bind-hint');
+  if (bindHintEl) bindHintEl.style.display = (_myDutyPersonId === null) ? 'block' : 'none';
 
   const firstDay = new Date(calYear, calMonth, 1).getDay(); // 0=Sun
   const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
