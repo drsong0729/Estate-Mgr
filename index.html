@@ -159,6 +159,10 @@
   window._firebaseIndexColl = () => collection(db_fs, 'users_index');
   window._firebaseInventoryColl = () => collection(db_fs, 'company_inventory');
   window._firebaseInventoryRef  = (uid) => doc(db_fs, 'company_inventory', uid);
+  // 幕僚代為新增的「公司委託」：不歸在建立者自己的委託清單，而是直接指定負責業務、歸入該業務的公司庫存
+  window._firebaseCompanyListingsColl  = () => collection(db_fs, 'company_listings');
+  window._firebaseCompanyListingRef    = (id) => doc(db_fs, 'company_listings', id);
+  window._firebaseCompanyListingNewRef = () => doc(collection(db_fs, 'company_listings'));
   // 實價登錄行情比對：market_comps/{縣市}_{行政區}，由後端排程 Cloud Function 寫入，前端僅讀取
   window._firebaseMarketRef = (docId) => doc(db_fs, 'market_comps', docId);
   window._firebaseGetDocs = getDocs;
@@ -870,6 +874,9 @@ function gm_authFailure() {
   <div id="track-view"></div>
 </div>
 <div class="page" id="page-commission">
+  <div class="ph" id="commission-ph" style="display:none">
+    <button class="btn btn-p" onclick="openCompanyListingModal()">🏢 新增公司委託</button>
+  </div>
   <div class="subtabs">
     <button class="stab active" id="stab-general" onclick="switchSubTab('general')">一般委託</button>
     <button class="stab" id="stab-exclusive" onclick="switchSubTab('exclusive')">專任委託</button>
@@ -2601,6 +2608,12 @@ function gm_authFailure() {
             <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer"><input type="radio" name="ec2type" value="exclusive"><span>專任</span></label>
           </div></div>
       </div>
+      <div class="fg" id="ec-agent-wrap" style="display:none;margin-top:10px">
+        <div class="fgp"><label class="lbl">負責業務<span class="req">*</span></label>
+          <select class="fc" id="ec2-agent"><option value="">請選擇</option></select>
+          <div style="font-size:11px;color:var(--tx3);margin-top:4px">人員名單抓取「每月出勤排休表」的業務名冊（需已綁定 Google 帳號），公司庫存會依此歸類</div>
+        </div>
+      </div>
       <div class="fg fg3" style="margin-top:10px">
         <div class="fgp"><label class="lbl">服務費（%）</label>
           <input class="fc" type="number" id="ec2-fee" step="0.1" min="0" max="100"></div>
@@ -3052,6 +3065,10 @@ window._myRole = ROLES.STAFF;
 // 可編輯「每日戰報」的身份組：幕僚 + 系統管理員（系統管理員固定身份，確保永遠有人能維運此功能）
 function canEditWarReport(){
   return window._myRole === ROLES.ADVISOR || window._myRole === ROLES.SYSADMIN;
+}
+// 可新增「公司委託」（代其他業務登記、歸入該業務公司庫存）者：幕僚或系統管理員，與每日戰報編輯權限一致
+function canAddCompanyListing(){
+  return canEditWarReport();
 }
 // 首頁公布欄可發布公告者：系統管理員、老闆、主管、幕僚
 function canPostAnnouncement(){
@@ -3725,6 +3742,11 @@ function openRecruitModal(id,pool){
   const isComm = editPool==='commission';
   document.getElementById('recruit-modal-title').textContent=
     isComm ? '編輯委託物件資料' : (id?'編輯物件資料':'新增募集線');
+  // 每次開啟一般的新增／編輯視窗時，重置「新增公司委託」模式與其專屬的負責業務欄位
+  // （僅由 openCompanyListingModal() 另外開啟時才會設為 true／顯示）
+  _companyListingMode = false;
+  const agentWrap = document.getElementById('ec-agent-wrap');
+  if(agentWrap) agentWrap.style.display = 'none';
   // 顯示/隱藏委託專屬欄位區塊
   const ecExtra = document.getElementById('ec-extra-section');
   if(ecExtra) ecExtra.style.display = isComm ? 'block' : 'none';
@@ -3795,6 +3817,65 @@ function openRecruitModal(id,pool){
   openOv('recruit');
 }
 let editPool='recruit';
+// 是否為「新增公司委託」模式：true 時儲存不會寫進目前登入者自己的委託清單，
+// 而是寫入獨立的 company_listings 集合，並依所選「負責業務」歸類進公司庫存
+let _companyListingMode = false;
+
+// 開啟「新增公司委託」視窗：沿用委託物件的編輯表單，額外顯示「負責業務」欄位。僅幕僚／系統管理員可用
+async function openCompanyListingModal(){
+  if(!canAddCompanyListing()) return;
+  openRecruitModal(null, 'commission');
+  _companyListingMode = true;
+  const titleEl = document.getElementById('recruit-modal-title');
+  if(titleEl) titleEl.textContent = '🏢 新增公司委託';
+  const agentWrap = document.getElementById('ec-agent-wrap');
+  if(agentWrap) agentWrap.style.display = '';
+  await _populateCompanyListingAgentSelect();
+}
+// 「負責業務」下拉選單：沿用「每月出勤排休表／每日戰報」共用的業務名冊，僅列出已綁定 Google 帳號者
+// （公司庫存以帳號 uid 做分類歸屬，未綁定帳號者無法歸類，故不列入選項）
+async function _populateCompanyListingAgentSelect(){
+  const sel = document.getElementById('ec2-agent');
+  if(!sel) return;
+  sel.innerHTML = '<option value="">載入中…</option>';
+  try{
+    const snap = await window._firebaseGetDocs(window._firebaseWarReportColl());
+    const list = [];
+    snap.forEach(d=>{ const x=d.data()||{}; if(x.linkedUid) list.push({uid:x.linkedUid, name:x.name||'未命名'}); });
+    list.sort((a,b)=>(a.name||'').localeCompare(b.name||'','zh-TW'));
+    sel.innerHTML = '<option value="">請選擇</option>' + list.map(p=>`<option value="${escH(p.uid)}" data-name="${escH(p.name)}">${escH(p.name)}</option>`).join('');
+  }catch(e){
+    sel.innerHTML = '<option value="">讀取業務名單失敗</option>';
+  }
+}
+// 寫入「公司委託」：不進入自己的 db.commission，直接建立獨立文件並指定負責業務
+async function _saveCompanyListing(data){
+  const agentSel = document.getElementById('ec2-agent');
+  const agentUid = agentSel ? agentSel.value : '';
+  if(!agentUid){ alert('請選擇負責業務'); return; }
+  const agentOpt = agentSel.options[agentSel.selectedIndex];
+  const agentName = agentOpt ? (agentOpt.dataset.name || agentOpt.textContent || '') : '';
+  if(!data.commFee || !data.commStart || !data.commEnd){ alert('請填寫服務費、起始日、終止日'); return; }
+  try{
+    const nowIso = new Date().toISOString();
+    const ref = window._firebaseCompanyListingNewRef();
+    const payload = {
+      ...data,
+      commDate: nowDate(),
+      assignedAgentUid: agentUid,
+      assignedAgentName: agentName,
+      createdBy: (window._currentUser && window._currentUser.email) || '',
+      createdAt: nowIso,
+      updatedAt: nowIso
+    };
+    await window._firebaseSetDoc(ref, payload, {merge:false});
+    closeOv('recruit');
+    alert(`✅ 已新增公司委託，並歸入「${agentName}」的公司庫存`);
+    if(currentPage==='inventory'){ await loadInventoryFromFirestore(); renderInventory(); }
+  }catch(e){
+    alert('⚠️ 新增失敗：' + e.message);
+  }
+}
 
 function saveRecruit(){
   const propCity=document.getElementById('p-city').value;
@@ -3848,12 +3929,17 @@ function saveRecruit(){
     const ec2type = document.querySelector('input[name="ec2type"]:checked');
     if(ec2type) data.commType = ec2type.value;
   }
+  // 新增公司委託模式：不寫入自己的委託清單，改寫入獨立的 company_listings 集合，並指定負責業務
+  if(_companyListingMode){
+    _saveCompanyListing(data);
+    return;
+  }
   const list = isComm ? db.commission : (editPool==='track'?db.track:db.recruit);
   if(editId){
     const r=list.find(x=>x.id===editId);
     if(r)Object.assign(r,data);
   } else {
-    db.recruit.push({id:uid(),date:nowDate(),time:nowTime(),progress:[],...data});
+    list.push({id:uid(),date:nowDate(),time:nowTime(),progress:[],...data});
   }
   save();renderAll();closeOv('recruit');
   // 委託模式：儲存後刷新公司庫存頁面（autoSync 是非同步的）
@@ -4491,6 +4577,8 @@ function renderTrack(){
 }
 
 function renderCommission(){
+  const phEl = document.getElementById('commission-ph');
+  if(phEl) phEl.style.display = canAddCompanyListing() ? 'flex' : 'none';
   const allFiltered=filterItems('commission');
   const general=sortItems('commission',allFiltered.filter(r=>r.commType==='general'));
   const exclusive=sortItems('commission',allFiltered.filter(r=>r.commType==='exclusive'));
@@ -8151,6 +8239,16 @@ async function loadInventoryFromFirestore(){
         all.push({...item, _agentUid:d.uid, _agentName:agentName, _updatedAt:d.updatedAt||''});
       });
     });
+    // 併入「新增公司委託」的資料（幕僚代為登記、指定負責業務歸類，不算在該業務自己上傳的委託清單內）
+    if(window._firebaseCompanyListingsColl){
+      try{
+        const clSnap = await window._firebaseGetDocs(window._firebaseCompanyListingsColl());
+        clSnap.forEach(doc=>{
+          const d = doc.data() || {};
+          all.push({...d, _agentUid:d.assignedAgentUid||'?', _agentName:d.assignedAgentName||'未指定', _updatedAt:d.updatedAt||d.createdAt||''});
+        });
+      }catch(e){ console.warn('讀取公司委託失敗', e); }
+    }
     db.inventory = all;
     // badge 由 _updateAllBadges 統一管理
   }catch(e){
@@ -11007,6 +11105,7 @@ async function viewUserDetail(uid){
 
 // ── 主管後台「詳細」：唯讀檢視員工的行事曆（月曆＋當日行程表＋當日心得）──
 let _adminCalUid = null;
+let _adminCalEmail = null; // 供 getCalSlots() 判斷該員工是否適用個別化的每日行程表時段
 let _adminCalData = {};
 let _adminCalYear = 0;
 let _adminCalMonth = 0;
@@ -11120,7 +11219,7 @@ function _adminCalRenderDayPanel(){
 
   const dayData = _adminCalData[dateKey] || {slots:{}};
   let html = '';
-  for(const slot of CAL_SLOTS){
+  for(const slot of getCalSlots(_adminCalEmail)){
     const todos = (dayData.slots && dayData.slots[slot.key]) || [];
     const bg = slot.special ? 'background:var(--bg2)' : 'background:var(--surf)';
     const labelColor = slot.special ? 'color:var(--tx3)' : 'color:var(--acc)';
@@ -11157,6 +11256,7 @@ function _adminCalRenderDayPanel(){
 // 渲染員工「行事曆」唯讀檢視內容
 function _renderUserDetailContent(area, u, calDataObj, displayName){
   _adminCalUid = u.uid;
+  _adminCalEmail = u.email || '';
   _adminCalData = (calDataObj && calDataObj.calData) || {};
   _adminCalUpdatedAt = (calDataObj && calDataObj.updatedAt) || '';
   const now = new Date();
@@ -11319,7 +11419,7 @@ function calSaveTodayJournal(){
 }
 
 // ─── 時段定義 ───────────────────────────────────────────────────
-const CAL_SLOTS = [
+const CAL_SLOTS_DEFAULT = [
   { key:'0900-0915', label:'09:00 – 09:15', special:true,  specialLabel:'🧹 打掃' },
   { key:'0915-0945', label:'09:15 – 09:45', special:true,  specialLabel:'📋 早會' },
   { key:'10-11',     label:'10:00 – 11:00', special:false },
@@ -11333,6 +11433,30 @@ const CAL_SLOTS = [
   { key:'1715-1745', label:'17:15 – 17:45', special:true,  specialLabel:'🌆 晚會' },
   { key:'1745-1800', label:'17:45 – 18:00', special:true,  specialLabel:'🧹 打掃時間' },
 ];
+// 特定使用者的每日行程表個別調整：12:00–14:00 這段時間安排與其他人不同
+// （12:00–13:00 改為一般可自行規劃待辦的時段；13:00–14:00 才是午休時間），其餘時段維持與所有人相同
+const CAL_SLOTS_OVERRIDE_BY_EMAIL = {
+  'a0931177561@gmail.com': [
+    { key:'0900-0915', label:'09:00 – 09:15', special:true,  specialLabel:'🧹 打掃' },
+    { key:'0915-0945', label:'09:15 – 09:45', special:true,  specialLabel:'📋 早會' },
+    { key:'10-11',     label:'10:00 – 11:00', special:false },
+    { key:'11-12',     label:'11:00 – 12:00', special:false },
+    { key:'12-13',     label:'12:00 – 13:00', special:false },
+    { key:'13-14',     label:'13:00 – 14:00', special:true,  specialLabel:'🍱 午休時間' },
+    { key:'14-15',     label:'14:00 – 15:00', special:false },
+    { key:'15-16',     label:'15:00 – 16:00', special:false },
+    { key:'16-17',     label:'16:00 – 17:00', special:false },
+    { key:'17-1715',   label:'17:00 – 17:15', special:true,  specialLabel:'📊 完成今日報表及明日預排' },
+    { key:'1715-1745', label:'17:15 – 17:45', special:true,  specialLabel:'🌆 晚會' },
+    { key:'1745-1800', label:'17:45 – 18:00', special:true,  specialLabel:'🧹 打掃時間' },
+  ]
+};
+// 取得指定使用者（預設為目前登入者）適用的每日行程表時段定義；每日待辦面板、月曆、
+// 規劃待辦視窗、主管檢視員工行事曆、列印／輸出週報表皆透過此函式取得，確保全部同步套用
+function getCalSlots(email){
+  const e = (email || (window._currentUser && window._currentUser.email) || '').toLowerCase();
+  return CAL_SLOTS_OVERRIDE_BY_EMAIL[e] || CAL_SLOTS_DEFAULT;
+}
 
 // ─── 月曆狀態 ────────────────────────────────────────────────────
 let calYear, calMonth; // 0-based month
@@ -11468,7 +11592,7 @@ function renderTodayPanel() {
   if (journalLabelEl) journalLabelEl.textContent = isToday ? '今日心得' : `${parseInt(m)}月${parseInt(d)}日心得`;
   if (journalHintEl) journalHintEl.textContent = '';
   let html = '<div style="padding:0 0 4px">';
-  for (const slot of CAL_SLOTS) {
+  for (const slot of getCalSlots()) {
     const todos = (dayData.slots && dayData.slots[slot.key]) || [];
     const bg = slot.special ? 'background:var(--bg2)' : 'background:var(--surf)';
     const labelColor = slot.special ? 'color:var(--tx3)' : 'color:var(--acc)';
@@ -11593,7 +11717,7 @@ function renderScheduleBody() {
   const dayData = calData[_scheduleDate] || { slots: {} };
   let html = '<div style="padding:0 0 8px">';
 
-  for (const slot of CAL_SLOTS) {
+  for (const slot of getCalSlots()) {
     const todos = (dayData.slots && dayData.slots[slot.key]) || [];
     const bg = slot.special ? 'background:var(--bg2)' : 'background:var(--surf)';
     const labelColor = slot.special ? 'color:var(--tx3)' : 'color:var(--acc)';
@@ -11663,7 +11787,7 @@ let _todoSlotKey = '';
 
 function openTodoModal(slotKey) {
   _todoSlotKey = slotKey;
-  const slot = CAL_SLOTS.find(s => s.key === slotKey);
+  const slot = getCalSlots().find(s => s.key === slotKey);
   document.getElementById('todo-modal-title').textContent = '✏️ 規劃時段';
   document.getElementById('todo-time-label').textContent = '⏰ ' + slot.label + (slot.special ? '　' + slot.specialLabel : '');
 
@@ -11940,7 +12064,7 @@ function printWeekReport() {
   // ── tbody：時段做列、星期做欄 ──
   let rows = '';
   let rowIdx = 0; // 用於奇偶交替（僅計一般時段）
-  for (const slot of CAL_SLOTS) {
+  for (const slot of getCalSlots()) {
     if (slot.special) {
       const lbl = slot.label.replace(' – ','~').replace(/:00/g,'');
       const txt = slot.specialLabel.replace(/[\u{1F300}-\u{1FFFF}]/gu,'').trim();
@@ -12091,7 +12215,7 @@ function exportWeekReportPDF() {
 
   let rows = '';
   let rowIdx = 0;
-  for (const slot of CAL_SLOTS) {
+  for (const slot of getCalSlots()) {
     if (slot.special) {
       const lbl = slot.label.replace(' – ','~').replace(/:00/g,'');
       const txt = slot.specialLabel.replace(/[\u{1F300}-\u{1FFFF}]/gu,'').trim();
