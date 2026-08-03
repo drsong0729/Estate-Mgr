@@ -3261,7 +3261,7 @@ function _computeSelfWarStats(){
     const monthCommCnt = commList.filter(r => (r.commDate||'').slice(0,7) === curYM).length;
     const monthExclusiveCnt = commList.filter(r => (r.commDate||'').slice(0,7) === curYM && r.commType==='exclusive').length;
     return {
-      warYearProfit: +yearProfit.toFixed(1),
+      warYearProfit: +yearProfit.toFixed(3),
       warMonthProfit: +monthProfit.toFixed(1),
       warMonthCommCnt: monthCommCnt,
       warMonthExclusiveCnt: monthExclusiveCnt,
@@ -3349,7 +3349,7 @@ function _syncUserIndex(user){
     window._myGoogleName  = user.displayName || user.email?.split('@')[0] || '未知';
     // 年度S（warYearProfit）= 系統內實際計算出的當年度業績 + 年度業績起始數據（若有）
     const warStats = _computeSelfWarStats();
-    warStats.warYearProfit = +(((warStats.warYearProfit||0) + (yearBaseline||0))).toFixed(1);
+    warStats.warYearProfit = +(((warStats.warYearProfit||0) + (yearBaseline||0))).toFixed(3);
     // payload 不含 customName，merge:true 自動保留 Firestore 上已有的值
     const payload = {
       uid:          user.uid,
@@ -7540,7 +7540,7 @@ function renderClosed(){
       <div class="stat-card"><div class="sc-val">${buyerhalfCount}</div><div class="sc-lbl">買方半泡</div></div>
       <div class="stat-card"><div class="sc-val">${coagentCount}</div><div class="sc-lbl">同業成交</div></div>
       <div class="stat-card"><div class="sc-val">${colistingCount}</div><div class="sc-lbl">同業聯賣</div></div>
-      <div class="stat-card"><div class="sc-val">${yearProfit.toFixed(1)}</div><div class="sc-lbl">今年累積業績（萬）</div></div>
+      <div class="stat-card"><div class="sc-val">${yearProfit.toFixed(3)}</div><div class="sc-lbl">今年累積業績（萬）</div></div>
       <div class="stat-card"><div class="sc-val">${monthProfit.toFixed(1)}</div><div class="sc-lbl">本月累積業績（萬）</div></div>
     `;
   }
@@ -9133,6 +9133,12 @@ let _warLoadError = null;
 let _warMyPerson = null;    // 目前登入者對應到的業務名冊資料（linkedUid 綁定自己），無綁定則為 null
 
 function fmtWarNum(v){ return (v===undefined||v===null||v==='') ? 0 : v; }
+// 年度S（含年度業績起始數據者可能帶小數點後三位，例如 28.032）：一律顯示到小數點第三位，避免四捨五入後看起來像沒有更新
+function _fmtYearS(v){
+  if(v===undefined||v===null||v==='') return '0.000';
+  const n = parseFloat(v);
+  return isNaN(n) ? v : n.toFixed(3);
+}
 
 // 依「當天快照」計算月排名（依當月S）／年排名（依年度S）：由高到低排序，數值並列者名次相同、
 // 下一個相異數值的名次會依照已排過的人數往後跳（標準名次法，例如兩人並列第1名，下一位是第3名）。
@@ -9346,7 +9352,7 @@ async function renderWarReport(){
       <td style="text-align:center;font-weight:700">${_warRankBadge(monthRank[p.id])}</td>
       <td style="text-align:center;font-weight:700">${_warRankBadge(yearRank[p.id])}</td>
       <td style="font-size:12px">${fmtWarNum(daySnap.targetMonthS)} / ${fmtWarNum(daySnap.targetB)} / ${fmtWarNum(daySnap.targetA)}</td>
-      <td>${fmtWarNum(daySnap.yearS)}</td>
+      <td>${_fmtYearS(daySnap.yearS)}</td>
       <td>${fmtWarNum(daySnap.monthS)}</td>
       <td>${fmtWarNum(daySnap.aCount)} / ${fmtWarNum(daySnap.abCount)}</td>
       <td>${fmtWarNum(daySnap.inventory)}</td>
