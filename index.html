@@ -9928,9 +9928,10 @@ function _dutyCountSundays(year, month){
   return cnt;
 }
 
+// 應上＝當月總天數－公休天數；實上＝應上－公休以外假別天數；公休天數＝當月每週日公休天數＋額外新增的公休天數
+// 三者皆逐人計算（因「額外新增的公休天數」是各員工個別標記的，非全體共用固定值）
 function _dutyRosterComputeRows(){
   const daysInMonth = new Date(_dutyYear, _dutyMonth+1, 0).getDate();
-  const should = daysInMonth - _dutyCountSundays(_dutyYear, _dutyMonth);
   const catCounts = {};
   _dutyRoster.forEach(p=>{ catCounts[p.category] = (catCounts[p.category]||0)+1; });
   let lastCategory = null;
@@ -9943,9 +9944,9 @@ function _dutyRosterComputeRows(){
       const dow = new Date(_dutyYear, _dutyMonth, d).getDay();
       let am, pm;
       if(dow===0){
-        // 禮拜日固定公休：不論資料庫是否有值一律顯示公休，且不計入請假／公休統計
-        // （「應上」天數已預先扣除週日天數，此處若再併入 offCnt 會被重複扣除一次）
+        // 禮拜日固定公休：不論資料庫是否有值一律顯示公休，整天計入公休天數
         am = 'off'; pm = 'off';
+        offCnt += 1;
       } else {
         const norm = _dutyNormalizeDay(days[String(d)]);
         am = norm.am; pm = norm.pm;
@@ -9958,12 +9959,14 @@ function _dutyRosterComputeRows(){
       const stPm = DUTY_STATUS[pm] || DUTY_STATUS[''];
       cells.push({ d, dow, am, pm, split: am!==pm, stAm, stPm, highlight: (d===1 || dow===1) });
     }
+    const should = daysInMonth - offCnt;
+    const actual = should - leaveCnt;
     const showCategory = lastCategory !== p.category;
     lastCategory = p.category;
     return {
       id: p.id, category: p.category, name: p.name, backup: p.backup,
       showCategory, rowspan: catCounts[p.category] || 1,
-      cells, should, actual: should - leaveCnt - offCnt, leave: leaveCnt, off: offCnt
+      cells, should, actual, leave: leaveCnt, off: offCnt
     };
   });
 }
@@ -10181,8 +10184,9 @@ function renderDutyRosterMobile(){
     const dow = new Date(_dutyYear, _dutyMonth, d).getDay();
     let am, pm;
     if(dow===0){
-      // 禮拜日固定公休：不論資料庫是否有值一律顯示公休，且不計入請假／公休統計
+      // 禮拜日固定公休：不論資料庫是否有值一律顯示公休，整天計入公休天數
       am = 'off'; pm = 'off';
+      offCnt += 1;
     } else {
       const norm = _dutyNormalizeDay(days[String(d)]);
       am = norm.am; pm = norm.pm;
@@ -10206,8 +10210,8 @@ function renderDutyRosterMobile(){
       ${statusHtml}
     </div>`;
   }
-  const should = daysInMonth - _dutyCountSundays(_dutyYear, _dutyMonth);
-  const actual = should - leaveCnt - offCnt;
+  const should = daysInMonth - offCnt;
+  const actual = should - leaveCnt;
   sumEl.innerHTML = `
     <div class="sc" style="flex:1;min-width:70px;padding:8px 10px"><div class="sn" style="font-size:18px">${should}</div><div class="sl">應上</div></div>
     <div class="sc" style="flex:1;min-width:70px;padding:8px 10px"><div class="sn" style="font-size:18px">${actual}</div><div class="sl">實上</div></div>
@@ -11040,7 +11044,7 @@ function renderRosterDutyCleaning(){
     const pmCell = t.pm ? _rdCleanCellHtml(t.key, 'pm', canEdit) : '<td style="text-align:center;color:var(--tx3)">—</td>';
     return `<tr><td style="font-weight:600">${escH(t.label)}</td>${amCell}${pmCell}</tr>`;
   }).join('');
-  rows += `<tr><td style="font-weight:600">17點洗花盆(每月一、三週週一)</td><td style="text-align:center;color:var(--tx3)">—</td><td style="font-weight:700;color:var(--acc)">全體人員</td></tr>`;
+  rows += `<tr><td style="font-weight:600">17點洗花盆(每月一、三週的禮拜一)</td><td style="text-align:center;color:var(--tx3)">—</td><td style="font-weight:700;color:var(--acc)">全體人員</td></tr>`;
   tbody.innerHTML = rows;
 }
 
@@ -11498,23 +11502,26 @@ function getCalSlots(email){
 // ─── 首頁行事曆結合「每月出勤排休表」假別（休／事／特／病）───────────────
 // 依目前登入者在 duty_roster 綁定的帳號（linkedUid）找出對應人員 id，
 // 再讀取該月 duty_schedules 文件取得請假／公休狀態；週日一律視為固定公休。
-let _myDutyPersonId; // undefined＝尚未查詢；null＝查無綁定人員
+let _myDutyPersonId; // undefined＝尚未確認；null＝已確認查無綁定人員
 let _myDutyPersonIdPromise = null;
 function _resolveMyDutyPersonId(){
+  const uid = window._currentUser && window._currentUser.uid;
+  // 使用者帳號尚未就緒（例如頁面初次載入時機早於登入完成）：不快取結果，下次呼叫時重新嘗試，
+  // 避免把「暫時查不到」誤判成「永久沒有綁定」而導致之後即使綁定完成也不會再顯示假別標記
+  if(!uid) return Promise.resolve(null);
   if(_myDutyPersonId !== undefined) return Promise.resolve(_myDutyPersonId);
   if(_myDutyPersonIdPromise) return _myDutyPersonIdPromise;
   _myDutyPersonIdPromise = (async()=>{
     let found = null;
     try{
-      const uid = window._currentUser && window._currentUser.uid;
-      if(uid){
-        const snap = await window._firebaseGetDocs(window._firebaseDutyRosterColl());
-        snap.forEach(d=>{ const x = d.data()||{}; if(x.linkedUid===uid) found = d.id; });
-      }
+      const snap = await window._firebaseGetDocs(window._firebaseDutyRosterColl());
+      snap.forEach(d=>{ const x = d.data()||{}; if(x.linkedUid===uid) found = d.id; });
+      console.log('[行事曆假別] 目前登入 uid=', uid, '→ 對應出勤排休表人員 id=', found);
     }catch(e){
       console.warn('無法讀取每月出勤排休表人員名冊，首頁行事曆將不顯示假別標記', e);
     }
     _myDutyPersonId = found;
+    _myDutyPersonIdPromise = null;
     return found;
   })();
   return _myDutyPersonIdPromise;
@@ -11527,6 +11534,8 @@ let _myDutyLeaveFetching = {}; // ym -> 進行中的 Promise，避免重複讀�
 function _ensureMyDutyLeaveLoaded(year, month){
   const ym = year + '-' + String(month+1).padStart(2,'0');
   if(_myDutyLeaveCache[ym] || _myDutyLeaveFetching[ym]) return;
+  // 使用者帳號尚未就緒：不快取、不標記為已嘗試，之後畫面重新渲染時會再次呼叫並重試
+  if(!(window._currentUser && window._currentUser.uid)) return;
   _myDutyLeaveFetching[ym] = (async()=>{
     const map = {};
     try{
@@ -11548,6 +11557,7 @@ function _ensureMyDutyLeaveLoaded(year, month){
     }
     _myDutyLeaveCache[ym] = map;
     delete _myDutyLeaveFetching[ym];
+    console.log('[行事曆假別]', ym, '假別資料：', map);
     if(typeof calYear!=='undefined' && calYear===year && calMonth===month && typeof calRender==='function') calRender();
     if(typeof _todayPanelDate!=='undefined' && _todayPanelDate && _todayPanelDate.slice(0,7)===ym && typeof renderTodayPanel==='function') renderTodayPanel();
   })();
