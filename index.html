@@ -187,6 +187,10 @@
   window._firebaseDutyRosterNewRef = () => doc(collection(db_fs, 'duty_roster'));
   // 每月出勤排休表：每月一份文件（doc id = 'YYYY-MM'），內含當月所有人每一天的狀態
   window._firebaseDutyScheduleRef = (ym) => doc(db_fs, 'duty_schedules', ym);
+  // 員工總表（店秘書專屬，獨立於每日戰報業務名冊，不再互相連動）
+  window._firebaseStaffDirRef   = (id) => doc(db_fs, 'staff_directory', id);
+  window._firebaseStaffDirColl  = () => collection(db_fs, 'staff_directory');
+  window._firebaseStaffDirNewRef = () => doc(collection(db_fs, 'staff_directory'));
   // 首頁公布欄：公告
   window._firebaseAnnounceRef    = (id) => doc(db_fs, 'announcements', id);
   window._firebaseAnnounceColl   = () => collection(db_fs, 'announcements');
@@ -2299,8 +2303,9 @@ function gm_authFailure() {
 #staffdir-table th,#staffdir-table td{border:1px solid var(--bdr2)}
 </style>
 <div class="page" id="page-staffdirectory">
-  <div class="ph">
-    <div style="font-size:12px;color:var(--tx3);line-height:1.6">💡 姓名／到職日沿用「每日戰報」業務名冊；點擊欄位標題可依該欄位排序；點「✏️ 編輯」可設定員工編號／生日／電話。</div>
+  <div class="ph" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:space-between">
+    <div style="font-size:12px;color:var(--tx3);line-height:1.6">💡 員工總表資料獨立管理，不再與「每日戰報」業務名冊連動；點擊欄位標題可依該欄位排序。</div>
+    <button class="btn btn-p" id="staffdir-add-btn" style="display:none" onclick="openStaffDirModal(null)">＋ 新增員工</button>
   </div>
   <div id="staffdir-updated" style="font-size:11px;color:var(--tx3);padding:0 16px 8px"></div>
   <div class="admin-table-wrap" style="margin:0 16px 24px">
@@ -2311,14 +2316,22 @@ function gm_authFailure() {
   </div>
 </div>
 
-<!-- Modal: 編輯員工總表資料（員工編號／生日／電話）-->
+<!-- Modal: 新增／編輯員工總表資料 -->
 <div class="ov" id="ov-staffdir">
 <div class="modal modal-sm">
-  <div class="mh"><div class="mt" id="staffdir-modal-title">編輯員工資料</div><button class="mc" onclick="closeOv('staffdir')">✕</button></div>
+  <div class="mh"><div class="mt" id="staffdir-modal-title">＋ 新增員工</div><button class="mc" onclick="closeOv('staffdir')">✕</button></div>
   <div class="mb">
     <div class="fgp">
       <label class="lbl">員工編號</label>
       <input class="fc" id="sd-empid" placeholder="例如：A001">
+    </div>
+    <div class="fgp">
+      <label class="lbl">姓名<span class="req">*</span></label>
+      <input class="fc" id="sd-name" placeholder="姓名">
+    </div>
+    <div class="fgp">
+      <label class="lbl">到職日</label>
+      <input class="fc" id="sd-hiredate" type="date">
     </div>
     <div class="fgp">
       <label class="lbl">生日</label>
@@ -2329,9 +2342,12 @@ function gm_authFailure() {
       <input class="fc" id="sd-phone" placeholder="例如：0912-345-678">
     </div>
   </div>
-  <div class="mf">
-    <button class="btn btn-g" onclick="closeOv('staffdir')">取消</button>
-    <button class="btn btn-p" onclick="saveStaffDirEntry()">儲存</button>
+  <div class="mf" style="justify-content:space-between">
+    <button class="btn btn-del" id="sd-delete-btn" style="display:none" onclick="deleteStaffDirEntry()">🗑 刪除</button>
+    <div style="display:flex;gap:8px;margin-left:auto">
+      <button class="btn btn-g" onclick="closeOv('staffdir')">取消</button>
+      <button class="btn btn-p" onclick="saveStaffDirEntry()">儲存</button>
+    </div>
   </div>
 </div>
 </div>
@@ -7279,9 +7295,15 @@ window.onFirebaseLogin = async function(user){
 
   window._isSupervisor = SUPERVISOR_ROLES.includes(window._myRole);
 
-  // 「員工總表」導覽按鈕：僅店秘書／系統管理員可見
+  // 「員工總表」導覽按鈕：僅店秘書／系統管理員可見（電腦版側邊欄 + 手機版底部工具選單皆需切換）
   const sdNav = document.getElementById('dnav-staffdirectory');
   if(sdNav) sdNav.style.display = canViewStaffDirectory() ? '' : 'none';
+  const sdMbn = document.getElementById('mbn-staffdirectory');
+  if(sdMbn) sdMbn.style.display = canViewStaffDirectory() ? '' : 'none';
+
+  // 員工總表首次啟用時的一次性資料帶入：店秘書／系統管理員登入時就嘗試（不必等他們主動打開頁面），
+  // 這樣所有人首頁的「本月同仁生日提醒」才能盡快抓到資料
+  if(canViewStaffDirectory()) _sdMigrateFromWarReportIfNeeded();
 
   // 本月同仁生日提醒（所有身份組皆檢查，因資料來源為公司共用名冊）
   checkStaffBirthdays();
@@ -11333,18 +11355,43 @@ body{padding:36px}
 
 // ══════════════════════════════════════════════════════════════════
 // 員工總表（工具選單，店秘書／系統管理員專屬新頁面）
-// 資料來源：war_report_roster（與「每日戰報」共用同一份業務名冊）。
-// 姓名／到職日沿用該集合既有欄位（唯讀，如需異動請至「每日戰報」編輯業務資料）；
-// 員工編號／生日／電話為此頁新增的欄位，直接寫回同一份文件，不另建新集合。
+// 資料來源：staff_directory（獨立集合，與「每日戰報」業務名冊 war_report_roster 不再互相連動）。
+// 首次啟用時會自動把當時「每日戰報」名冊裡既有的姓名／到職日一次性帶入（僅發生一次，
+// 之後兩邊資料各自獨立管理，任一邊的異動都不會再影響另一邊）。
 // ══════════════════════════════════════════════════════════════════
 let _sdRoster = [];
 let _sdLoadError = null;
 let _sdSortState = { col:null, dir:'asc' };
-let _sdEditingId = null;
+let _sdEditingId = null; // null＝新增；有值＝編輯該筆 id
 
 async function initStaffDirectoryPage(){
+  const addBtn = document.getElementById('staffdir-add-btn');
+  if(addBtn) addBtn.style.display = canViewStaffDirectory() ? '' : 'none';
   await _sdLoadData();
   renderStaffDirectory();
+}
+
+// 首次使用「員工總表」獨立資料時，從每日戰報名冊一次性帶入現有姓名／到職日；
+// 用 staff_directory/__meta 文件的 migrated 旗標避免重複執行（例如之後把所有員工都刪光也不會又帶入一次）
+async function _sdMigrateFromWarReportIfNeeded(){
+  try{
+    const metaRef = window._firebaseStaffDirRef('__meta');
+    const metaSnap = await window._firebaseGetDoc(metaRef);
+    if(metaSnap.exists() && metaSnap.data().migrated) return;
+    const legacySnap = await window._firebaseGetDocs(window._firebaseWarReportColl());
+    const writes = [];
+    legacySnap.forEach(d=>{
+      const x = d.data() || {};
+      writes.push(window._firebaseSetDoc(window._firebaseStaffDirRef(d.id), {
+        name: x.name || '', hireDate: x.hireDate || '',
+        empId: x.empId || '', birthday: x.birthday || '', phone: x.phone || ''
+      }, {merge:true}));
+    });
+    await Promise.all(writes);
+    await window._firebaseSetDoc(metaRef, { migrated:true, migratedAt:new Date().toISOString() }, {merge:true});
+  }catch(e){
+    console.warn('員工總表：從每日戰報名冊帶入初始資料失敗（僅首次啟用時需要）', e);
+  }
 }
 
 async function _sdLoadData(){
@@ -11352,15 +11399,16 @@ async function _sdLoadData(){
   if(updEl) updEl.textContent = '載入中…';
   _sdLoadError = null;
   try{
-    const snap = await window._firebaseGetDocs(window._firebaseWarReportColl());
+    if(canViewStaffDirectory()) await _sdMigrateFromWarReportIfNeeded();
+    const snap = await window._firebaseGetDocs(window._firebaseStaffDirColl());
     const list = [];
-    snap.forEach(d=>{ const x = d.data()||{}; x.id = d.id; list.push(x); });
+    snap.forEach(d=>{ if(d.id==='__meta') return; const x = d.data()||{}; x.id = d.id; list.push(x); });
     _sdRoster = list;
     if(updEl) updEl.textContent = '更新：' + new Date().toLocaleTimeString('zh-TW');
   }catch(e){
     _sdLoadError = e.message || '權限不足';
     if(updEl) updEl.textContent = '⚠️ 載入失敗';
-    console.error('員工總表：讀取業務名冊失敗', e);
+    console.error('員工總表：讀取資料失敗', e);
   }
 }
 
@@ -11410,11 +11458,11 @@ function renderStaffDirectory(){
   </tr>`;
 
   if(_sdLoadError){
-    tbody.innerHTML = `<tr><td class="empty-td" colspan="6">⚠️ 載入失敗：${escH(_sdLoadError)}<br><span style="font-size:11px">請確認 Firestore 安全規則已開放讀取 war_report_roster 集合</span></td></tr>`;
+    tbody.innerHTML = `<tr><td class="empty-td" colspan="6">⚠️ 載入失敗：${escH(_sdLoadError)}<br><span style="font-size:11px">請確認 Firestore 安全規則已開放讀取 staff_directory 集合</span></td></tr>`;
     return;
   }
   if(!_sdRoster.length){
-    tbody.innerHTML = `<tr><td class="empty-td" colspan="6">📭 尚無員工資料，請先於「每日戰報」新增業務人員</td></tr>`;
+    tbody.innerHTML = `<tr><td class="empty-td" colspan="6">📭 尚無員工資料${canEdit?'，點右上方「＋ 新增員工」開始建立':''}</td></tr>`;
     return;
   }
 
@@ -11432,29 +11480,37 @@ function renderStaffDirectory(){
   }).join('');
 }
 
+// id 為 null 時＝新增員工；有值時＝編輯現有該筆
 function openStaffDirModal(id){
   if(!canViewStaffDirectory()) return;
-  const p = _sdRoster.find(x=>x.id===id);
-  if(!p) return;
   _sdEditingId = id;
   const titleEl = document.getElementById('staffdir-modal-title');
-  if(titleEl) titleEl.textContent = `編輯員工資料：${p.name||''}`;
-  document.getElementById('sd-empid').value = p.empId || '';
-  document.getElementById('sd-birthday').value = p.birthday || '';
-  document.getElementById('sd-phone').value = p.phone || '';
+  const delBtn = document.getElementById('sd-delete-btn');
+  const p = id ? _sdRoster.find(x=>x.id===id) : null;
+  if(id && !p) return;
+  if(titleEl) titleEl.textContent = p ? `✏️ 編輯員工資料：${p.name||''}` : '＋ 新增員工';
+  if(delBtn) delBtn.style.display = p ? '' : 'none';
+  document.getElementById('sd-empid').value = p?.empId || '';
+  document.getElementById('sd-name').value = p?.name || '';
+  document.getElementById('sd-hiredate').value = p?.hireDate || '';
+  document.getElementById('sd-birthday').value = p?.birthday || '';
+  document.getElementById('sd-phone').value = p?.phone || '';
   openOv('staffdir');
 }
 
 async function saveStaffDirEntry(){
-  if(!_sdEditingId) return;
+  const name = (document.getElementById('sd-name').value || '').trim();
+  if(!name){ alert('請輸入姓名'); return; }
   const empId = (document.getElementById('sd-empid').value || '').trim();
+  const hireDate = document.getElementById('sd-hiredate').value || '';
   const birthday = document.getElementById('sd-birthday').value || '';
   const phone = (document.getElementById('sd-phone').value || '').trim();
+  const payload = { name, empId, hireDate, birthday, phone };
   try{
-    await window._firebaseSetDoc(window._firebaseWarReportRef(_sdEditingId), { empId, birthday, phone }, {merge:true});
-    const p = _sdRoster.find(x=>x.id===_sdEditingId);
-    if(p){ p.empId = empId; p.birthday = birthday; p.phone = phone; }
+    const ref = _sdEditingId ? window._firebaseStaffDirRef(_sdEditingId) : window._firebaseStaffDirNewRef();
+    await window._firebaseSetDoc(ref, payload, {merge:true});
     closeOv('staffdir');
+    await _sdLoadData();
     renderStaffDirectory();
     checkStaffBirthdays(); // 生日資料可能剛更新，重新檢查本月壽星提醒（影響所有人首頁與通知鈴鐺）
   }catch(e){
@@ -11462,14 +11518,30 @@ async function saveStaffDirEntry(){
   }
 }
 
-// ── 本月同仁生日提醒：所有身份組登入後皆會檢查（資料來源為公司共用的每日戰報業務名冊，非個人私有資料）──
+async function deleteStaffDirEntry(){
+  if(!_sdEditingId) return;
+  const p = _sdRoster.find(x=>x.id===_sdEditingId);
+  if(!confirm(`確定要刪除「${p?.name||''}」嗎？此動作無法復原。`)) return;
+  try{
+    await window._firebaseDeleteDoc(window._firebaseStaffDirRef(_sdEditingId));
+    closeOv('staffdir');
+    await _sdLoadData();
+    renderStaffDirectory();
+    checkStaffBirthdays();
+  }catch(e){
+    alert('⚠️ 刪除失敗：' + e.message);
+  }
+}
+
+// ── 本月同仁生日提醒：所有身份組登入後皆會檢查（資料來源為公司共用的員工總表，非個人私有資料）──
 window._staffBirthdaysThisMonth = [];
 async function checkStaffBirthdays(){
   try{
-    const snap = await window._firebaseGetDocs(window._firebaseWarReportColl());
+    const snap = await window._firebaseGetDocs(window._firebaseStaffDirColl());
     const nowMonth = new Date().getMonth() + 1;
     const list = [];
     snap.forEach(d=>{
+      if(d.id==='__meta') return;
       const x = d.data() || {};
       if(!x.birthday) return;
       const bMonth = parseInt(x.birthday.slice(5,7), 10);
@@ -12970,6 +13042,7 @@ if (typeof window.switchPage === 'function') {
   <button class="mbn-popup-item" onclick="mbnGo('taxcalc')"><span class="mbn-popup-item-icon">🧮</span>稅務與貸款試算</button>
   <button class="mbn-popup-item" onclick="mbnGo('warreport')"><span class="mbn-popup-item-icon">📊</span>每日戰報</button>
   <button class="mbn-popup-item" onclick="mbnGo('dutyroster')"><span class="mbn-popup-item-icon">🗓️</span>每月出勤排休表</button>
+  <button class="mbn-popup-item" id="mbn-staffdirectory" onclick="mbnGo('staffdirectory')" style="display:none"><span class="mbn-popup-item-icon">🗒️</span>員工總表</button>
   <button class="mbn-popup-item" id="mbn-tools-admin" onclick="mbnGo('admin')" style="display:none"><span class="mbn-popup-item-icon" id="mbn-tools-admin-icon">🛡</span><span id="mbn-tools-admin-label">主管後台</span></button>
   <div class="mbn-popup-divider"></div>
   <button class="mbn-popup-item" onclick="mbnCloseAll();toggleTheme();updateDrawerThemeBtn()"><span class="mbn-popup-item-icon">🌙</span>切換主題</button>
