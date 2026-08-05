@@ -2781,13 +2781,17 @@ function gm_authFailure() {
         <div class="fgp" id="ec2-offer-wrap"><label class="lbl">斡旋價（萬）</label>
           <input class="fc" type="number" id="ec2-offer" step="0.1"></div>
       </div>
-      <div class="fg fg3" style="margin-top:10px">
+      <div class="fg fg2" style="margin-top:10px">
+        <div class="fgp"><label class="lbl">簽委託日<span class="req">*</span></label>
+          <input class="fc" type="date" id="ec2-signdate"></div>
+        <div class="fgp"><label class="lbl">業績獎勵分成（%）</label>
+          <input class="fc" type="number" id="ec2-bonus" step="0.1" min="0" max="100"></div>
+      </div>
+      <div class="fg fg2" style="margin-top:10px">
         <div class="fgp"><label class="lbl">起始日</label>
           <input class="fc" type="date" id="ec2-start"></div>
         <div class="fgp"><label class="lbl">終止日</label>
           <input class="fc" type="date" id="ec2-end"></div>
-        <div class="fgp"><label class="lbl">業績獎勵分成（%）</label>
-          <input class="fc" type="number" id="ec2-bonus" step="0.1" min="0" max="100"></div>
       </div>
     </div>
   </div>
@@ -2864,9 +2868,13 @@ function gm_authFailure() {
     </div>
     <div class="fsec">
       <div class="fsec-t">服務費與委託期間</div>
-      <div class="fg fg3">
+      <div class="fg fg2">
+        <div class="fgp"><label class="lbl">簽委託日<span class="req">*</span></label>
+          <input class="fc" type="date" id="c-signdate"></div>
         <div class="fgp"><label class="lbl" id="c-fee-label">服務費（%）<span class="req">*</span></label>
           <input class="fc" type="number" id="c-fee" placeholder="%" step="0.1" min="0" max="100"></div>
+      </div>
+      <div class="fg fg2" style="margin-top:10px">
         <div class="fgp"><label class="lbl">起始日<span class="req">*</span></label>
           <input class="fc" type="date" id="c-start"></div>
         <div class="fgp"><label class="lbl">終止日<span class="req">*</span></label>
@@ -4014,7 +4022,7 @@ function openRecruitModal(id,pool){
   const list = isComm ? db.commission : (editPool==='track'?db.track:db.recruit);
   const f=id?list.find(r=>r.id===id):null;
   // clear fixed fields
-  ['p-city','p-dist','p-addr','f-bldg','f-casename','f-listingno','f-proptype','f-area','f-total','f-unit','f-floor','f-rooms','f-halls','f-baths','f-url','f-notes','ec2-fee','ec2-offer','ec2-start','ec2-end','ec2-bonus'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
+  ['p-city','p-dist','p-addr','f-bldg','f-casename','f-listingno','f-proptype','f-area','f-total','f-unit','f-floor','f-rooms','f-halls','f-baths','f-url','f-notes','ec2-fee','ec2-offer','ec2-signdate','ec2-start','ec2-end','ec2-bonus'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
   // 委託類型 radio 重置
   const defRadio=document.querySelector('input[name="ec2type"][value="general"]');
   if(defRadio) defRadio.checked=true;
@@ -4040,6 +4048,11 @@ function openRecruitModal(id,pool){
     if(editPool==='recruit'){
       const cityEl = document.getElementById('p-city');
       if(cityEl){ cityEl.value = '高雄市'; updateDistrict('p'); }
+    }
+    // 新增公司委託（isComm，非編輯模式）：簽委託日預設今天，可再修改
+    if(isComm){
+      const sd = document.getElementById('ec2-signdate');
+      if(sd) sd.value = nowDate();
     }
   }
   onPropTypeChange();
@@ -4078,6 +4091,7 @@ function _populateRecruitFormFrom(f, isComm){
   if(isComm){
     document.getElementById('ec2-fee').value=f.commFee||'';
     document.getElementById('ec2-offer').value=f.offerPrice||'';
+    document.getElementById('ec2-signdate').value=f.signDate||'';
     document.getElementById('ec2-start').value=f.commStart||'';
     document.getElementById('ec2-end').value=f.commEnd||'';
     document.getElementById('ec2-bonus').value=f.companyBonus||'';
@@ -4254,7 +4268,7 @@ async function _saveCompanyListing(data){
     agents = getAgentPickerList('comm');
   }
   if(!agents.length){ alert('請至少選擇一位負責業務'); return; }
-  if(!data.commFee || !data.commStart || !data.commEnd){ alert('請填寫服務費、起始日、終止日'); return; }
+  if(!data.signDate || !data.commFee || !data.commStart || !data.commEnd){ alert('請填寫簽委託日、服務費、起始日、終止日'); return; }
   const isEdit = !!_companyListingEditId;
   try{
     const nowIso = new Date().toISOString();
@@ -4361,9 +4375,12 @@ function saveRecruit(){
   if(isComm){
     data.commFee    = document.getElementById('ec2-fee')?.value||'';
     data.offerPrice = isRental ? 0 : (parseFloat(document.getElementById('ec2-offer')?.value)||0);
+    data.signDate   = document.getElementById('ec2-signdate')?.value||'';
     data.commStart  = document.getElementById('ec2-start')?.value||'';
     data.commEnd    = document.getElementById('ec2-end')?.value||'';
     data.companyBonus = document.getElementById('ec2-bonus')?.value||'';
+    // 簽委託日：每日戰報 A/A+B/R 只計算簽委託日落在當月的委託，因此此欄位為必填
+    if(!data.signDate){ alert('請填寫簽委託日'); return; }
     if(isRental){
       data.commType = ''; // 租賃無一般／專任區分
       if(parseFloat(data.commFee) > 1.5){ alert('租賃「服務費（月）」最高只能填 1.5'); return; }
@@ -4432,6 +4449,7 @@ async function openToComm(id){
   document.getElementById('c-total').value=r.total||'';
   document.getElementById('c-floor').value=r.floorPrice||'';
   document.getElementById('c-offer').value='';
+  document.getElementById('c-signdate').value=nowDate();
   document.getElementById('c-start').value=nowDate();
   document.getElementById('c-end').value='';
   document.getElementById('c-fee').value='';
@@ -4448,6 +4466,7 @@ async function openToComm(id){
   openOv('tocomm');
 }
 function confirmToComm(){
+  const signDate=document.getElementById('c-signdate').value;
   const fee=document.getElementById('c-fee').value;
   const start=document.getElementById('c-start').value;
   const end=document.getElementById('c-end').value;
@@ -4462,14 +4481,14 @@ function confirmToComm(){
   const offerPrice=isRental?0:(parseFloat(document.getElementById('c-offer')?.value)||0);
   const extraFees=isRental?getExtraFeesFromForm('c'):[];
   const bonus='';
-  if(!fee||!start||!end){alert('請填寫服務費、起始日、終止日');return;}
+  if(!signDate||!fee||!start||!end){alert('請填寫簽委託日、服務費、起始日、終止日');return;}
   if(!total){alert('請填寫'+(isRental?'月租金':'總價'));return;}
   if(isRental && parseFloat(fee)>1.5){alert('租賃「服務費（月）」最高只能填 1.5');return;}
   const agents=getAgentPickerList('tocomm');
   if(!agents.length){alert('請至少選擇一位負責業務');return;}
   const r=db.track.find(x=>x.id===pendingId);
   if(r){
-    r.commDate=nowDate();r.commFee=fee;r.commStart=start;r.commEnd=end;r.commType=ctype;r.companyBonus=bonus;
+    r.commDate=nowDate();r.signDate=signDate;r.commFee=fee;r.commStart=start;r.commEnd=end;r.commType=ctype;r.companyBonus=bonus;
     r.caseName=caseName;r.listingNo=listingNo;
     r.dealType=dealType;r.total=total;r.floorPrice=floorPrice;r.offerPrice=offerPrice;r.extraFees=extraFees;
     r.unit=isRental?'':(parseFloat(r.area)>0?(total/parseFloat(r.area)).toFixed(2):'');
@@ -10023,22 +10042,29 @@ async function warLoadData(){
   }
 }
 
-// 依 db.inventory（公司庫存彙整資料，已含個人自動同步與新增公司委託兩種來源）計算某業務(uid)的
-// A（專任）／A+B（總委託，一般＋專任皆計入）／R（租賃）／庫存 四項數值，取代先前的手動輸入。
+// 依 db.inventory（公司庫存彙整資料，已含個人自動同步與新增公司委託兩種來源）計算某業務(uid)在
+// 指定月份(ym，格式 'YYYY-MM'，預設為今天所在月份)的 A（專任）／A+B（總委託，一般＋專任皆計入）／
+// R（租賃）／庫存 四項數值，取代先前的手動輸入。
 // 計算規則：
+// ・A / A+B / R 只計算「簽委託日（signDate）」落在 ym 當月的委託（若舊資料缺少 signDate，
+//   依序回退用 commDate／date 判斷月份，避免既有資料因欄位補齊前建立而整月消失不計）。
 // ・買賣委託：總價與底價「皆」達 1000 萬（含）以上 → 計 1；否則計 0.5。一律併入 A+B，若為專任則再併入 A。
 // ・租賃委託：一律計 0.5，計入 R。
 // ・若同一筆委託有多位負責業務，上述計數需除以負責業務人數，平均分給每一位負責業務。
-// ・庫存：不論買賣／租賃、不論總價高低，每位負責業務都以整數 1 計入（不除以人數）——
-//   同一筆委託若有多位負責業務，會完整顯示在每一位負責業務的公司庫存底下。
-function _computeWarStatsForUid(uid){
+// ・庫存：不受簽委託日月份篩選限制（不論買賣／租賃、不論總價高低、不論簽委託日是哪個月），
+//   每位負責業務都以整數 1 計入（不除以人數）——同一筆委託若有多位負責業務，
+//   會完整顯示在每一位負責業務的公司庫存底下。
+function _computeWarStatsForUid(uid, ym){
   const stats = { aCount:0, abCount:0, rCount:0, inventory:0 };
   if(!uid) return stats;
   const items = db.inventory || [];
+  const targetYm = ym || nowDate().slice(0,7);
   items.forEach(r=>{
     const agentUids = (r._agentUids && r._agentUids.length) ? r._agentUids : ((r._agentUid && r._agentUid!=='?') ? [r._agentUid] : []);
     if(!agentUids.includes(uid)) return;
-    stats.inventory += 1;
+    stats.inventory += 1; // 庫存：與簽委託日的月份無關，恆以整數 1 計入
+    const signYm = (r.signDate || r.commDate || r.date || '').slice(0,7);
+    if(signYm !== targetYm) return; // A / A+B / R 只計算簽委託日在當月的委託
     const n = Math.max(1, agentUids.length);
     if(r.dealType === DEAL_KIND.RENTAL){
       stats.rCount += 0.5 / n;
@@ -10104,8 +10130,9 @@ async function renderWarReport(){
   const rowsHtml = _warRoster.map(p=>{
     // 新的一天（當天尚無快照）：累積性欄位自動沿用最近一筆快照／名冊快取值，今日欄位歸零等待輸入
     const daySnap = _warEffectiveSnap(p, dateStr);
-    // A（專任）／A+B（總委託）／R（租賃）／庫存：不論當天有無快照，皆依目前實際委託資料即時計算（與選擇的日期無關）
-    const stats = p.linkedUid ? _computeWarStatsForUid(p.linkedUid) : { aCount:0, abCount:0, rCount:0, inventory:0 };
+    // A（專任）／A+B（總委託）／R（租賃）／庫存：不論當天有無快照，皆依目前實際委託資料即時計算；
+    // A/A+B/R 只計入簽委託日落在「目前選擇日期所在月份(ym)」的委託，庫存則不受此月份篩選
+    const stats = p.linkedUid ? _computeWarStatsForUid(p.linkedUid, ym) : { aCount:0, abCount:0, rCount:0, inventory:0 };
     const actionsCell = editing ? `<td style="white-space:nowrap"><button class="btn btn-sm btn-edit" onclick="openWarPersonModal('${p.id}')">✏️ 編輯</button></td>` : '';
     // A/A+B/R/庫存 與選擇的日期無關，即使當天尚無快照也一併計入總計列
     totals.aCount     += stats.aCount;
@@ -10217,8 +10244,9 @@ function _renderWpStatsDisplay(){
   const linkSel = document.getElementById('wp-linked-uid');
   const uid = linkSel ? linkSel.value : '';
   if(!uid){ el.textContent = '（尚未綁定對應帳號，無法計算）'; return; }
-  const s = _computeWarStatsForUid(uid);
-  el.textContent = `A ${fmtWarNum(s.aCount)} / A+B ${fmtWarNum(s.abCount)} / R ${fmtWarNum(s.rCount)}　｜　庫存 ${fmtWarNum(s.inventory)}`;
+  const ym = (_warSelectedDate || nowDate()).slice(0,7);
+  const s = _computeWarStatsForUid(uid, ym);
+  el.textContent = `A ${fmtWarNum(s.aCount)} / A+B ${fmtWarNum(s.abCount)} / R ${fmtWarNum(s.rCount)}（${ym} 當月簽委託）　｜　庫存 ${fmtWarNum(s.inventory)}`;
 }
 async function openWarPersonModal(id){
   if(!canEditWarReport()) return;
