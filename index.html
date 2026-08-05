@@ -835,7 +835,7 @@ function gm_authFailure() {
           <div class="search-group sg-addr"><span class="search-label">屋主戶籍地</span><input class="fc" id="sq-recruit-haddr" placeholder="戶籍縣市、路段..." oninput="renderRecruit()"></div>
           <div class="search-group sg-type"><span class="search-label">物件類型</span>
             <select class="fc" id="sq-recruit-proptype" onchange="renderRecruit()">
-              <option value="">全部</option><option value="大樓">大樓</option><option value="透天住家">透天住家</option><option value="店面">店面</option><option value="土地">土地</option><option value="商辦">商辦</option>
+              <option value="">全部</option><option value="大樓">大樓</option><option value="公寓">公寓</option><option value="透天住家">透天住家</option><option value="店面">店面</option><option value="土地">土地</option><option value="商辦">商辦</option>
             </select></div>
         </div>
         <div class="search-row">
@@ -865,7 +865,7 @@ function gm_authFailure() {
           <div class="search-group sg-addr"><span class="search-label">屋主戶籍地</span><input class="fc" id="sq-track-haddr" placeholder="戶籍縣市、路段..." oninput="renderTrack()"></div>
           <div class="search-group sg-type"><span class="search-label">物件類型</span>
             <select class="fc" id="sq-track-proptype" onchange="renderTrack()">
-              <option value="">全部</option><option value="大樓">大樓</option><option value="透天住家">透天住家</option><option value="店面">店面</option><option value="土地">土地</option><option value="商辦">商辦</option>
+              <option value="">全部</option><option value="大樓">大樓</option><option value="公寓">公寓</option><option value="透天住家">透天住家</option><option value="店面">店面</option><option value="土地">土地</option><option value="商辦">商辦</option>
             </select></div>
         </div>
         <div class="search-row">
@@ -903,7 +903,7 @@ function gm_authFailure() {
           <div class="search-group sg-addr"><span class="search-label">屋主戶籍地</span><input class="fc" id="sq-commission-haddr" placeholder="戶籍縣市、路段..." oninput="renderCommission()"></div>
           <div class="search-group sg-type"><span class="search-label">物件類型</span>
             <select class="fc" id="sq-commission-proptype" onchange="renderCommission()">
-              <option value="">全部</option><option value="大樓">大樓</option><option value="透天住家">透天住家</option><option value="店面">店面</option><option value="土地">土地</option><option value="商辦">商辦</option>
+              <option value="">全部</option><option value="大樓">大樓</option><option value="公寓">公寓</option><option value="透天住家">透天住家</option><option value="店面">店面</option><option value="土地">土地</option><option value="商辦">商辦</option>
             </select></div>
         </div>
         <div class="search-row">
@@ -1355,7 +1355,7 @@ function gm_authFailure() {
         <div class="search-row">
           <div class="search-group sg-type"><span class="search-label">物件類型</span>
             <select class="fc" id="trip-proptype" onchange="renderTripList()">
-              <option value="">全部</option><option value="大樓">大樓</option><option value="透天住家">透天住家</option><option value="店面">店面</option><option value="土地">土地</option><option value="商辦">商辦</option>
+              <option value="">全部</option><option value="大樓">大樓</option><option value="公寓">公寓</option><option value="透天住家">透天住家</option><option value="店面">店面</option><option value="土地">土地</option><option value="商辦">商辦</option>
             </select>
           </div>
           <div class="search-group sg-price"><span class="search-label">距離上限（km）</span>
@@ -2621,6 +2621,7 @@ function gm_authFailure() {
           <select class="fc" id="f-proptype" onchange="onPropTypeChange()">
             <option value="">請選擇</option>
             <option value="大樓">大樓</option>
+            <option value="公寓">公寓</option>
             <option value="透天住家">透天住家</option>
             <option value="店面">店面</option>
             <option value="土地">土地</option>
@@ -3846,9 +3847,11 @@ function openRecruitModal(id,pool){
   const isComm = editPool==='commission';
   document.getElementById('recruit-modal-title').textContent=
     isComm ? '編輯委託物件資料' : (id?'編輯物件資料':'新增募集線');
-  // 每次開啟一般的新增／編輯視窗時，重置「新增公司委託」模式與其專屬的負責業務欄位
+  // 每次開啟一般的新增／編輯視窗時，重置「新增／編輯公司委託」模式與其專屬的負責業務欄位
   // （僅由 openCompanyListingModal() 另外開啟時才會設為 true／顯示）
   _companyListingMode = false;
+  _companyListingEditId = null;
+  _companyListingLockedAgent = null;
   const agentWrap = document.getElementById('ec-agent-wrap');
   if(agentWrap) agentWrap.style.display = 'none';
   // 顯示/隱藏委託專屬欄位區塊
@@ -3872,70 +3875,95 @@ function openRecruitModal(id,pool){
   document.getElementById('car-parking-body').style.display='none';
   document.getElementById('moto-parking-body').style.display='none';
   if(f){
-    // 物件地址：先設縣市並重建行政區選單，再用 setTimeout 確保 p-dist options 已更新
-    document.getElementById('p-city').value=f.propCity||'';
-    updateDistrict('p');
-    setTimeout(()=>{
-      document.getElementById('p-dist').value=f.propDist||'';
-    }, 10);
-    document.getElementById('p-addr').value=f.propAddr||'';
-    document.getElementById('f-bldg').value=f.bldg||'';
-    document.getElementById('f-casename').value=f.caseName||'';
-    document.getElementById('f-listingno').value=f.listingNo||'';
-    document.getElementById('f-proptype').value=f.propType||''; onPropTypeChange();
-    document.getElementById('f-area').value=f.area||'';
-    document.getElementById('f-total').value=f.total||'';
-    document.getElementById('f-unit').value=f.unit||'';
-    document.getElementById('f-rooms').value=f.rooms||'';
-    document.getElementById('f-halls').value=f.halls||'';
-    document.getElementById('f-baths').value=f.baths||'';
-    document.getElementById('f-url').value=f.url||'';
-    document.getElementById('f-notes').value=f.notes||'';
-    // 委託專屬欄位
-    if(isComm){
-      document.getElementById('ec2-fee').value=f.commFee||'';
-      document.getElementById('ec2-start').value=f.commStart||'';
-      document.getElementById('ec2-end').value=f.commEnd||'';
-      document.getElementById('ec2-bonus').value=f.companyBonus||'';
-      document.querySelectorAll('input[name="ec2type"]').forEach(rb=>{
-        rb.checked=(rb.value===(f.commType||'general'));
-      });
-    }
-    // load owners - support legacy single-owner
-    const owners=f.owners&&f.owners.length?f.owners:[{name:f.ownerName||'',gender:f.ownerGender||'',city:f.ownerCity||'',dist:f.ownerDist||'',addr:f.ownerAddr||''}];
-    owners.forEach(o=>addOwnerRow(o));
-    // load 車位資訊
-    if(f.carParking && f.carParking.length){
-      document.getElementById('has-car-parking').checked=true;
-      document.getElementById('car-parking-body').style.display='';
-      f.carParking.forEach(p=>addCarParkRow(p));
-    }
-    if(f.motoParking && f.motoParking.length){
-      document.getElementById('has-moto-parking').checked=true;
-      document.getElementById('moto-parking-body').style.display='';
-      f.motoParking.forEach(p=>addMotoParkRow(p));
-    }
+    _populateRecruitFormFrom(f, isComm);
   } else {
     addOwnerRow();
   }
   onPropTypeChange();
   openOv('recruit');
 }
+// 將一筆物件／委託資料（不論是否存在於 db.commission/recruit/track 陣列中，例如公司委託獨立集合的資料）
+// 填入委託表單欄位。從 openRecruitModal() 抽出，供 openCompanyListingModal() 編輯模式重用。
+function _populateRecruitFormFrom(f, isComm){
+  // 物件地址：先設縣市並重建行政區選單，再用 setTimeout 確保 p-dist options 已更新
+  document.getElementById('p-city').value=f.propCity||'';
+  updateDistrict('p');
+  setTimeout(()=>{
+    document.getElementById('p-dist').value=f.propDist||'';
+  }, 10);
+  document.getElementById('p-addr').value=f.propAddr||'';
+  document.getElementById('f-bldg').value=f.bldg||'';
+  document.getElementById('f-casename').value=f.caseName||'';
+  document.getElementById('f-listingno').value=f.listingNo||'';
+  document.getElementById('f-proptype').value=f.propType||''; onPropTypeChange();
+  document.getElementById('f-area').value=f.area||'';
+  document.getElementById('f-total').value=f.total||'';
+  document.getElementById('f-unit').value=f.unit||'';
+  document.getElementById('f-rooms').value=f.rooms||'';
+  document.getElementById('f-halls').value=f.halls||'';
+  document.getElementById('f-baths').value=f.baths||'';
+  document.getElementById('f-url').value=f.url||'';
+  document.getElementById('f-notes').value=f.notes||'';
+  // 委託專屬欄位
+  if(isComm){
+    document.getElementById('ec2-fee').value=f.commFee||'';
+    document.getElementById('ec2-start').value=f.commStart||'';
+    document.getElementById('ec2-end').value=f.commEnd||'';
+    document.getElementById('ec2-bonus').value=f.companyBonus||'';
+    document.querySelectorAll('input[name="ec2type"]').forEach(rb=>{
+      rb.checked=(rb.value===(f.commType||'general'));
+    });
+  }
+  // load owners - support legacy single-owner
+  const owners=f.owners&&f.owners.length?f.owners:[{name:f.ownerName||'',gender:f.ownerGender||'',city:f.ownerCity||'',dist:f.ownerDist||'',addr:f.ownerAddr||''}];
+  owners.forEach(o=>addOwnerRow(o));
+  // load 車位資訊
+  if(f.carParking && f.carParking.length){
+    document.getElementById('has-car-parking').checked=true;
+    document.getElementById('car-parking-body').style.display='';
+    f.carParking.forEach(p=>addCarParkRow(p));
+  }
+  if(f.motoParking && f.motoParking.length){
+    document.getElementById('has-moto-parking').checked=true;
+    document.getElementById('moto-parking-body').style.display='';
+    f.motoParking.forEach(p=>addMotoParkRow(p));
+  }
+}
 let editPool='recruit';
-// 是否為「新增公司委託」模式：true 時儲存不會寫進目前登入者自己的委託清單，
-// 而是寫入獨立的 company_listings 集合，並依所選「負責業務」歸類進公司庫存
+// 是否為「新增／編輯公司委託」模式：true 時儲存不會寫進目前登入者自己的委託清單，
+// 而是寫入（或更新）獨立的 company_listings 集合，並依所選「負責業務」歸類進公司庫存
 let _companyListingMode = false;
+let _companyListingEditId = null;      // null＝新增；有值＝正在編輯該筆 company_listings 文件的 id
+let _companyListingLockedAgent = null; // {uid,name}：負責業務本人編輯自己的委託時，鎖定負責業務欄位（不可改指派給別人）
 
-// 開啟「新增公司委託」視窗：沿用委託物件的編輯表單，額外顯示「負責業務」欄位。僅幕僚／系統管理員可用
-async function openCompanyListingModal(){
-  if(!canAddCompanyListing()) return;
+// 開啟「新增／編輯公司委託」視窗：沿用委託物件的編輯表單，額外顯示「負責業務」欄位
+// 權限：新增僅限幕僚／店秘書／系統管理員；編輯則額外開放「該筆負責業務本人」（僅能編輯自己的委託）
+// editItem：不傳＝新增模式；傳入公司庫存頁面該筆物件（含 id、_agentUid、_agentName）＝編輯模式
+async function openCompanyListingModal(editItem){
+  const myUid = window._currentUser && window._currentUser.uid;
+  const isAdmin = canAddCompanyListing();
+  const isOwner = !!(editItem && myUid && editItem._agentUid === myUid);
+  if(!editItem && !isAdmin) return;
+  if(editItem && !isAdmin && !isOwner) return;
   openRecruitModal(null, 'commission');
   _companyListingMode = true;
+  _companyListingEditId = editItem ? editItem.id : null;
+  _companyListingLockedAgent = (editItem && !isAdmin) ? { uid: editItem._agentUid, name: editItem._agentName } : null;
   const titleEl = document.getElementById('recruit-modal-title');
-  if(titleEl) titleEl.textContent = '🏢 新增公司委託';
+  if(titleEl) titleEl.textContent = editItem ? '🏢 編輯公司委託' : '🏢 新增公司委託';
   const agentWrap = document.getElementById('ec-agent-wrap');
-  if(agentWrap) agentWrap.style.display = '';
-  await _populateCompanyListingAgentSelect();
+  if(_companyListingLockedAgent){
+    // 負責業務本人編輯自己的委託：隱藏負責業務欄位（不可改指派給別人），儲存時固定用本人 uid
+    if(agentWrap) agentWrap.style.display = 'none';
+  } else {
+    if(agentWrap) agentWrap.style.display = '';
+    await _populateCompanyListingAgentSelect();
+    if(editItem){
+      const sel = document.getElementById('ec2-agent');
+      if(sel) sel.value = editItem._agentUid || '';
+    }
+  }
+  if(editItem) _populateRecruitFormFrom(editItem, true);
 }
 // 「負責業務」下拉選單：沿用「每月出勤排休表／每日戰報」共用的業務名冊，僅列出已綁定 Google 帳號者
 // （公司庫存以帳號 uid 做分類歸屬，未綁定帳號者無法歸類，故不列入選項）
@@ -3953,32 +3981,65 @@ async function _populateCompanyListingAgentSelect(){
     sel.innerHTML = '<option value="">讀取業務名單失敗</option>';
   }
 }
-// 寫入「公司委託」：不進入自己的 db.commission，直接建立獨立文件並指定負責業務
+// 寫入「公司委託」：不進入自己的 db.commission，直接建立（或更新）獨立文件並指定負責業務
 async function _saveCompanyListing(data){
-  const agentSel = document.getElementById('ec2-agent');
-  const agentUid = agentSel ? agentSel.value : '';
+  let agentUid, agentName;
+  if(_companyListingLockedAgent){
+    // 負責業務本人編輯自己的委託：固定用本人 uid，不經下拉選單（欄位已隱藏）
+    agentUid = _companyListingLockedAgent.uid;
+    agentName = _companyListingLockedAgent.name;
+  } else {
+    const agentSel = document.getElementById('ec2-agent');
+    agentUid = agentSel ? agentSel.value : '';
+    const agentOpt = agentSel ? agentSel.options[agentSel.selectedIndex] : null;
+    agentName = agentOpt ? (agentOpt.dataset.name || agentOpt.textContent || '') : '';
+  }
   if(!agentUid){ alert('請選擇負責業務'); return; }
-  const agentOpt = agentSel.options[agentSel.selectedIndex];
-  const agentName = agentOpt ? (agentOpt.dataset.name || agentOpt.textContent || '') : '';
   if(!data.commFee || !data.commStart || !data.commEnd){ alert('請填寫服務費、起始日、終止日'); return; }
+  const isEdit = !!_companyListingEditId;
   try{
     const nowIso = new Date().toISOString();
-    const ref = window._firebaseCompanyListingNewRef();
+    const ref = isEdit ? window._firebaseCompanyListingRef(_companyListingEditId) : window._firebaseCompanyListingNewRef();
     const payload = {
       ...data,
       commDate: nowDate(),
       assignedAgentUid: agentUid,
       assignedAgentName: agentName,
-      createdBy: (window._currentUser && window._currentUser.email) || '',
-      createdAt: nowIso,
       updatedAt: nowIso
     };
-    await window._firebaseSetDoc(ref, payload, {merge:false});
+    if(!isEdit){
+      payload.createdBy = (window._currentUser && window._currentUser.email) || '';
+      payload.createdAt = nowIso;
+    }
+    // 編輯時用 merge:true，保留原本的 createdBy／createdAt 不被覆蓋掉
+    await window._firebaseSetDoc(ref, payload, {merge:isEdit});
     closeOv('recruit');
-    alert(`✅ 已新增公司委託，並歸入「${agentName}」的公司庫存`);
+    alert(isEdit ? `✅ 已更新「${agentName}」的公司委託` : `✅ 已新增公司委託，並歸入「${agentName}」的公司庫存`);
     if(currentPage==='inventory'){ await loadInventoryFromFirestore(); renderInventory(); }
   }catch(e){
-    alert('⚠️ 新增失敗：' + e.message);
+    alert((isEdit ? '⚠️ 更新失敗：' : '⚠️ 新增失敗：') + e.message);
+  }
+}
+// 從 db.inventory 依 id 找回公司委託（company_listings 來源）的完整資料，供編輯／刪除按鈕使用
+function _invFindItem(id){
+  return (db.inventory||[]).find(x=>x.id===id && x._src==='listing');
+}
+// 刪除「公司委託」（company_listings 文件）：僅幕僚／店秘書／系統管理員，或該筆負責業務本人可刪除自己的委託
+async function deleteCompanyListing(item){
+  if(!item){ alert('⚠️ 找不到此筆委託資料'); return; }
+  const myUid = window._currentUser && window._currentUser.uid;
+  const isAdmin = canAddCompanyListing();
+  const isOwner = !!(myUid && item._agentUid === myUid);
+  if(!isAdmin && !isOwner) return;
+  if(!item.id){ alert('⚠️ 找不到此筆委託的資料編號，無法刪除'); return; }
+  const label = item.caseName || item.ownerName || (item.owners&&item.owners[0]&&item.owners[0].name) || '此筆';
+  if(!confirm(`確定要刪除「${label}」這筆公司委託嗎？此操作無法復原。`)) return;
+  try{
+    await window._firebaseDeleteDoc(window._firebaseCompanyListingRef(item.id));
+    await loadInventoryFromFirestore();
+    renderInventory();
+  }catch(e){
+    alert('⚠️ 刪除失敗：' + e.message);
   }
 }
 
@@ -8372,16 +8433,17 @@ async function loadInventoryFromFirestore(){
       const d = doc.data();
       const agentName = d.agentName || d.uid || '未知';
       (d.items||[]).forEach(item=>{
-        all.push({...item, _agentUid:d.uid, _agentName:agentName, _updatedAt:d.updatedAt||''});
+        all.push({...item, _agentUid:d.uid, _agentName:agentName, _updatedAt:d.updatedAt||'', _src:'sync'});
       });
     });
-    // 併入「新增公司委託」的資料（幕僚代為登記、指定負責業務歸類，不算在該業務自己上傳的委託清單內）
+    // 併入「新增公司委託」的資料（幕僚／店秘書代為登記、指定負責業務歸類，不算在該業務自己上傳的委託清單內）
+    // _src:'listing' + id：標記此筆來自獨立的 company_listings 集合，且保留該文件 id，供公司庫存頁面的編輯／刪除按鈕使用
     if(window._firebaseCompanyListingsColl){
       try{
         const clSnap = await window._firebaseGetDocs(window._firebaseCompanyListingsColl());
         clSnap.forEach(doc=>{
           const d = doc.data() || {};
-          all.push({...d, _agentUid:d.assignedAgentUid||'?', _agentName:d.assignedAgentName||'未指定', _updatedAt:d.updatedAt||d.createdAt||''});
+          all.push({...d, id:doc.id, _agentUid:d.assignedAgentUid||'?', _agentName:d.assignedAgentName||'未指定', _updatedAt:d.updatedAt||d.createdAt||'', _src:'listing'});
         });
       }catch(e){ console.warn('讀取公司委託失敗', e); }
     }
@@ -8638,6 +8700,8 @@ function renderInventory(){
     return;
   }
 
+  const myUid = window._currentUser && window._currentUser.uid;
+  const isInvAdmin = canAddCompanyListing();
   listEl.innerHTML = Object.entries(groups).map(([agentUid,g])=>{
     const displayName = resolveRosterName(agentUid, g.agentName);
     const updAt = g.updatedAt ? new Date(g.updatedAt).toLocaleString('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
@@ -8649,6 +8713,13 @@ function renderInventory(){
       const exTag = r.commType==='exclusive'
         ? '<span style="background:var(--gldl);color:var(--gld);padding:1px 7px;border-radius:4px;font-size:11px;font-weight:700">專任</span>'
         : '<span style="background:var(--accl);color:var(--acc);padding:1px 7px;border-radius:4px;font-size:11px;font-weight:700">一般</span>';
+      // 編輯／刪除：僅限「新增公司委託」（company_listings）來源的資料；幕僚／店秘書／系統管理員可管理所有人的，
+      // 該筆負責業務本人只能管理自己的（個人自動同步進來的委託仍請回委託頁面編輯，此處不重複提供入口）
+      const canManage = r._src==='listing' && (isInvAdmin || (myUid && r._agentUid===myUid));
+      const actionsHtml = canManage ? `<div style="display:flex;gap:6px;margin-top:8px">
+          <button class="btn btn-sm btn-edit" onclick="openCompanyListingModal(_invFindItem('${r.id}'))">✏️ 編輯</button>
+          <button class="btn btn-sm btn-del" onclick="deleteCompanyListing(_invFindItem('${r.id}'))">🗑 刪除</button>
+        </div>` : '';
       return `<div style="background:var(--surf);border:1px solid var(--bdr);border-radius:10px;padding:12px 14px;margin-bottom:8px">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:${r.caseName?'2':'4'}px">
           ${exTag}
@@ -8665,6 +8736,7 @@ function renderInventory(){
           ${r.area?`<span>📏 ${r.area}坪</span>`:''}
           ${r.commEnd?`<span>📅 委託到 ${r.commEnd}</span>`:''}
         </div>
+        ${actionsHtml}
       </div>`;
     }).join('');
     return `<div style="margin-bottom:18px">
