@@ -1995,6 +1995,9 @@ function gm_authFailure() {
       <option value="廠房">廠房</option>
       <option value="農地">農地</option>
     </select>
+    <button class="btn btn-p" id="inv-add-listing-btn" style="display:none" onclick="openCompanyListingModal()">🏢 新增公司委託</button>
+    <button class="btn btn-g" style="font-size:12px;padding:6px 10px" onclick="printInventory()">🖨️ 列印</button>
+    <button class="btn btn-g" style="font-size:12px;padding:6px 10px" onclick="exportInventoryPdf()">⬇️ 匯出 PDF</button>
   </div>
   <!-- 說明 -->
   <div style="font-size:12px;color:var(--tx3);padding:0 16px 10px;line-height:1.6">
@@ -8578,12 +8581,11 @@ function printThreeTables(){
   win.focus();
   setTimeout(()=>{ win.print(); }, 600);
 }
-function renderInventory(){
+// 篩選＋依業務分組：畫面呈現與列印／匯出 PDF 共用同一份邏輯，確保三者結果一致
+function _invGetFilteredGroups(){
   const items = db.inventory || [];
   const q = (document.getElementById('inv-search')?.value||'').trim().toLowerCase();
   const typeF = document.getElementById('inv-filter-type')?.value||'';
-
-  // 篩選
   const filtered = items.filter(r=>{
     if(typeF && r.propType !== typeF) return false;
     if(q){
@@ -8594,6 +8596,19 @@ function renderInventory(){
     }
     return true;
   });
+  const groups = {};
+  filtered.forEach(r=>{
+    const key = r._agentUid || '?';
+    if(!groups[key]) groups[key]={agentName:r._agentName, updatedAt:r._updatedAt, items:[]};
+    groups[key].items.push(r);
+  });
+  return { items, q, typeF, filtered, groups };
+}
+
+function renderInventory(){
+  const addBtn = document.getElementById('inv-add-listing-btn');
+  if(addBtn) addBtn.style.display = canAddCompanyListing() ? 'flex' : 'none';
+  const { items, q, typeF, filtered, groups } = _invGetFilteredGroups();
 
   // 統計列
   const statEl = document.getElementById('inv-stats');
@@ -8622,14 +8637,6 @@ function renderInventory(){
       + '</div>';
     return;
   }
-
-  // 依業務分組
-  const groups = {};
-  filtered.forEach(r=>{
-    const key = r._agentUid || '?';
-    if(!groups[key]) groups[key]={agentName:r._agentName, updatedAt:r._updatedAt, items:[]};
-    groups[key].items.push(r);
-  });
 
   listEl.innerHTML = Object.entries(groups).map(([agentUid,g])=>{
     const displayName = resolveRosterName(agentUid, g.agentName);
@@ -8670,6 +8677,171 @@ function renderInventory(){
     </div>`;
   }).join('');
 }
+// ── 公司庫存：列印／匯出 PDF（資料筆數不固定，可能很長，採「一般多頁排版」而非單頁縮字），直向 A4 ──
+const _INV_PRINT_STYLE = `
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#fff;font-family:'Noto Sans TC',system-ui,sans-serif;color:#1a2332;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.hdr{padding-bottom:8px}
+.hdr h1{font-size:16px;font-weight:800;display:inline}
+.hdr span{font-size:11px;color:#555;margin-left:8px}
+table{width:100%;border-collapse:collapse;table-layout:fixed}
+thead{display:table-header-group}
+th{font-weight:800;font-size:10px;text-align:center;border:1px solid #888;padding:4px 3px;vertical-align:middle;background:#0f519b;color:#fff}
+td{border:1px solid #999;padding:4px 3px;vertical-align:middle;text-align:center;font-size:10px;word-break:break-all}
+tr{page-break-inside:avoid}
+.td-name{background:#f6f9fd;font-weight:800;white-space:nowrap}
+.td-addr{text-align:left;padding-left:5px!important;white-space:normal}
+.grp-row td{background:#0f519b;color:#fff;font-weight:800;text-align:left;padding-left:6px!important;font-size:11px}
+`;
+const _INV_PRINT_COLGROUP = `<col style="width:9%"><col style="width:6%"><col style="width:10%"><col style="width:16%"><col style="width:12%"><col style="width:18%"><col style="width:7%"><col style="width:8%"><col style="width:6%"><col style="width:8%">`;
+const _INV_PRINT_THEAD = `<tr><th>業務</th><th>類別</th><th>委託編號</th><th>案名</th><th>屋主</th><th>地址</th><th>總價(萬)</th><th>單價(萬/坪)</th><th>坪數</th><th>委託到期</th></tr>`;
+
+function _invPrintRowsHtml(groups){
+  return Object.entries(groups).map(([agentUid,g])=>{
+    const displayName = resolveRosterName(agentUid, g.agentName);
+    const grpRow = `<tr class="grp-row"><td colspan="10">👤 ${escH(displayName)}（${g.items.length} 筆委託）</td></tr>`;
+    const itemRows = g.items.map(r=>{
+      const addr = fullAddr(r.propCity,r.propDist,r.propAddr);
+      const ownLabel = r.owners&&r.owners.length ? r.owners.map(o=>o.name).join('、') : (r.ownerName||'—');
+      return `<tr>
+        <td class="td-name">${escH(displayName)}</td>
+        <td>${escH(r.propType||'')}</td>
+        <td>${escH(r.listingNo||'')}</td>
+        <td>${escH(r.caseName||'')}</td>
+        <td>${escH(ownLabel)}</td>
+        <td class="td-addr">${escH(addr)}</td>
+        <td>${r.total||''}</td>
+        <td>${r.unit||''}</td>
+        <td>${r.area||''}</td>
+        <td>${r.commEnd||''}</td>
+      </tr>`;
+    }).join('');
+    return grpRow + itemRows;
+  }).join('');
+}
+
+// ── 列印（開新視窗列印，直向 A4，資料多時瀏覽器自動分頁，表頭於每頁重複）──
+function printInventory(){
+  const { filtered, groups } = _invGetFilteredGroups();
+  if(!filtered.length){ alert('尚無資料可列印'); return; }
+  const bodyRows = _invPrintRowsHtml(groups);
+  const today = new Date().toLocaleDateString('zh-TW',{timeZone:'Asia/Taipei'});
+
+  const html = `<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8"><title>公司庫存清單</title>
+<style>
+${_INV_PRINT_STYLE}
+@page{size:A4 portrait;margin:10mm}
+</style>
+</head><body>
+<div class="hdr"><h1>🏢 公司庫存清單</h1><span>列印日期：${today}　共 ${filtered.length} 筆</span></div>
+<table>
+<colgroup>${_INV_PRINT_COLGROUP}</colgroup>
+<thead>${_INV_PRINT_THEAD}</thead>
+<tbody>${bodyRows}</tbody>
+</table>
+</body></html>`;
+
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => win.print(), 500);
+}
+
+// ── 匯出 PDF（html2canvas + jsPDF，內容可能超過一頁，將完整畫布依 A4 高度切割成多頁）──
+function exportInventoryPdf(){
+  const { filtered, groups } = _invGetFilteredGroups();
+  if(!filtered.length){ alert('尚無資料可匯出'); return; }
+  const bodyRows = _invPrintRowsHtml(groups);
+  const today = new Date().toLocaleDateString('zh-TW',{timeZone:'Asia/Taipei'});
+  const fileName = `公司庫存清單_${new Date().toISOString().slice(0,10)}.pdf`;
+
+  async function _loadScript(src, integrity) {
+    if (document.querySelector(`script[src="${src}"]`)) return;
+    return new Promise((res, rej) => {
+      const s = document.createElement('script');
+      s.src = src;
+      if (integrity) { s.integrity = integrity; s.crossOrigin = 'anonymous'; s.referrerPolicy = 'no-referrer'; }
+      s.onload = res; s.onerror = rej;
+      document.head.appendChild(s);
+    });
+  }
+
+  const innerHtml = `<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8"><title>${fileName}</title>
+<style>
+${_INV_PRINT_STYLE}
+html,body{width:794px}
+body{padding:16px}
+</style></head><body>
+<div class="hdr"><h1>🏢 公司庫存清單</h1><span>列印日期：${today}　共 ${filtered.length} 筆</span></div>
+<table>
+<colgroup>${_INV_PRINT_COLGROUP}</colgroup>
+<thead>${_INV_PRINT_THEAD}</thead>
+<tbody>${bodyRows}</tbody>
+</table>
+</body></html>`;
+
+  (async () => {
+    try {
+      await _loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js','sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoeqMV/TJlSKda6FXzoEyYGjTe+vXA==');
+      await _loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js','sha512-qZvrmS2ekKPF2mSznTQsxqPgnpkI4DNTlrdUmTzrDgektczlKNRRhy5X5AAOnx5S09ydFYWWNSfcEqDTTHgtNA==');
+
+      const iframe = document.createElement('iframe');
+      iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;border:none;z-index:-1;';
+      iframe.srcdoc = innerHtml;
+      document.body.appendChild(iframe);
+
+      await new Promise(r => iframe.onload = r);
+      await new Promise(r => setTimeout(r, 600));
+
+      const bodyEl = iframe.contentDocument.body;
+      const fullHeight = Math.max(bodyEl.scrollHeight, iframe.contentDocument.documentElement.scrollHeight);
+
+      const canvas = await html2canvas(bodyEl, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        width: 794,
+        height: fullHeight,
+        windowWidth: 794,
+        windowHeight: fullHeight,
+      });
+
+      document.body.removeChild(iframe);
+
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pageWidthMm = 210, pageHeightMm = 297;
+      const pxPerMm = canvas.width / pageWidthMm;
+      const sliceHeightPx = Math.floor(pageHeightMm * pxPerMm);
+
+      let y = 0, first = true;
+      while (y < canvas.height) {
+        const sh = Math.min(sliceHeightPx, canvas.height - y);
+        const sliceCanvas = document.createElement('canvas');
+        sliceCanvas.width = canvas.width;
+        sliceCanvas.height = sh;
+        const sctx = sliceCanvas.getContext('2d');
+        sctx.fillStyle = '#ffffff';
+        sctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
+        sctx.drawImage(canvas, 0, y, canvas.width, sh, 0, 0, canvas.width, sh);
+        const imgData = sliceCanvas.toDataURL('image/jpeg', 0.95);
+        const sliceHeightMm = sh / pxPerMm;
+        if (!first) pdf.addPage();
+        pdf.addImage(imgData, 'JPEG', 0, 0, pageWidthMm, sliceHeightMm);
+        first = false;
+        y += sh;
+      }
+
+      pdf.save(fileName);
+    } catch(e) {
+      console.error('PDF 下載失敗:', e);
+      alert('PDF 產生失敗，請確認網路連線後再試。\n' + e.message);
+    }
+  })();
+}
+
 // 從匹配視窗跳到該物件所在頁面並展開細項
 function goPropDetail(pool, id){
   closeOv('buyer-match');
