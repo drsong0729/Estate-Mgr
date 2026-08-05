@@ -200,6 +200,8 @@
   window._firebaseDutyOfficerWeeksColl = () => collection(db_fs, 'duty_officer_weeks');
   // 輪值表：清潔分工（以月為單位，doc id = 'YYYY-MM'）
   window._firebaseRosterCleaningRef = (ym) => doc(db_fs, 'roster_cleaning', ym);
+  // 輪值表：清潔分工「自訂新增項目」清單（不分月份，套用到每個月的清潔分工表，與內建固定項目並列）
+  window._firebaseRosterCleanTasksRef = () => doc(db_fs, 'roster_cleaning_meta', 'custom_tasks');
 
   // 每次開啟網站：先登出 → 設 session persistence → 再監聽
   signOut(auth)
@@ -2290,6 +2292,9 @@ function gm_authFailure() {
   </div>
 
   <div id="rd-cleaning-panel" style="display:none;margin:0 16px 24px">
+    <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+      <button class="btn btn-p" id="rd-add-cleantask-btn" style="display:none;font-size:12px;padding:6px 10px" onclick="openAddCleaningTaskModal()">➕ 新增清潔項目</button>
+    </div>
     <div class="admin-table-wrap">
       <table id="rd-cleaning-table">
         <thead><tr><th style="min-width:170px">項目</th><th>早上</th><th>下午</th></tr></thead>
@@ -2297,6 +2302,30 @@ function gm_authFailure() {
       </table>
     </div>
     <div style="font-size:12px;color:var(--tx3);padding:10px 2px">💡 每週一、四 16:30 有垃圾車（值星負責）</div>
+  </div>
+
+  <!-- Modal: 輪值表清潔分工，新增自訂清潔項目 -->
+  <div class="ov" id="ov-cleantask">
+  <div class="modal modal-sm">
+    <div class="mh"><div class="mt">➕ 新增清潔項目</div><button class="mc" onclick="closeOv('cleantask')">✕</button></div>
+    <div class="mb">
+      <div class="fgp">
+        <label class="lbl">項目名稱<span class="req">*</span></label>
+        <input class="fc" id="ct-label" placeholder="例如：倒垃圾、澆盆栽…">
+      </div>
+      <div class="fgp">
+        <label class="lbl">適用時段</label>
+        <div style="display:flex;gap:16px;margin-top:4px">
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--tx2)"><input type="checkbox" id="ct-am" checked>早上</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--tx2)"><input type="checkbox" id="ct-pm" checked>下午</label>
+        </div>
+      </div>
+    </div>
+    <div class="mf">
+      <button class="btn btn-g" onclick="closeOv('cleantask')">取消</button>
+      <button class="btn btn-p" onclick="saveCleaningTask()">儲存</button>
+    </div>
+  </div>
   </div>
 </div>
 
@@ -11252,6 +11281,7 @@ let _rdMonth = 0; // 0-11
 let _rdRoster = [];        // 沿用出勤排休表人員名冊
 let _rdOfficerData = {};   // { weekKey('YYYY-MM-DD'): personId }
 let _rdCleaningData = {};  // { tasks: { taskKey: { am:[personId,...], pm:[personId,...] } } }
+let _rdCustomTasks = [];   // 使用者自訂新增的清潔項目：[{key,label,am,pm}]，不分月份，套用到每個月的清潔分工表
 let _rdLoadError = null;
 
 const RD_CLEAN_TASKS = [
@@ -11316,9 +11346,23 @@ async function initRosterDutyPage(){
   _rdPopulateMonthSelectors();
   _rdLoadError = null;
   await _rdLoadRoster();
-  await Promise.all([rdLoadOfficerData(), rdLoadCleaningData()]);
+  await Promise.all([rdLoadOfficerData(), rdLoadCleaningData(), rdLoadCustomCleanTasks()]);
   renderRosterDutyOfficer();
   renderRosterDutyCleaning();
+}
+// 讀取「自訂新增的清潔項目」清單（不分月份，儲存在獨立的 roster_cleaning_meta/custom_tasks 文件）
+async function rdLoadCustomCleanTasks(){
+  try{
+    const snap = await window._firebaseGetDoc(window._firebaseRosterCleanTasksRef());
+    _rdCustomTasks = snap.exists() ? ((snap.data()||{}).items || []) : [];
+  }catch(e){
+    console.warn('輪值表：讀取自訂清潔項目失敗', e);
+    _rdCustomTasks = [];
+  }
+}
+// 內建固定清潔項目 + 使用者自訂新增的項目，合併後的完整清單（顯示順序＝內建在前、自訂在後）
+function _rdAllCleanTasks(){
+  return RD_CLEAN_TASKS.concat(_rdCustomTasks);
 }
 
 async function _rdLoadRoster(){
@@ -11442,6 +11486,9 @@ async function rdSetOfficer(weekKey, personId){
 function renderRosterDutyCleaning(){
   const tbody = document.getElementById('rd-cleaning-tbody');
   if(!tbody) return;
+  const canEdit = canEditWarReport();
+  const addBtn = document.getElementById('rd-add-cleantask-btn');
+  if(addBtn) addBtn.style.display = canEdit ? '' : 'none';
   if(_rdLoadError){
     tbody.innerHTML = `<tr><td class="empty-td" colspan="3">⚠️ 載入失敗：${escH(_rdLoadError)}<br><span style="font-size:11px">請確認 Firestore 安全規則已開放讀取 roster_cleaning 集合</span></td></tr>`;
     return;
@@ -11450,11 +11497,12 @@ function renderRosterDutyCleaning(){
     tbody.innerHTML = `<tr><td class="empty-td" colspan="3">📭 尚無人員資料，請先於「每月出勤排休表」新增人員</td></tr>`;
     return;
   }
-  const canEdit = canEditWarReport();
-  let rows = RD_CLEAN_TASKS.map(t=>{
+  let rows = _rdAllCleanTasks().map(t=>{
     const amCell = t.am ? _rdCleanCellHtml(t.key, 'am', canEdit) : '<td style="text-align:center;color:var(--tx3)">—</td>';
     const pmCell = t.pm ? _rdCleanCellHtml(t.key, 'pm', canEdit) : '<td style="text-align:center;color:var(--tx3)">—</td>';
-    return `<tr><td style="font-weight:600">${escH(t.label)}</td>${amCell}${pmCell}</tr>`;
+    // 自訂新增的項目才顯示刪除按鈕（內建固定項目不可刪除）
+    const delBtn = (t.custom && canEdit) ? `<span title="刪除此項目" style="cursor:pointer;color:var(--red);margin-left:6px;font-size:12px" onclick="rdDeleteCustomCleanTask('${t.key}')">✕</span>` : '';
+    return `<tr><td style="font-weight:600">${escH(t.label)}${delBtn}</td>${amCell}${pmCell}</tr>`;
   }).join('');
   rows += `<tr><td style="font-weight:600">17點洗花盆(每月一、三週的禮拜一)</td><td style="text-align:center;color:var(--tx3)">—</td><td style="font-weight:700;color:var(--acc)">全體人員</td></tr>`;
   tbody.innerHTML = rows;
@@ -11508,6 +11556,65 @@ async function _rdSaveCleaning(){
   }
 }
 
+// ── 清潔分工：新增自訂項目 ──
+// 開啟「新增清潔項目」視窗（僅幕僚／店秘書／系統管理員可操作）
+function openAddCleaningTaskModal(){
+  if(!canEditWarReport()) return;
+  const labelInp = document.getElementById('ct-label');
+  if(labelInp) labelInp.value = '';
+  const amChk = document.getElementById('ct-am'); if(amChk) amChk.checked = true;
+  const pmChk = document.getElementById('ct-pm'); if(pmChk) pmChk.checked = true;
+  openOv('cleantask');
+  setTimeout(()=>{ if(labelInp) labelInp.focus(); }, 80);
+}
+// 儲存新增的清潔項目：附加到自訂清單最後一筆，套用到表格最下面一列
+async function saveCleaningTask(){
+  const label = (document.getElementById('ct-label')?.value || '').trim();
+  if(!label){ alert('請輸入項目名稱'); return; }
+  const am = !!document.getElementById('ct-am')?.checked;
+  const pm = !!document.getElementById('ct-pm')?.checked;
+  if(!am && !pm){ alert('早上、下午至少需勾選一項'); return; }
+  const key = 'custom_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+  const newTask = { key, label, am, pm, custom:true };
+  try{
+    const nextTasks = _rdCustomTasks.concat([newTask]);
+    await window._firebaseSetDoc(window._firebaseRosterCleanTasksRef(), {
+      items: nextTasks,
+      updatedAt: new Date().toISOString(),
+      updatedBy: (window._currentUser && window._currentUser.email) || ''
+    }, {merge:false});
+    _rdCustomTasks = nextTasks;
+    closeOv('cleantask');
+    renderRosterDutyCleaning();
+  }catch(e){
+    alert('⚠️ 新增失敗：' + e.message);
+  }
+}
+// 刪除一筆自訂新增的清潔項目（內建固定項目不提供刪除入口）；連同其已指派的人員資料一併清除
+async function rdDeleteCustomCleanTask(key){
+  if(!canEditWarReport()) return;
+  const t = _rdCustomTasks.find(x=>x.key===key);
+  if(!t) return;
+  if(!confirm(`確定要刪除清潔項目「${t.label}」嗎？`)) return;
+  try{
+    const nextTasks = _rdCustomTasks.filter(x=>x.key!==key);
+    await window._firebaseSetDoc(window._firebaseRosterCleanTasksRef(), {
+      items: nextTasks,
+      updatedAt: new Date().toISOString(),
+      updatedBy: (window._currentUser && window._currentUser.email) || ''
+    }, {merge:false});
+    _rdCustomTasks = nextTasks;
+    // 一併清掉該項目在當月已指派的人員資料
+    if(_rdCleaningData.tasks && _rdCleaningData.tasks[key]){
+      delete _rdCleaningData.tasks[key];
+      await _rdSaveCleaning();
+    }
+    renderRosterDutyCleaning();
+  }catch(e){
+    alert('⚠️ 刪除失敗：' + e.message);
+  }
+}
+
 // ── 列印／匯出 PDF：當月值星官＋清潔分工合併於同一頁（直式 A4）──
 const _RD_PRINT_STYLE = `
 *{box-sizing:border-box;margin:0;padding:0}
@@ -11533,7 +11640,7 @@ function _rdPrintTablesHtml(){
     return `<tr><td class="td-label">${label}</td><td>${escH(_rdPersonName(assigned) || '尚未指派')}</td></tr>`;
   }).join('');
 
-  let cleaningRows = RD_CLEAN_TASKS.map(t=>{
+  let cleaningRows = _rdAllCleanTasks().map(t=>{
     const amList = t.am ? ((_rdCleaningData.tasks && _rdCleaningData.tasks[t.key] && _rdCleaningData.tasks[t.key].am) || []).map(pid=>_rdPersonName(pid)).filter(Boolean) : null;
     const pmList = t.pm ? ((_rdCleaningData.tasks && _rdCleaningData.tasks[t.key] && _rdCleaningData.tasks[t.key].pm) || []).map(pid=>_rdPersonName(pid)).filter(Boolean) : null;
     const amCell = amList===null ? '—' : (amList.length ? escH(amList.join('、')) : '尚未指派');
