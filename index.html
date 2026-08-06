@@ -2047,6 +2047,7 @@ function gm_authFailure() {
           <th>月排名</th>
           <th>年排名</th>
           <th>目標 月S/B/A</th>
+          <th>預計達成日期</th>
           <th>年度 S</th>
           <th>當月 S</th>
           <th>A / A+B / R</th>
@@ -2062,7 +2063,7 @@ function gm_authFailure() {
         </tr>
       </thead>
       <tbody id="warreport-tbody">
-        <tr><td class="empty-td" colspan="17">⏳ 載入中…</td></tr>
+        <tr><td class="empty-td" colspan="18">⏳ 載入中…</td></tr>
       </tbody>
     </table>
   </div>
@@ -2074,6 +2075,10 @@ function gm_authFailure() {
   <div class="mh"><div class="mt">✏️ 填寫我的今日數字</div><button class="mc" onclick="closeOv('warself')">✕</button></div>
   <div class="mb">
     <div style="font-size:12px;color:var(--tx3);margin-bottom:10px" id="warself-sub"></div>
+    <div class="fgp" style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px dashed var(--bdr)">
+      <label class="lbl">預計達成日期（可自行設定，幕僚／店秘書亦可協助設定）</label>
+      <input class="fc" type="date" id="ws-expected-date">
+    </div>
     <div class="fgp">
       <label class="lbl">今日追蹤數</label>
       <input class="fc" type="number" id="ws-track" placeholder="0">
@@ -2158,6 +2163,8 @@ function gm_authFailure() {
       <div class="fgp" style="margin-bottom:0"><label class="lbl">目標 B（一般約）</label><input class="fc" type="number" id="wp-target-b" placeholder="0"></div>
       <div class="fgp" style="margin-bottom:0"><label class="lbl">目標 A（專任約）</label><input class="fc" type="number" id="wp-target-a" placeholder="0"></div>
     </div>
+    <div class="fgp" style="margin-bottom:12px"><label class="lbl">預計達成日期（本人也可自行於「填寫我的今日數字」設定）</label>
+      <input class="fc" type="date" id="wp-expected-date"></div>
     <div style="border-top:1px dashed var(--bdr);margin:4px 0 12px;padding-top:12px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
         <div style="font-size:12px;font-weight:700;color:var(--tx2)">實際達成數值</div>
@@ -2672,13 +2679,13 @@ function gm_authFailure() {
           <input class="fc" id="f-bldg" placeholder="（選填）"></div>
         <div class="fgp"><label class="lbl">案名</label>
           <input class="fc" id="f-casename" placeholder="（選填）"></div>
-        <div class="fgp"><label class="lbl">委託編號</label>
+        <div class="fgp" id="f-listingno-wrap"><label class="lbl">委託編號</label>
           <input class="fc" id="f-listingno" placeholder="（選填）"></div>
       </div>
     </div>
     <div class="fsec">
       <div class="fsec-t">🏗️ 物件資訊</div>
-      <div class="fg">
+      <div class="fg" id="f-dealkind-wrap">
         <div class="fgp"><label class="lbl">買賣／租賃</label>
           <div style="display:flex;gap:14px;padding-top:8px">
             <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer"><input type="radio" name="f-dealkind" value="sale" checked onchange="onDealKindChange()"><span>🏠 買賣</span></label>
@@ -2686,7 +2693,7 @@ function gm_authFailure() {
           </div></div>
       </div>
       <div class="fg fg3" style="margin-top:10px">
-        <div class="fgp"><label class="lbl">物件類型<span class="req">*</span></label>
+        <div class="fgp"><label class="lbl">物件類型<span class="req" id="f-proptype-req">*</span></label>
           <select class="fc" id="f-proptype" onchange="onPropTypeChange()">
             <option value="">請選擇</option>
             <option value="大樓">大樓</option>
@@ -2696,7 +2703,7 @@ function gm_authFailure() {
             <option value="土地">土地</option>
             <option value="商辦">商辦</option>
           </select></div>
-        <div class="fgp"><label class="lbl">坪數<span class="req">*</span></label>
+        <div class="fgp"><label class="lbl">坪數<span class="req" id="f-area-req">*</span></label>
           <input class="fc" type="number" id="f-area" placeholder="坪" step="0.01" oninput="calcUnit()"></div>
         <div class="fgp"><label class="lbl" id="f-total-label">總價（萬）<span class="req">*</span></label>
           <input class="fc" type="number" id="f-total" placeholder="萬" step="0.1" oninput="calcUnit()"></div>
@@ -3645,7 +3652,9 @@ function onDealKindChange(){
   const dk = (document.querySelector('input[name="f-dealkind"]:checked')||{value:'sale'}).value;
   const isRental = dk === DEAL_KIND.RENTAL;
   const totalLabel = document.getElementById('f-total-label');
-  if(totalLabel) totalLabel.innerHTML = isRental ? '月租金（萬）<span class="req">*</span>' : '總價（萬）<span class="req">*</span>';
+  // 新增募集線（editPool==='recruit'）：物件類型／坪數／總價改為非必填，不顯示必填星號
+  const totalReq = editPool==='recruit' ? '' : '<span class="req">*</span>';
+  if(totalLabel) totalLabel.innerHTML = (isRental ? '月租金（萬）' : '總價（萬）') + totalReq;
   const unitWrap = document.getElementById('f-unit-wrap');
   const feesWrap = document.getElementById('f-extrafees-wrap');
   if(unitWrap) unitWrap.style.display = isRental ? 'none' : '';
@@ -4018,6 +4027,17 @@ function openRecruitModal(id,pool){
   // 顯示/隱藏委託專屬欄位區塊
   const ecExtra = document.getElementById('ec-extra-section');
   if(ecExtra) ecExtra.style.display = isComm ? 'block' : 'none';
+  // 新增募集線（editPool==='recruit'）：隱藏「買賣／租賃」與「委託編號」，「物件類型」「坪數」「總價」改為非必填
+  // （追蹤線／委託皆維持原本必填與顯示，僅限募集線本身簡化）
+  const isRecruitOnly = editPool === 'recruit';
+  const dealkindWrap = document.getElementById('f-dealkind-wrap');
+  if(dealkindWrap) dealkindWrap.style.display = isRecruitOnly ? 'none' : '';
+  const listingnoWrap = document.getElementById('f-listingno-wrap');
+  if(listingnoWrap) listingnoWrap.style.display = isRecruitOnly ? 'none' : '';
+  const proptypeReq = document.getElementById('f-proptype-req');
+  if(proptypeReq) proptypeReq.style.display = isRecruitOnly ? 'none' : '';
+  const areaReq = document.getElementById('f-area-req');
+  if(areaReq) areaReq.style.display = isRecruitOnly ? 'none' : '';
   const list = isComm ? db.commission : (editPool==='track'?db.track:db.recruit);
   const f=id?list.find(r=>r.id===id):null;
   // clear fixed fields
@@ -4330,9 +4350,10 @@ function saveRecruit(){
   const area=document.getElementById('f-area').value;
   const total=document.getElementById('f-total').value;
   const owners=getOwnersFromForm();
-  // validate
-  if(!propCity||!propDist||!propAddr||!area||!total){
-    alert('請填寫必填欄位（縣市、行政區、地址、坪數、總價）');return;
+  // validate（新增募集線：物件類型／坪數／總價改為非必填，僅追蹤線／委託維持必填）
+  const isRecruitOnly = editPool === 'recruit';
+  if(!propCity||!propDist||!propAddr||(!isRecruitOnly && (!area||!total))){
+    alert('請填寫必填欄位（縣市、行政區、地址' + (isRecruitOnly ? '' : '、坪數、總價') + '）');return;
   }
   if(!owners.length||!owners[0].name||!owners[0].gender){
     alert('請至少填寫第一位屋主的姓氏與性別');return;
@@ -4362,7 +4383,7 @@ function saveRecruit(){
     listingNo:(document.getElementById('f-listingno')?.value||'').trim(),
     propType,
     dealType,
-    area:parseFloat(area),total:parseFloat(total),
+    area:parseFloat(area)||0,total:parseFloat(total)||0,
     unit: isRental ? '' : unit,
     floorPrice: parseFloat(document.getElementById('f-floor')?.value)||0,
     extraFees: isRental ? getExtraFeesFromForm('f') : [],
@@ -9918,6 +9939,14 @@ function _warRankBadge(rank){
 // 業務排序：依「新增業務」的先後順序，最舊的排最上面、最新的排最下面
 function _warSortRoster(list){
   list.sort((a,b)=>(a.createdAt||'').localeCompare(b.createdAt||''));
+  // 手動調整：依需求將「袁晨祐」與「王辰佑」目前的顯示順序互換（依姓名比對，與 createdAt 排序結果無關）
+  const swapIdxA = list.findIndex(p=>p.name==='袁晨祐');
+  const swapIdxB = list.findIndex(p=>p.name==='王辰佑');
+  if(swapIdxA!==-1 && swapIdxB!==-1){
+    const tmp = list[swapIdxA];
+    list[swapIdxA] = list[swapIdxB];
+    list[swapIdxB] = tmp;
+  }
   return list;
 }
 
@@ -9959,6 +9988,7 @@ function _warEffectiveSnap(p, dateStr){
   if(!base) return null;
   return {
     targetMonthS: base.targetMonthS, targetB: base.targetB, targetA: base.targetA,
+    expectedDate: base.expectedDate,
     yearS: base.yearS, monthS: base.monthS,
     aCount: base.aCount, abCount: base.abCount, inventory: base.inventory,
     monthTrack: base.monthTrack, monthRecruit: base.monthRecruit, monthCall: base.monthCall,
@@ -10098,23 +10128,23 @@ async function renderWarReport(){
   if(thActions) thActions.style.display = editing ? '' : 'none';
 
   if(_warLoadError){
-    tbody.innerHTML = `<tr><td class="empty-td" colspan="17">⚠️ 載入失敗：${escH(_warLoadError)}<br><span style="font-size:11px">請確認 Firestore 安全規則已開放讀取 war_report_roster／war_report_snapshots 集合</span></td></tr>`;
+    tbody.innerHTML = `<tr><td class="empty-td" colspan="18">⚠️ 載入失敗：${escH(_warLoadError)}<br><span style="font-size:11px">請確認 Firestore 安全規則已開放讀取 war_report_roster／war_report_snapshots 集合</span></td></tr>`;
     return;
   }
   if(!_warRoster.length){
-    tbody.innerHTML = `<tr><td class="empty-td" colspan="17">📭 尚無業務資料${canEdit?'，點選右上方「＋ 新增業務」開始建立':''}</td></tr>`;
+    tbody.innerHTML = `<tr><td class="empty-td" colspan="18">📭 尚無業務資料${canEdit?'，點選右上方「＋ 新增業務」開始建立':''}</td></tr>`;
     return;
   }
 
   const dateStr = _warSelectedDate || nowDate();
   const ym = dateStr.slice(0,7);
-  tbody.innerHTML = `<tr><td class="empty-td" colspan="17">⏳ 載入 ${escH(dateStr)} 快照中…</td></tr>`;
+  tbody.innerHTML = `<tr><td class="empty-td" colspan="18">⏳ 載入 ${escH(dateStr)} 快照中…</td></tr>`;
 
   let monthList;
   try{
     monthList = await _warFetchMonth(ym);
   }catch(e){
-    tbody.innerHTML = `<tr><td class="empty-td" colspan="17">⚠️ 載入快照失敗：${escH(e.message||'')}<br><span style="font-size:11px">請確認 Firestore 安全規則已開放讀取 war_report_snapshots 集合</span></td></tr>`;
+    tbody.innerHTML = `<tr><td class="empty-td" colspan="18">⚠️ 載入快照失敗：${escH(e.message||'')}<br><span style="font-size:11px">請確認 Firestore 安全規則已開放讀取 war_report_snapshots 集合</span></td></tr>`;
     return;
   }
   // 若使用者在讀取期間又切換了日期，放棄這次結果，避免畫面錯亂
@@ -10149,7 +10179,7 @@ async function renderWarReport(){
       return `<tr>
         <td style="font-weight:700">${escH(p.name||'—')}</td>
         <td style="font-size:12px">${escH(p.hireDate||'—')}</td>
-        <td colspan="5" style="text-align:center;color:var(--tx3);font-size:12px">（${escH(dateStr)} 尚無快照紀錄）</td>
+        <td colspan="6" style="text-align:center;color:var(--tx3);font-size:12px">（${escH(dateStr)} 尚無快照紀錄）</td>
         <td>${fmtWarNum(stats.aCount)} / ${fmtWarNum(stats.abCount)} / ${fmtWarNum(stats.rCount)}</td>
         <td>${fmtWarNum(stats.inventory)}</td>
         <td colspan="7" style="text-align:center;color:var(--tx3);font-size:12px">—</td>
@@ -10173,6 +10203,7 @@ async function renderWarReport(){
       <td style="text-align:center;font-weight:700">${_warRankBadge(monthRank[p.id])}</td>
       <td style="text-align:center;font-weight:700">${_warRankBadge(yearRank[p.id])}</td>
       <td style="font-size:12px">${fmtWarNum(daySnap.targetMonthS)} / ${fmtWarNum(daySnap.targetB)} / ${fmtWarNum(daySnap.targetA)}</td>
+      <td style="font-size:12px">${escH(daySnap.expectedDate||'—')}</td>
       <td>${_fmtYearS(daySnap.yearS)}</td>
       <td>${fmtWarNum(daySnap.monthS)}</td>
       <td>${fmtWarNum(stats.aCount)} / ${fmtWarNum(stats.abCount)} / ${fmtWarNum(stats.rCount)}</td>
@@ -10192,6 +10223,7 @@ async function renderWarReport(){
   const totalRowHtml = `<tr style="background:var(--surf2);font-weight:700">
     <td colspan="4" style="text-align:center">總計</td>
     <td style="font-size:12px">${r2(totals.targetMonthS)} / ${r2(totals.targetB)} / ${r2(totals.targetA)}</td>
+    <td style="color:var(--tx3)">—</td>
     <td>${_fmtYearS(totals.yearS)}</td>
     <td>${r2(totals.monthS)}</td>
     <td>${r2(totals.aCount)} / ${r2(totals.abCount)} / ${r2(totals.rCount)}</td>
@@ -10302,6 +10334,7 @@ async function openWarPersonModal(id){
   document.getElementById('wp-target-month-s').value = base.targetMonthS ?? '';
   document.getElementById('wp-target-b').value = base.targetB ?? '';
   document.getElementById('wp-target-a').value = base.targetA ?? '';
+  document.getElementById('wp-expected-date').value = base.expectedDate || '';
   document.getElementById('wp-year-s').value = base.yearS ?? '';
   document.getElementById('wp-month-s').value = base.monthS ?? '';
   _renderWpStatsDisplay();
@@ -10401,6 +10434,7 @@ async function saveWarPerson(){
 
   const snapshotFields = {
     targetMonthS: num('wp-target-month-s'), targetB: num('wp-target-b'), targetA: num('wp-target-a'),
+    expectedDate: document.getElementById('wp-expected-date').value || '',
     yearS: num('wp-year-s'), monthS: num('wp-month-s'),
     // A（專任）／A+B（總委託）／R（租賃）／庫存：已改為系統依實際委託資料自動計算（見 _computeWarStatsForUid），
     // 不再手動輸入／儲存於快照，故此處不再寫入 aCount/abCount/rCount/inventory
@@ -10614,6 +10648,11 @@ async function openWarSelfModal(){
   document.getElementById('ws-recruit').value = daySnap?.todayRecruit ?? '';
   document.getElementById('ws-call').value    = daySnap?.todayCall    ?? '';
   _warFillCaseForm('ws', daySnap?.todayNewCase || null);
+  // 預計達成日期：屬於持續性設定（非「今日」欄位），預填順序與目標欄位一致：
+  // 今天已有的快照 → 同月最近一筆快照 → 名冊最近一次填寫的快取值
+  const priorSnap = !daySnap ? _warFindLatestPrior(_warMyPerson.id, todayStr) : null;
+  const expBase = daySnap || priorSnap || _warMyPerson.latest || {};
+  document.getElementById('ws-expected-date').value = expBase.expectedDate || '';
   openOv('warself');
 }
 
@@ -10654,6 +10693,7 @@ async function saveWarSelf(){
     monthRecruit: base.recruit + (newTodayRecruit - oldTodayRecruit),
     monthCall:    base.call    + (newTodayCall    - oldTodayCall),
     todayNewCase: _warReadCaseForm('ws'),
+    expectedDate: document.getElementById('ws-expected-date').value || '',
     savedAt: new Date().toISOString(),
     savedBy: (window._currentUser && window._currentUser.email) || ''
   };
