@@ -3669,6 +3669,19 @@ function onDealKindChange(){
   }
 }
 
+// 委託管理頁面顯示用清單：除了自己的 db.commission（含自己從追蹤線轉入的委託），
+// 也要合併「新增公司委託」指派給自己的委託（含多位負責業務中自己也是其中一位的情況，來源＝company_listings，
+// 已彙整在 db.inventory 內，_src==='listing'），讓委託管理頁面與公司庫存頁面自己名下看到的物件保持一致。
+// 以 _isCompanyListing 標記這類合併進來的項目，供 commCards() 調整可用的操作按鈕（僅編輯／刪除，無續約／結束／成交，
+// 因為這些流程僅存在於個人 db.commission，company_listings 目前沒有對應的續約/結束/成交資料模型）。
+function _commissionDisplayList(){
+  const myUid = window._currentUser && window._currentUser.uid;
+  const ownIds = new Set(db.commission.map(r=>r.id));
+  const listingItems = (myUid ? (db.inventory||[]).filter(r=>r._src==='listing' && (r._agentUids||[]).includes(myUid) && !ownIds.has(r.id)) : [])
+    .map(r=>({...r, _isCompanyListing:true}));
+  return db.commission.concat(listingItems);
+}
+
 function filterItems(pool){
   const pid=pool;
   const nameKw=(document.getElementById('sq-'+pid+'-name')||{value:''}).value.trim().toLowerCase();
@@ -3679,7 +3692,8 @@ function filterItems(pool){
   const dateTo=(document.getElementById('sq-'+pid+'-dateto')||{value:''}).value;
   const minV=parseFloat((document.getElementById('sq-'+pid+'-min')||{value:''}).value)||0;
   const maxV=parseFloat((document.getElementById('sq-'+pid+'-max')||{value:''}).value)||Infinity;
-  return db[pool].filter(r=>{
+  const sourceList = pool==='commission' ? _commissionDisplayList() : db[pool];
+  return sourceList.filter(r=>{
     const owners2=r.owners&&r.owners.length?r.owners:[{name:r.ownerName||'',city:r.ownerCity||'',dist:r.ownerDist||'',addr:r.ownerAddr||''}];
     // 屋主姓氏 / 建案 / 案名
     const matchName=!nameKw||
@@ -5145,7 +5159,8 @@ function renderCommission(){
   function commCards(list,prefix){
     if(!list.length)return'<div style="text-align:center;padding:40px;color:var(--tx3)">📭 尚無符合資料</div>';
     return`<div class="card-grid">${list.map((r,i)=>{
-      const isOpen=openDetailId.commission===r.id;
+      const isListing = !!r._isCompanyListing; // 幕僚／店秘書透過「新增公司委託」指派給自己的委託（來源：company_listings，非自己的 db.commission）
+      const isOpen=!isListing && openDetailId.commission===r.id;
       const mainTitle = r.caseName
         ? `<span class="card-owner" style="color:var(--acc)">${escH(r.caseName)}</span>`
         : `<span class="card-owner">${ownersLabel(r)}</span>`;
@@ -5153,8 +5168,18 @@ function renderCommission(){
         ? `<div style="font-size:12px;color:var(--tx2);margin-bottom:4px">👤 ${escH(ownersLabel(r))}</div>`
         : '';
       const isRental = r.dealType===DEAL_KIND.RENTAL;
-      const cardHtml = `<div class="card comm-card-clickable" onclick="toggleDetail('commission','${r.id}')" style="${isOpen?'border-color:var(--acc);border-bottom-left-radius:0;border-bottom-right-radius:0;border-bottom:none':''}">
+      // 公司委託（company_listings）目前沒有續約／結束／成交／進度紀錄的資料模型，僅提供編輯／刪除；
+      // 編輯／刪除需帶入完整物件（含 _agentUids 等），故透過 _invFindItem(id) 從 db.inventory 取回
+      const actionsHtml = isListing
+        ? `<button class="btn btn-sm btn-edit" onclick="event.stopPropagation();openCompanyListingModal(_invFindItem('${r.id}'))">✏️ 編輯</button>
+           <button class="btn btn-sm btn-del" onclick="event.stopPropagation();deleteCompanyListing(_invFindItem('${r.id}'))">🗑 刪除</button>`
+        : `<button class="btn btn-sm btn-edit" onclick="event.stopPropagation();openRecruitModal('${r.id}','commission')">✏️ 編輯</button>
+           <button class="btn btn-sm" style="background:var(--grnl);color:var(--grn);border:1px solid var(--grn)" onclick="openRenewComm('${r.id}')">🔄 續約</button>
+           <button class="btn btn-sm" style="background:var(--redl);color:var(--red);border:1px solid var(--red)" onclick="event.stopPropagation();openEndComm('${r.id}')">🔴 結束</button>
+           <button class="btn btn-sm btn-del" onclick="delItem('commission','${r.id}',event)">🗑 刪除</button>`;
+      const cardHtml = `<div class="card${isListing?'':' comm-card-clickable'}" ${isListing?'':`onclick="toggleDetail('commission','${r.id}')"`} style="${isListing?'cursor:default;':''}${isOpen?'border-color:var(--acc);border-bottom-left-radius:0;border-bottom-right-radius:0;border-bottom:none':''}">
       <div class="card-head">${mainTitle}<span class="card-id">${prefix}${String(i+1).padStart(3,'0')}</span></div>
+      ${isListing?`<div style="font-size:11px;color:var(--acc);font-weight:700;margin-bottom:4px">🏢 公司委託${(r._agentNames&&r._agentNames.length>1)?`（共同負責：${escH(r._agentNames.join('、'))}）`:''}</div>`:''}
       ${ownerSub}
       <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px">${isRental?'<span style="background:var(--grnl);color:var(--grn);padding:1px 7px;border-radius:4px;font-size:11px;font-weight:700">🔑 租賃</span>':''} ${r.propType?`<span style="background:var(--accl);color:var(--acc);padding:1px 7px;border-radius:4px;font-size:11px;font-weight:700">${escH(r.propType)}</span>`:''} ${r.bldg?`<span class="card-bldg">🏢 ${escH(r.bldg)}</span>`:''}</div>
       <div class="card-addr">📍 ${escH(fullAddr(r.propCity,r.propDist,r.propAddr))}</div>
@@ -5163,10 +5188,7 @@ function renderCommission(){
       <div style="font-size:12px;color:var(--tx2);margin-bottom:6px">📅 ${r.commStart} ～ ${r.commEnd}</div>
       <div style="margin-bottom:8px">${expiryTag(r.commEnd)}</div>
       <div class="card-actions">
-        <button class="btn btn-sm btn-edit" onclick="event.stopPropagation();openRecruitModal('${r.id}','commission')">✏️ 編輯</button>
-        <button class="btn btn-sm" style="background:var(--grnl);color:var(--grn);border:1px solid var(--grn)" onclick="openRenewComm('${r.id}')">🔄 續約</button>
-        <button class="btn btn-sm" style="background:var(--redl);color:var(--red);border:1px solid var(--red)" onclick="event.stopPropagation();openEndComm('${r.id}')">🔴 結束</button>
-        <button class="btn btn-sm btn-del" onclick="delItem('commission','${r.id}',event)">🗑 刪除</button>
+        ${actionsHtml}
       </div>
     </div>`;
       const detailHtml2 = isOpen ? (_buildDetailPanelHtml('commission',r.id)||'') : '';
@@ -5226,7 +5248,7 @@ function _updateAllBadges(){
   const set = (id, val) => { const el=document.getElementById(id); if(el) el.textContent = val||''; };
   set('db-recruit',    db.recruit.length || '');
   set('db-track',      db.track.length || '');
-  set('db-commission', db.commission.length || '');
+  set('db-commission', _commissionDisplayList().length || '');
   set('db-closed',     (db.closed||[]).length || '');
   set('db-buyer',      (db.buyers||[]).length || '');
   set('db-inventory',  (db.inventory||[]).length || '');
@@ -7431,8 +7453,12 @@ async function loadFromFirestore(uid){
       if(mg.gen)  document.getElementById('goal-month-gen').value  = mg.gen;
       syncGoalTotal('month');
     }
-    // 登入時載入全公司庫存（靜默，不阻塞）
-    loadInventoryFromFirestore().then(()=>_updateAllBadges()).catch(()=>{});
+    // 登入時載入全公司庫存（靜默，不阻塞）；委託管理頁面會合併顯示自己名下的公司委託，
+    // 若使用者剛好已經在委託管理頁面，載入完成後一併重繪，避免要手動切換分頁才看得到
+    loadInventoryFromFirestore().then(()=>{
+      _updateAllBadges();
+      if(currentPage==='commission') renderCommission();
+    }).catch(()=>{});
     _updateAllBadges(); // 立即更新已載入的資料徽章
     // 載入該使用者行事曆（非同步，不阻塞主流程）
     calLoadFromFirestore().then(()=>{ if(typeof calInit==='function') setTimeout(calInit,100); }).catch(()=>{});
