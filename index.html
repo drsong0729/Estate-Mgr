@@ -9659,6 +9659,33 @@ async function removeFromWhitelist(uid){
   }
 }
 
+// 身份組清單「移除該員工」：與白名單管理的「移除白名單」互為鏡像操作 —
+// 直接從身份組清單移除此員工時，同時也要移除白名單資格，避免變成「已不在身份組清單、卻仍能登入」的不一致狀態。
+// 系統管理員／老闆等固定身份組帳號（isFixed）在畫面上不會顯示此按鈕，無法被移除。
+async function removeEmployeeFromSystem(uid){
+  if(window._myRole !== ROLES.SYSADMIN){ alert('僅系統管理員可操作'); return; }
+  const u = _adminData.find(x=>x.uid===uid) || {};
+  const displayName = (_supNotes[uid]?.customName) || u.name || u.email || uid;
+  if(!confirm('確定要移除員工「' + displayName + '」嗎？\n\n此動作會同時：\n1. 從身份組清單移除\n2. 移出白名單（該帳號下次將無法再登入系統）\n\n其客戶資料不會被刪除。若日後需重新啟用，須請對方重新註冊並再次審核。')) return;
+  try{
+    await window._firebaseDeleteDoc(window._firebaseIndexRef(uid));
+    try{
+      await window._firebaseDeleteDoc(window._firebaseAllowedRef(uid));
+    }catch(e2){
+      console.warn('移除該員工：同步移出白名單失敗，可能需要手動於白名單管理中處理', e2);
+    }
+    alert('已移除員工：' + displayName + '\n身份組清單與白名單皆已移除。');
+    _adminData = _adminData.filter(x=>x.uid!==uid);
+    renderSysadminSummary();
+    renderSysadminTable();
+    // 同步刷新白名單管理列表
+    delete _allowedMap[uid];
+    renderWhitelist();
+  }catch(e){
+    alert('移除失敗：' + (e.message || e));
+  }
+}
+
 // ── 系統管理員後台渲染 ──
 function renderSysadminSummary(){
   const el = document.getElementById('sysadmin-summary');
@@ -9739,7 +9766,8 @@ function renderSysadminTable(){
           <option value="secretary"${empRole==='secretary'?' selected':''}>店秘書</option>
           <option value="staff"${empRole==='staff'?' selected':''}>員工</option>
         </select>
-        <button class="role-save-btn" style="margin-top:3px" onclick="saveSysRole('${u.uid}')">更新身份組</button>`:''}
+        <button class="role-save-btn" style="margin-top:3px" onclick="saveSysRole('${u.uid}')">更新身份組</button>
+        <button style="font-size:11px;padding:4px 10px;border:1px solid var(--red);border-radius:6px;background:transparent;color:var(--red);cursor:pointer;font-family:inherit;white-space:nowrap;margin-top:4px;display:block" onclick="removeEmployeeFromSystem('${u.uid}')">🚫 移除該員工</button>`:''}
       </td>
     </tr>`;
   }).join('');
