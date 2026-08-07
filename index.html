@@ -9639,11 +9639,21 @@ async function renderWhitelist(){
 async function removeFromWhitelist(uid){
   if(window._myRole !== ROLES.SYSADMIN){ alert('僅系統管理員可操作'); return; }
   const x = _allowedMap[uid] || {};
-  if(!confirm('確定將「' + (x.email || uid) + '」移出白名單嗎？\n\n移除後該帳號將無法再登入系統（其客戶資料不會被刪除）。\n若日後需重新啟用，須請對方重新註冊並再次審核。')) return;
+  if(!confirm('確定將「' + (x.email || uid) + '」移出白名單嗎？\n\n移除後該帳號將無法再登入系統（其客戶資料不會被刪除），下方「身份組清單」也會一併移除此員工。\n若日後需重新啟用，須請對方重新註冊並再次審核。')) return;
   try{
     await window._firebaseDeleteDoc(window._firebaseAllowedRef(uid));
-    alert('已移除白名單：' + (x.email || uid) + '\n該帳號下次將無法登入。');
+    // 白名單移除後，下方「身份組清單」（users_index）也一併移除該員工，避免已離職／停權帳號仍殘留在身份組清單中
+    try{
+      await window._firebaseDeleteDoc(window._firebaseIndexRef(uid));
+    }catch(e2){
+      console.warn('移除白名單：同步移除身份組清單（users_index）失敗，可能需要手動於身份組清單中處理', e2);
+    }
+    alert('已移除白名單：' + (x.email || uid) + '\n該帳號下次將無法登入，身份組清單中的紀錄也已一併移除。');
     renderWhitelist();
+    // 同步刷新身份組清單與統計數字
+    _adminData = _adminData.filter(u=>u.uid!==uid);
+    renderSysadminSummary();
+    renderSysadminTable();
   }catch(e){
     alert('移除失敗：' + (e.message || e));
   }
