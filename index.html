@@ -191,6 +191,10 @@
   window._firebaseStaffDirRef   = (id) => doc(db_fs, 'staff_directory', id);
   window._firebaseStaffDirColl  = () => collection(db_fs, 'staff_directory');
   window._firebaseStaffDirNewRef = () => doc(collection(db_fs, 'staff_directory'));
+  // 契據領用（店秘書專屬，工具選單）：公司各類委託書／收據等契據的領用登記紀錄
+  window._firebaseDeedRef    = (id) => doc(db_fs, 'deed_receipts', id);
+  window._firebaseDeedColl   = () => collection(db_fs, 'deed_receipts');
+  window._firebaseDeedNewRef = () => doc(collection(db_fs, 'deed_receipts'));
   // 首頁公布欄：公告
   window._firebaseAnnounceRef    = (id) => doc(db_fs, 'announcements', id);
   window._firebaseAnnounceColl   = () => collection(db_fs, 'announcements');
@@ -771,6 +775,9 @@ function gm_authFailure() {
     </button>
     <button class="drawer-nav" id="dnav-staffdirectory" onclick="switchPage('staffdirectory');toggleDrawer()" style="display:none">
       <span>🗒️</span> 員工總表
+    </button>
+    <button class="drawer-nav" id="dnav-deedreceipt" onclick="switchPage('deedreceipt');toggleDrawer()" style="display:none">
+      <span>🗂️</span> 契據領用
     </button>
     <button class="drawer-nav" id="dnav-admin" onclick="switchPage('admin');toggleDrawer()" style="display:none">
       <span id="dnav-admin-icon">🛡</span> <span id="dnav-admin-label">主管後台</span>
@@ -2420,6 +2427,99 @@ function gm_authFailure() {
 </div>
 </div>
 
+<!-- PAGE: 契據領用（工具選單，店秘書／系統管理員專屬）-->
+<div class="page" id="page-deedreceipt">
+  <div class="ph" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:space-between">
+    <div style="font-size:12px;color:var(--tx3);line-height:1.6">💡 各類委託書／收據等契據的領用登記紀錄，依契據類型分頁檢視。</div>
+    <button class="btn btn-p" id="deed-add-btn" style="display:none" onclick="openDeedModal(null)">＋ 新增契據</button>
+  </div>
+  <div class="subtabs" id="deed-tabs" style="margin:0 16px 12px">
+    <button class="stab active" data-deed-type="exclusive" onclick="switchDeedTab('exclusive')">專任委託書</button>
+    <button class="stab" data-deed-type="general" onclick="switchDeedTab('general')">一般委託書</button>
+    <button class="stab" data-deed-type="land" onclick="switchDeedTab('land')">土地委託書</button>
+    <button class="stab" data-deed-type="amend" onclick="switchDeedTab('amend')">契變</button>
+    <button class="stab" data-deed-type="intent" onclick="switchDeedTab('intent')">委託承購意願書</button>
+    <button class="stab" data-deed-type="deposit" onclick="switchDeedTab('deposit')">訂金收據</button>
+    <button class="stab" data-deed-type="rentlisting" onclick="switchDeedTab('rentlisting')">委託出租</button>
+    <button class="stab" data-deed-type="rentlease" onclick="switchDeedTab('rentlease')">住宅租賃</button>
+  </div>
+  <div id="deed-updated" style="font-size:11px;color:var(--tx3);padding:0 16px 8px"></div>
+  <div class="admin-table-wrap" style="margin:0 16px 24px">
+    <table id="deed-table">
+      <thead>
+        <tr>
+          <th>流水編號</th>
+          <th>領用日期</th>
+          <th>領用人</th>
+          <th>物件名稱</th>
+          <th>物件狀態</th>
+          <th id="deed-th-actions">操作</th>
+        </tr>
+      </thead>
+      <tbody id="deed-tbody"><tr><td class="empty-td" colspan="6">⏳ 載入中…</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal: 新增／編輯契據領用紀錄 -->
+<div class="ov" id="ov-deedreceipt">
+<div class="modal modal-sm">
+  <div class="mh"><div class="mt" id="deed-modal-title">＋ 新增契據</div><button class="mc" onclick="closeOv('deedreceipt')">✕</button></div>
+  <div class="mb">
+    <div class="fgp">
+      <label class="lbl">契據類型<span class="req">*</span></label>
+      <select class="fc" id="dd-type">
+        <option value="exclusive">專任委託書</option>
+        <option value="general">一般委託書</option>
+        <option value="land">土地委託書</option>
+        <option value="amend">契變</option>
+        <option value="intent">委託承購意願書</option>
+        <option value="deposit">訂金收據</option>
+        <option value="rentlisting">委託出租</option>
+        <option value="rentlease">住宅租賃</option>
+      </select>
+    </div>
+    <div class="fgp">
+      <label class="lbl">流水編號<span class="req">*</span></label>
+      <input class="fc" id="dd-serial" placeholder="例如：A0001">
+    </div>
+    <div class="fgp">
+      <label class="lbl">領用日期</label>
+      <input class="fc" type="date" id="dd-date">
+    </div>
+    <div class="fgp">
+      <label class="lbl">領用人</label>
+      <select class="fc" id="dd-recipient"><option value="">請選擇</option></select>
+    </div>
+    <div class="fgp">
+      <label class="lbl">物件狀態</label>
+      <select class="fc" id="dd-status" onchange="onDeedStatusChange()">
+        <option value="returned">繳回</option>
+        <option value="voided">作廢</option>
+        <option value="closed">成交</option>
+        <option value="other">其他</option>
+      </select>
+    </div>
+    <div class="fgp" id="dd-status-other-wrap" style="display:none">
+      <label class="lbl">其他狀態說明</label>
+      <input class="fc" id="dd-status-other" placeholder="請輸入狀態">
+    </div>
+    <div class="fgp">
+      <label class="lbl">物件名稱</label>
+      <input class="fc" id="dd-propname" list="dd-propname-list" placeholder="可從公司庫存選擇，或直接手動輸入">
+      <datalist id="dd-propname-list"></datalist>
+    </div>
+  </div>
+  <div class="mf" style="justify-content:space-between">
+    <button class="btn btn-del" id="dd-delete-btn" style="display:none" onclick="deleteDeedReceipt()">🗑 刪除</button>
+    <div style="display:flex;gap:8px;margin-left:auto">
+      <button class="btn btn-g" onclick="closeOv('deedreceipt')">取消</button>
+      <button class="btn btn-p" onclick="saveDeedReceipt()">儲存</button>
+    </div>
+  </div>
+</div>
+</div>
+
 <!-- 排休狀態選單（點擊格子時彈出的小浮層，可點外側直接關閉，因為不涉及文字輸入不會有資料遺失風險）-->
 <div id="dr-cell-picker" style="display:none;position:fixed;z-index:1200;background:var(--surf);border:1px solid var(--bdr2);border-radius:var(--r);box-shadow:var(--shlg);padding:6px;flex-direction:column;gap:2px;min-width:104px"></div>
 
@@ -3289,6 +3389,10 @@ function canPostAnnouncement(){
 function canViewStaffDirectory(){
   return window._myRole === ROLES.SECRETARY || window._myRole === ROLES.SYSADMIN;
 }
+// 可檢視／編輯「契據領用」（工具選單）：店秘書專屬新頁面，系統管理員亦可檢視作為後盾（與員工總表權限一致）
+function canViewDeedReceipts(){
+  return window._myRole === ROLES.SECRETARY || window._myRole === ROLES.SYSADMIN;
+}
 // 特定一則公告是否可被目前登入者編輯／刪除：僅發布者本人，系統管理員例外（可編輯／刪除任何人的公告）
 function canEditThisAnnouncement(a){
   if(!a) return false;
@@ -3733,7 +3837,7 @@ function toggleFilter(pool){
   btn.textContent=open?'⚙ 收起篩選':'⚙ 進階篩選';
 }
 
-const PAGE_TITLES={'recruit':'募集線','track':'追蹤線','commission':'委託管理','stats':'首頁','trip':'行程規劃','closed':'已結案','admin':'管理後台','buyer':'買方管理','inventory':'公司庫存','taxcalc':'稅務與貸款試算','profile':'個人頁面','warreport':'每日戰報','dutyroster':'每月出勤排休表','rosterduty':'輪值表','staffdirectory':'員工總表'};
+const PAGE_TITLES={'recruit':'募集線','track':'追蹤線','commission':'委託管理','stats':'首頁','trip':'行程規劃','closed':'已結案','admin':'管理後台','buyer':'買方管理','inventory':'公司庫存','taxcalc':'稅務與貸款試算','profile':'個人頁面','warreport':'每日戰報','dutyroster':'每月出勤排休表','rosterduty':'輪值表','staffdirectory':'員工總表','deedreceipt':'契據領用'};
 function switchPage(p){
   currentPage=p;
   document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));
@@ -3755,6 +3859,7 @@ function switchPage(p){
   else if(p==='dutyroster'){initDutyRosterPage();}
   else if(p==='rosterduty'){initRosterDutyPage();}
   else if(p==='staffdirectory'){initStaffDirectoryPage();}
+  else if(p==='deedreceipt'){initDeedReceiptPage();}
   if(p==='commission') _updateEndedBadge();
   else renderAll();
 }
@@ -7762,6 +7867,12 @@ window.onFirebaseLogin = async function(user){
   if(sdNav) sdNav.style.display = canViewStaffDirectory() ? '' : 'none';
   const sdMbn = document.getElementById('mbn-staffdirectory');
   if(sdMbn) sdMbn.style.display = canViewStaffDirectory() ? '' : 'none';
+
+  // 「契據領用」導覽按鈕：僅店秘書／系統管理員可見（電腦版側邊欄 + 手機版底部工具選單皆需切換）
+  const ddNav = document.getElementById('dnav-deedreceipt');
+  if(ddNav) ddNav.style.display = canViewDeedReceipts() ? '' : 'none';
+  const ddMbn = document.getElementById('mbn-deedreceipt');
+  if(ddMbn) ddMbn.style.display = canViewDeedReceipts() ? '' : 'none';
 
   // 員工總表首次啟用時的一次性資料帶入：店秘書／系統管理員登入時就嘗試（不必等他們主動打開頁面），
   // 這樣所有人首頁的「本月同仁生日提醒」才能盡快抓到資料
@@ -12466,6 +12577,197 @@ async function deleteStaffDirEntry(){
   }
 }
 
+// ══════════════════════════════════════════════════════════════════
+// 契據領用（工具選單，店秘書／系統管理員專屬新頁面）
+// 資料來源：deed_receipts（獨立集合），記錄公司各類委託書／收據等契據的領用登記。
+// 領用人下拉選單沿用「員工總表」（staff_directory）名冊；物件名稱可從公司庫存（db.inventory）帶入，或手動輸入。
+// ══════════════════════════════════════════════════════════════════
+const DEED_TYPES = {
+  exclusive:   '專任委託書',
+  general:     '一般委託書',
+  land:        '土地委託書',
+  amend:       '契變',
+  intent:      '委託承購意願書',
+  deposit:     '訂金收據',
+  rentlisting: '委託出租',
+  rentlease:   '住宅租賃'
+};
+const DEED_STATUS_LABELS = { returned:'繳回', voided:'作廢', closed:'成交', other:'其他' };
+let _deedList = [];
+let _deedLoadError = null;
+let currentDeedType = 'exclusive';
+let _deedEditingId = null; // null＝新增；有值＝編輯該筆 id
+
+async function initDeedReceiptPage(){
+  const addBtn = document.getElementById('deed-add-btn');
+  if(addBtn) addBtn.style.display = canViewDeedReceipts() ? '' : 'none';
+  const thActions = document.getElementById('deed-th-actions');
+  if(thActions) thActions.style.display = canViewDeedReceipts() ? '' : 'none';
+  // 領用人下拉選單沿用「員工總表」名冊，若尚未載入過則先載入一次
+  if(canViewDeedReceipts() && !_sdRoster.length) await _sdLoadData();
+  await _deedLoadData();
+  renderDeedReceipts();
+}
+
+async function _deedLoadData(){
+  const updEl = document.getElementById('deed-updated');
+  if(updEl) updEl.textContent = '載入中…';
+  _deedLoadError = null;
+  try{
+    const snap = await window._firebaseGetDocs(window._firebaseDeedColl());
+    const list = [];
+    snap.forEach(d=>{ const x = d.data()||{}; x.id = d.id; list.push(x); });
+    _deedList = list;
+    if(updEl) updEl.textContent = '更新：' + new Date().toLocaleTimeString('zh-TW');
+  }catch(e){
+    _deedLoadError = e.message || '權限不足';
+    if(updEl) updEl.textContent = '⚠️ 載入失敗';
+    console.error('契據領用：讀取資料失敗', e);
+  }
+}
+
+function switchDeedTab(type){
+  currentDeedType = type;
+  document.querySelectorAll('#deed-tabs .stab').forEach(btn=>{
+    btn.classList.toggle('active', btn.dataset.deedType===type);
+  });
+  renderDeedReceipts();
+}
+
+function renderDeedReceipts(){
+  const tbody = document.getElementById('deed-tbody');
+  if(!tbody) return;
+  const canEdit = canViewDeedReceipts();
+
+  if(_deedLoadError){
+    tbody.innerHTML = `<tr><td class="empty-td" colspan="6">⚠️ 載入失敗：${escH(_deedLoadError)}<br><span style="font-size:11px">請確認 Firestore 安全規則已開放讀取 deed_receipts 集合</span></td></tr>`;
+    return;
+  }
+  const list = _deedList.filter(x=>x.type===currentDeedType)
+    .sort((a,b)=>String(b.receiveDate||'').localeCompare(String(a.receiveDate||'')));
+  if(!list.length){
+    tbody.innerHTML = `<tr><td class="empty-td" colspan="6">📭 尚無「${escH(DEED_TYPES[currentDeedType]||'')}」的領用紀錄${canEdit?'，點右上方「＋ 新增契據」開始建立':''}</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = list.map(x=>{
+    const statusLabel = x.status==='other' ? (x.statusOther||'其他') : (DEED_STATUS_LABELS[x.status]||'—');
+    const editCell = canEdit ? `<td style="white-space:nowrap"><button class="btn btn-sm btn-edit" onclick="openDeedModal('${x.id}')">✏️ 編輯</button></td>` : '';
+    return `<tr>
+      <td style="font-weight:700">${escH(x.serialNo||'—')}</td>
+      <td style="white-space:nowrap">${escH(x.receiveDate||'—')}</td>
+      <td style="white-space:nowrap">${escH(x.recipientName||'—')}</td>
+      <td>${escH(x.propName||'—')}</td>
+      <td>${escH(statusLabel)}</td>
+      ${editCell}
+    </tr>`;
+  }).join('');
+}
+
+// 物件名稱輸入建議清單：來自公司庫存（db.inventory）現有物件的案名／建案／地址，去除重複，
+// 使用 <input list="..."> + <datalist> 讓使用者可直接從清單挑選，也可以不理會建議直接手動輸入任意文字
+function _deedPropNameOptions(){
+  const set = new Set();
+  (db.inventory||[]).forEach(r=>{
+    const label = r.caseName || r.bldg || fullAddr(r.propCity, r.propDist, r.propAddr);
+    if(label && label!=='—') set.add(label);
+  });
+  return Array.from(set);
+}
+
+function onDeedStatusChange(){
+  const sel = document.getElementById('dd-status');
+  const wrap = document.getElementById('dd-status-other-wrap');
+  if(wrap) wrap.style.display = (sel && sel.value==='other') ? '' : 'none';
+}
+
+// id 為 null 時＝新增契據；有值時＝編輯現有該筆（開啟時預設帶入目前所在的分頁類型）
+function openDeedModal(id){
+  if(!canViewDeedReceipts()) return;
+  _deedEditingId = id;
+  const titleEl = document.getElementById('deed-modal-title');
+  const delBtn = document.getElementById('dd-delete-btn');
+  const x = id ? _deedList.find(r=>r.id===id) : null;
+  if(id && !x) return;
+  if(titleEl) titleEl.textContent = x ? `✏️ 編輯契據：${x.serialNo||''}` : '＋ 新增契據';
+  if(delBtn) delBtn.style.display = x ? '' : 'none';
+
+  document.getElementById('dd-type').value = x?.type || currentDeedType;
+  document.getElementById('dd-serial').value = x?.serialNo || '';
+  document.getElementById('dd-date').value = x?.receiveDate || nowDate();
+
+  // 領用人下拉：沿用員工總表名冊
+  const recSel = document.getElementById('dd-recipient');
+  if(recSel){
+    const roster = [..._sdRoster].sort((a,b)=>(a.name||'').localeCompare(b.name||'','zh-TW'));
+    recSel.innerHTML = '<option value="">請選擇</option>' +
+      roster.map(p=>`<option value="${escH(p.id)}"${x&&x.recipientId===p.id?' selected':''}>${escH(p.name||'（未命名）')}</option>`).join('');
+    // 若這筆是舊紀錄，領用人已不在目前員工總表名冊中（例如已離職），仍保留原顯示名稱以免遺失資料
+    if(x && x.recipientId && !roster.some(p=>p.id===x.recipientId)){
+      recSel.innerHTML += `<option value="${escH(x.recipientId)}" selected>${escH(x.recipientName||'（已不在員工名冊）')}</option>`;
+    }
+  }
+
+  document.getElementById('dd-status').value = x?.status || 'returned';
+  document.getElementById('dd-status-other').value = x?.statusOther || '';
+  onDeedStatusChange();
+
+  const propList = document.getElementById('dd-propname-list');
+  if(propList) propList.innerHTML = _deedPropNameOptions().map(n=>`<option value="${escH(n)}"></option>`).join('');
+  document.getElementById('dd-propname').value = x?.propName || '';
+
+  openOv('deedreceipt');
+}
+
+async function saveDeedReceipt(){
+  const type = document.getElementById('dd-type').value;
+  const serialNo = (document.getElementById('dd-serial').value||'').trim();
+  const receiveDate = document.getElementById('dd-date').value||'';
+  const recSel = document.getElementById('dd-recipient');
+  const recipientId = recSel ? recSel.value : '';
+  const recipientName = (recSel && recipientId) ? (recSel.options[recSel.selectedIndex].textContent||'') : '';
+  const status = document.getElementById('dd-status').value;
+  const statusOther = (document.getElementById('dd-status-other').value||'').trim();
+  const propName = (document.getElementById('dd-propname').value||'').trim();
+
+  // 新增契據時，僅「流水編號」為必填；領用日期／領用人皆為選填，可日後再補上
+  if(!serialNo){ alert('請填寫流水編號'); return; }
+  if(status==='other' && !statusOther){ alert('請填寫其他狀態說明'); return; }
+
+  const nowIso = new Date().toISOString();
+  const myEmail = (window._currentUser && window._currentUser.email) || '';
+  const payload = {
+    type, serialNo, receiveDate, recipientId, recipientName,
+    status, statusOther: status==='other' ? statusOther : '',
+    propName,
+    updatedAt: nowIso, updatedBy: myEmail
+  };
+  const isEdit = !!_deedEditingId;
+  if(!isEdit){ payload.createdAt = nowIso; payload.createdBy = myEmail; }
+  try{
+    const ref = isEdit ? window._firebaseDeedRef(_deedEditingId) : window._firebaseDeedNewRef();
+    await window._firebaseSetDoc(ref, payload, {merge:isEdit});
+    closeOv('deedreceipt');
+    await _deedLoadData();
+    switchDeedTab(type); // 儲存後自動切換到該筆所屬分頁，確保能立刻看到剛新增／編輯的紀錄
+  }catch(e){
+    alert('⚠️ 儲存失敗：' + e.message);
+  }
+}
+
+async function deleteDeedReceipt(){
+  if(!_deedEditingId) return;
+  const x = _deedList.find(r=>r.id===_deedEditingId);
+  if(!confirm(`確定要刪除「${x?.serialNo||''}」這筆契據領用紀錄嗎？此動作無法復原。`)) return;
+  try{
+    await window._firebaseDeleteDoc(window._firebaseDeedRef(_deedEditingId));
+    closeOv('deedreceipt');
+    await _deedLoadData();
+    renderDeedReceipts();
+  }catch(e){
+    alert('⚠️ 刪除失敗：' + e.message);
+  }
+}
+
 // ── 本月同仁生日提醒：所有身份組登入後皆會檢查（資料來源為公司共用的員工總表，非個人私有資料）──
 window._staffBirthdaysThisMonth = [];
 async function checkStaffBirthdays(){
@@ -13980,6 +14282,7 @@ if (typeof window.switchPage === 'function') {
   <button class="mbn-popup-item" onclick="mbnGo('warreport')"><span class="mbn-popup-item-icon">📊</span>每日戰報</button>
   <button class="mbn-popup-item" onclick="mbnGo('dutyroster')"><span class="mbn-popup-item-icon">🗓️</span>每月出勤排休表</button>
   <button class="mbn-popup-item" id="mbn-staffdirectory" onclick="mbnGo('staffdirectory')" style="display:none"><span class="mbn-popup-item-icon">🗒️</span>員工總表</button>
+  <button class="mbn-popup-item" id="mbn-deedreceipt" onclick="mbnGo('deedreceipt')" style="display:none"><span class="mbn-popup-item-icon">🗂️</span>契據領用</button>
   <button class="mbn-popup-item" id="mbn-tools-admin" onclick="mbnGo('admin')" style="display:none"><span class="mbn-popup-item-icon" id="mbn-tools-admin-icon">🛡</span><span id="mbn-tools-admin-label">主管後台</span></button>
   <div class="mbn-popup-divider"></div>
   <button class="mbn-popup-item" onclick="mbnCloseAll();toggleTheme();updateDrawerThemeBtn()"><span class="mbn-popup-item-icon">🌙</span>切換主題</button>
