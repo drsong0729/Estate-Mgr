@@ -2494,6 +2494,7 @@ function gm_authFailure() {
     <div class="fgp">
       <label class="lbl">物件狀態</label>
       <select class="fc" id="dd-status" onchange="onDeedStatusChange()">
+        <option value="">請選擇</option>
         <option value="returned">繳回</option>
         <option value="voided">作廢</option>
         <option value="closed">成交</option>
@@ -12693,7 +12694,7 @@ function openDeedModal(id){
 
   document.getElementById('dd-type').value = x?.type || currentDeedType;
   document.getElementById('dd-serial').value = x?.serialNo || '';
-  document.getElementById('dd-date').value = x?.receiveDate || nowDate();
+  document.getElementById('dd-date').value = x?.receiveDate || '';
 
   // 領用人下拉：沿用員工總表名冊
   const recSel = document.getElementById('dd-recipient');
@@ -12707,7 +12708,7 @@ function openDeedModal(id){
     }
   }
 
-  document.getElementById('dd-status').value = x?.status || 'returned';
+  document.getElementById('dd-status').value = x?.status || '';
   document.getElementById('dd-status-other').value = x?.statusOther || '';
   onDeedStatusChange();
 
