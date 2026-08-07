@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
 <title>房仲客戶管理系統</title>
-<style>:root{--acc:#0f519b;--acc2:#0d4589;--accl:#e8f1fb;--yel:#fece26;--yel2:#f5c400;--yell:#fffae8;--bg:#f0f4f8;--bg2:#e4eaf2;--surf:#ffffff;--surf2:#f6f9fd;--bdr:#ccd6e8;--bdr2:#b0c0d8;--tx:#1a2332;--tx2:#3d526b;--tx3:#7a90aa;--grn:#1a7a4a;--grnl:#e4f4ec;--blu:#1a5fc8;--blul:#e8f0fc;--org:#c05621;--orgl:#fef0e6;--red:#c0182a;--redl:#fceef0;--gld:#b07800;--gldl:#fff8e0;--sh:0 2px 8px rgba(15,81,155,.1);--shlg:0 8px 32px rgba(15,81,155,.16);--r:10px;--rlg:16px}[data-theme=dark]{--acc:#4a90d9;--acc2:#5da0e8;--accl:#0d2340;--yel:#fece26;--yel2:#f5c400;--yell:#2a2200;--bg:#0d1520;--bg2:#111d2e;--surf:#162032;--surf2:#1c2a40;--bdr:#243550;--bdr2:#304060;--tx:#e8f0fa;--tx2:#a0b8d0;--tx3:#607890;--grn:#3aaa6a;--grnl:#0e2a1a;--blu:#5a9ade;--blul:#0e1e38;--org:#e08050;--orgl:#2a1608;--red:#e04060;--redl:#280a14;--gld:#d4a030;--gldl:#281c04;--sh:0 2px 8px rgba(0,0,0,.5);--shlg:0 8px 32px rgba(0,0,0,.6)}*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Noto Sans TC',system-ui,sans-serif;background:var(--bg);color:var(--tx);margin:0;transition:background .2s,color .2s}.drawer-nav{width:100%;padding:11px 12px;border:none;background:transparent;color:rgba(255,255,255,.8);font-size:13px;font-weight:500;border-radius:10px;cursor:pointer;transition:.15s;font-family:inherit;display:flex;align-items:center;gap:10px;text-align:left;margin-bottom:2px}.drawer-nav:hover{background:rgba(255,255,255,.12);color:#fff}.drawer-nav.active{background:rgba(255,255,255,.18);color:#fff;font-weight:700}.drawer-nav span:first-child{font-size:18px;flex-shrink:0;width:24px;text-align:center}.dnbadge{margin-left:auto;background:var(--yel);color:#1a2332;font-size:10px;padding:1px 7px;border-radius:20px;font-weight:700}#sidebar,nav:not(#mobile-bottom-nav),.nav-btn,.nbadge,.sidebar-footer,.sidebar-logo,.sidebar-action,header{display:none!important}.hright,.more-menu-wrap,.more-btn,.more-dropdown,.view-toggle,#app-content{width:100%;height:100vh;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding-top:52px;padding-bottom:32px;box-sizing:border-box}.topbar{background:var(--surf);border-bottom:1px solid var(--bdr);padding:0 24px;height:52px;display:flex;align-items:center;justify-content:space-between;gap:12px;position:fixed;top:0;left:0;right:0;z-index:500;box-shadow:0 1px 6px rgba(15,81,155,.1)}.topbar-title{font-size:17px;font-weight:700;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.topbar-right{display:flex;align-items:center;gap:8px}.storage-badge{font-size:11px;color:var(--tx3);background:var(--bg2);padding:3px 9px;border-radius:20px}.notif-bar{background:var(--redl);border-bottom:2px solid var(--red);padding:7px 24px;display:none;align-items:center;gap:8px;font-size:12px;color:var(--red);flex-wrap:wrap}.notif-bar.show{display:flex}.ntag{background:var(--red);color:#fff;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}#notif-center-overlay{position:fixed;inset:0;z-index:1100;visibility:hidden;pointer-events:none}#notif-center-overlay.open{visibility:visible;pointer-events:auto}#notif-center-overlay.closing{visibility:visible;pointer-events:none}#notif-center-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.35);opacity:0;transition:opacity .25s}#notif-center-overlay.open #notif-center-backdrop{opacity:1}#notif-center-overlay.closing #notif-center-backdrop{opacity:0}#notif-center-panel{position:absolute;top:0;right:0;width:min(380px,100vw);height:100vh;background:var(--surf);display:flex;flex-direction:column;box-shadow:-4px 0 24px rgba(0,0,0,.18);transform:translateX(100%);transition:transform .28s cubic-bezier(.4,0,.2,1)}#notif-center-overlay.open #notif-center-panel{transform:translateX(0)}#notif-center-overlay.closing #notif-center-panel{transform:translateX(100%)}.nc-header{padding:16px 18px 12px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}.nc-title{font-size:15px;font-weight:700;color:var(--tx)}.nc-body{flex:1;overflow-y:auto;padding:10px 0}.nc-section{padding:0 14px 6px}.nc-section-title{font-size:11px;font-weight:700;color:var(--tx3);letter-spacing:.06em;text-transform:uppercase;padding:8px 0 6px;border-bottom:1px solid var(--bdr);margin-bottom:6px}.nc-item{padding:9px 12px;border-radius:8px;margin-bottom:5px;cursor:pointer;border:1px solid transparent;transition:.15s;display:flex;align-items:flex-start;gap:10px}.nc-item:hover{background:var(--surf2);border-color:var(--bdr)}.nc-item-icon{font-size:18px;flex-shrink:0;margin-top:1px}.nc-item-body{flex:1;min-width:0}.nc-item-title{font-size:13px;font-weight:600;color:var(--tx);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.nc-item-sub{font-size:11px;color:var(--tx3);line-height:1.5}.nc-item-badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;flex-shrink:0;align-self:center}.nc-empty{text-align:center;padding:36px 20px;color:var(--tx3);font-size:13px}
+<style>:root{--acc:#0f519b;--acc2:#0d4589;--accl:#e8f1fb;--yel:#fece26;--yel2:#f5c400;--yell:#fffae8;--bg:#f0f4f8;--bg2:#e4eaf2;--surf:#ffffff;--surf2:#f6f9fd;--bdr:#ccd6e8;--bdr2:#b0c0d8;--tx:#1a2332;--tx2:#3d526b;--tx3:#7a90aa;--grn:#1a7a4a;--grnl:#e4f4ec;--blu:#1a5fc8;--blul:#e8f0fc;--org:#c05621;--orgl:#fef0e6;--red:#c0182a;--redl:#fceef0;--gld:#b07800;--gldl:#fff8e0;--sh:0 2px 8px rgba(15,81,155,.1);--shlg:0 8px 32px rgba(15,81,155,.16);--r:10px;--rlg:16px}[data-theme=dark]{--acc:#4a90d9;--acc2:#5da0e8;--accl:#0d2340;--yel:#fece26;--yel2:#f5c400;--yell:#2a2200;--bg:#0d1520;--bg2:#111d2e;--surf:#162032;--surf2:#1c2a40;--bdr:#243550;--bdr2:#304060;--tx:#e8f0fa;--tx2:#a0b8d0;--tx3:#607890;--grn:#3aaa6a;--grnl:#0e2a1a;--blu:#5a9ade;--blul:#0e1e38;--org:#e08050;--orgl:#2a1608;--red:#e04060;--redl:#280a14;--gld:#d4a030;--gldl:#281c04;--sh:0 2px 8px rgba(0,0,0,.5);--shlg:0 8px 32px rgba(0,0,0,.6)}*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Noto Sans TC',system-ui,sans-serif;background:var(--bg);color:var(--tx);margin:0;transition:background .2s,color .2s}.drawer-nav{width:100%;padding:11px 12px;border:none;background:transparent;color:rgba(255,255,255,.8);font-size:13px;font-weight:500;border-radius:10px;cursor:pointer;transition:.15s;font-family:inherit;display:flex;align-items:center;gap:10px;text-align:left;margin-bottom:2px}.drawer-nav:hover{background:rgba(255,255,255,.12);color:#fff}.drawer-nav.active{background:rgba(255,255,255,.18);color:#fff;font-weight:700}.drawer-sec-hd{display:flex;align-items:center;justify-content:space-between;font-size:10px;font-weight:700;color:rgba(255,255,255,.5);letter-spacing:.1em;padding:9px 8px 4px;cursor:pointer;user-select:none;transition:.15s;border-radius:6px}.drawer-sec-hd:hover{color:rgba(255,255,255,.9);background:rgba(255,255,255,.06)}.drawer-sec-chevron{font-size:10px;transition:transform .2s;display:inline-block}.drawer-sec-hd.collapsed .drawer-sec-chevron{transform:rotate(-90deg)}.drawer-sec-body{overflow:hidden;max-height:500px;transition:max-height .25s ease,opacity .2s;opacity:1}.drawer-sec-body.collapsed{max-height:0;opacity:0}.drawer-nav span:first-child{font-size:18px;flex-shrink:0;width:24px;text-align:center}.dnbadge{margin-left:auto;background:var(--yel);color:#1a2332;font-size:10px;padding:1px 7px;border-radius:20px;font-weight:700}#sidebar,nav:not(#mobile-bottom-nav),.nav-btn,.nbadge,.sidebar-footer,.sidebar-logo,.sidebar-action,header{display:none!important}.hright,.more-menu-wrap,.more-btn,.more-dropdown,.view-toggle,#app-content{width:100%;height:100vh;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding-top:52px;padding-bottom:32px;box-sizing:border-box}.topbar{background:var(--surf);border-bottom:1px solid var(--bdr);padding:0 24px;height:52px;display:flex;align-items:center;justify-content:space-between;gap:12px;position:fixed;top:0;left:0;right:0;z-index:500;box-shadow:0 1px 6px rgba(15,81,155,.1)}.topbar-title{font-size:17px;font-weight:700;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.topbar-right{display:flex;align-items:center;gap:8px}.storage-badge{font-size:11px;color:var(--tx3);background:var(--bg2);padding:3px 9px;border-radius:20px}.notif-bar{background:var(--redl);border-bottom:2px solid var(--red);padding:7px 24px;display:none;align-items:center;gap:8px;font-size:12px;color:var(--red);flex-wrap:wrap}.notif-bar.show{display:flex}.ntag{background:var(--red);color:#fff;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}#notif-center-overlay{position:fixed;inset:0;z-index:1100;visibility:hidden;pointer-events:none}#notif-center-overlay.open{visibility:visible;pointer-events:auto}#notif-center-overlay.closing{visibility:visible;pointer-events:none}#notif-center-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.35);opacity:0;transition:opacity .25s}#notif-center-overlay.open #notif-center-backdrop{opacity:1}#notif-center-overlay.closing #notif-center-backdrop{opacity:0}#notif-center-panel{position:absolute;top:0;right:0;width:min(380px,100vw);height:100vh;background:var(--surf);display:flex;flex-direction:column;box-shadow:-4px 0 24px rgba(0,0,0,.18);transform:translateX(100%);transition:transform .28s cubic-bezier(.4,0,.2,1)}#notif-center-overlay.open #notif-center-panel{transform:translateX(0)}#notif-center-overlay.closing #notif-center-panel{transform:translateX(100%)}.nc-header{padding:16px 18px 12px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}.nc-title{font-size:15px;font-weight:700;color:var(--tx)}.nc-body{flex:1;overflow-y:auto;padding:10px 0}.nc-section{padding:0 14px 6px}.nc-section-title{font-size:11px;font-weight:700;color:var(--tx3);letter-spacing:.06em;text-transform:uppercase;padding:8px 0 6px;border-bottom:1px solid var(--bdr);margin-bottom:6px}.nc-item{padding:9px 12px;border-radius:8px;margin-bottom:5px;cursor:pointer;border:1px solid transparent;transition:.15s;display:flex;align-items:flex-start;gap:10px}.nc-item:hover{background:var(--surf2);border-color:var(--bdr)}.nc-item-icon{font-size:18px;flex-shrink:0;margin-top:1px}.nc-item-body{flex:1;min-width:0}.nc-item-title{font-size:13px;font-weight:600;color:var(--tx);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.nc-item-sub{font-size:11px;color:var(--tx3);line-height:1.5}.nc-item-badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;flex-shrink:0;align-self:center}.nc-empty{text-align:center;padding:36px 20px;color:var(--tx3);font-size:13px}
 .nc-item-del{width:24px;height:24px;border:none;background:transparent;color:var(--tx3);cursor:pointer;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;transition:.15s;align-self:center}
 .sort-bar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 0 10px;border-bottom:1px solid var(--bdr);margin-bottom:12px}
 .sort-bar-label{font-size:11px;font-weight:700;color:var(--tx3);white-space:nowrap}
@@ -735,53 +735,63 @@ function gm_authFailure() {
       <span>🏠</span> 首頁
     </button>
   </div>
-  <!-- 屋主 -->
-  <div style="padding:4px 10px 0;flex-shrink:0">
-    <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);letter-spacing:.1em;padding:6px 8px 3px">屋主</div>
-    <button class="drawer-nav" id="dnav-recruit" onclick="switchPage('recruit');toggleDrawer()">
-      <span>📋</span> 募集線 <span class="dnbadge" id="db-recruit">0</span>
-    </button>
-    <button class="drawer-nav" id="dnav-track" onclick="switchPage('track');toggleDrawer()">
-      <span>🔍</span> 追蹤線 <span class="dnbadge" id="db-track">0</span>
-    </button>
-    <button class="drawer-nav" id="dnav-commission" onclick="switchPage('commission');toggleDrawer()">
-      <span>📝</span> 委託 <span class="dnbadge" id="db-commission">0</span>
-    </button>
-    <button class="drawer-nav" id="dnav-closed" onclick="switchPage('closed');toggleDrawer()">
-      <span>🏁</span> 已結案 <span class="dnbadge" id="db-closed">0</span>
-    </button>
-    <button class="drawer-nav" id="dnav-inventory" onclick="switchPage('inventory');toggleDrawer()">
-      <span>🏢</span> 公司庫存 <span class="dnbadge" id="db-inventory">0</span>
-    </button>
-  </div>
-  <!-- 買方 -->
-  <div style="padding:4px 10px 0;flex-shrink:0">
-    <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);letter-spacing:.1em;padding:6px 8px 3px">買方</div>
-    <button class="drawer-nav" id="dnav-buyer" onclick="switchPage('buyer');toggleDrawer()">
-      <span>👤</span> 買方管理 <span class="dnbadge" id="db-buyer">0</span>
-    </button>
-  </div>
-  <!-- 工具 -->
-  <div style="padding:4px 10px;flex:1;overflow-y:auto">
-    <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);letter-spacing:.1em;padding:6px 8px 3px">工具</div>
-    <button class="drawer-nav" id="dnav-trip" onclick="switchPage('trip');toggleDrawer()">
-      <span>📍</span> 行程規劃
-    </button>
-    <button class="drawer-nav" id="dnav-taxcalc" onclick="switchPage('taxcalc');toggleDrawer()">
-      <span>🧮</span> 稅務與貸款試算
-    </button>
-    <button class="drawer-nav" id="dnav-warreport" onclick="switchPage('warreport');toggleDrawer()">
-      <span>📊</span> 每日戰報
-    </button>
-    <button class="drawer-nav" id="dnav-staffdirectory" onclick="switchPage('staffdirectory');toggleDrawer()" style="display:none">
-      <span>🗒️</span> 員工總表
-    </button>
-    <button class="drawer-nav" id="dnav-deedreceipt" onclick="switchPage('deedreceipt');toggleDrawer()" style="display:none">
-      <span>🗂️</span> 契據領用
-    </button>
-    <button class="drawer-nav" id="dnav-admin" onclick="switchPage('admin');toggleDrawer()" style="display:none">
-      <span id="dnav-admin-icon">🛡</span> <span id="dnav-admin-label">主管後台</span>
-    </button>
+  <!-- 屋主／買方／工具：可收合區塊 + 主題切換／登出（常駐不受收合影響），共用同一個可捲動容器 -->
+  <div style="padding:4px 10px;flex:1;overflow-y:auto;display:flex;flex-direction:column">
+    <!-- 屋主 -->
+    <div class="drawer-sec-hd" onclick="toggleDrawerSection('owner')">
+      <span>屋主</span><span class="drawer-sec-chevron">▾</span>
+    </div>
+    <div class="drawer-sec-body" id="drawer-sec-owner">
+      <button class="drawer-nav" id="dnav-recruit" onclick="switchPage('recruit');toggleDrawer()">
+        <span>📋</span> 募集線 <span class="dnbadge" id="db-recruit">0</span>
+      </button>
+      <button class="drawer-nav" id="dnav-track" onclick="switchPage('track');toggleDrawer()">
+        <span>🔍</span> 追蹤線 <span class="dnbadge" id="db-track">0</span>
+      </button>
+      <button class="drawer-nav" id="dnav-commission" onclick="switchPage('commission');toggleDrawer()">
+        <span>📝</span> 委託 <span class="dnbadge" id="db-commission">0</span>
+      </button>
+      <button class="drawer-nav" id="dnav-closed" onclick="switchPage('closed');toggleDrawer()">
+        <span>🏁</span> 已結案 <span class="dnbadge" id="db-closed">0</span>
+      </button>
+      <button class="drawer-nav" id="dnav-inventory" onclick="switchPage('inventory');toggleDrawer()">
+        <span>🏢</span> 公司庫存 <span class="dnbadge" id="db-inventory">0</span>
+      </button>
+    </div>
+    <!-- 買方 -->
+    <div class="drawer-sec-hd" onclick="toggleDrawerSection('buyer')">
+      <span>買方</span><span class="drawer-sec-chevron">▾</span>
+    </div>
+    <div class="drawer-sec-body" id="drawer-sec-buyer">
+      <button class="drawer-nav" id="dnav-buyer" onclick="switchPage('buyer');toggleDrawer()">
+        <span>👤</span> 買方管理 <span class="dnbadge" id="db-buyer">0</span>
+      </button>
+    </div>
+    <!-- 工具 -->
+    <div class="drawer-sec-hd" onclick="toggleDrawerSection('tools')">
+      <span>工具</span><span class="drawer-sec-chevron">▾</span>
+    </div>
+    <div class="drawer-sec-body" id="drawer-sec-tools">
+      <button class="drawer-nav" id="dnav-trip" onclick="switchPage('trip');toggleDrawer()">
+        <span>📍</span> 行程規劃
+      </button>
+      <button class="drawer-nav" id="dnav-taxcalc" onclick="switchPage('taxcalc');toggleDrawer()">
+        <span>🧮</span> 稅務與貸款試算
+      </button>
+      <button class="drawer-nav" id="dnav-warreport" onclick="switchPage('warreport');toggleDrawer()">
+        <span>📊</span> 每日戰報
+      </button>
+      <button class="drawer-nav" id="dnav-staffdirectory" onclick="switchPage('staffdirectory');toggleDrawer()" style="display:none">
+        <span>🗒️</span> 員工總表
+      </button>
+      <button class="drawer-nav" id="dnav-deedreceipt" onclick="switchPage('deedreceipt');toggleDrawer()" style="display:none">
+        <span>🗂️</span> 契據領用
+      </button>
+      <button class="drawer-nav" id="dnav-admin" onclick="switchPage('admin');toggleDrawer()" style="display:none">
+        <span id="dnav-admin-icon">🛡</span> <span id="dnav-admin-label">主管後台</span>
+      </button>
+    </div>
+    <!-- 主題切換／登出：常駐顯示，不隨上方區塊收合 -->
     <button class="drawer-nav" id="drawer-theme-btn" onclick="toggleTheme();updateDrawerThemeBtn()"><span>🌙</span> 切換主題</button>
     <div style="height:1px;background:rgba(255,255,255,.12);margin:8px 0"></div>
     <button class="drawer-nav" onclick="handleSignOut()" style="color:#ff9999!important;background:rgba(192,24,42,.2)!important"><span>🚪</span> 登出</button>
@@ -5878,6 +5888,34 @@ function toggleTheme(){
   const t=localStorage.getItem('theme');
   if(t==='dark'){document.documentElement.dataset.theme='dark';}
 })();
+
+// 電腦版漢堡選單「屋主／買方／工具」可收合區塊：預設收合以精簡選單複雜度、減少擁擠感，
+// 使用者展開／收合後會記住偏好（localStorage），下次開啟選單時沿用上次的狀態
+const DRAWER_SECTIONS = ['owner','buyer','tools'];
+function _drawerSecLsKey(key){ return 'drawerSecCollapsed_' + key; }
+function toggleDrawerSection(key){
+  const body = document.getElementById('drawer-sec-'+key);
+  if(!body) return;
+  const hd = body.previousElementSibling;
+  const collapsed = body.classList.toggle('collapsed');
+  if(hd) hd.classList.toggle('collapsed', collapsed);
+  try{ localStorage.setItem(_drawerSecLsKey(key), collapsed ? '1' : '0'); }catch(e){}
+}
+function initDrawerSections(){
+  DRAWER_SECTIONS.forEach(key=>{
+    const body = document.getElementById('drawer-sec-'+key);
+    if(!body) return;
+    const hd = body.previousElementSibling;
+    let collapsed;
+    try{
+      const saved = localStorage.getItem(_drawerSecLsKey(key));
+      collapsed = saved===null ? true : saved==='1'; // 尚未有偏好紀錄時，預設收合
+    }catch(e){ collapsed = true; }
+    body.classList.toggle('collapsed', collapsed);
+    if(hd) hd.classList.toggle('collapsed', collapsed);
+  });
+}
+(function(){ try{ initDrawerSections(); }catch(e){} })();
 
 // 註：先前這裡會在點擊視窗外側空白處（背景遮罩）時自動關閉視窗，
 // 但這會讓輸入到一半的人不小心誤觸背景導致資料消失，故移除此行為。
@@ -11624,6 +11662,13 @@ async function loadAnnounceData(){
   }
 }
 
+// 公告是否為「近三天內發布」：發布日（createdAt）距今在 3 天（含）以內即視為新公告，標題後方會加註「新 NEW」
+function _isAnnounceNew(createdAt){
+  if(!createdAt) return false;
+  const diffMs = new Date() - new Date(createdAt);
+  return diffMs >= 0 && diffMs <= 3 * 86400000;
+}
+
 function renderAnnounceList(){
   const listEl = document.getElementById('announce-list');
   const pagEl = document.getElementById('announce-pagination');
@@ -11656,11 +11701,13 @@ function renderAnnounceList(){
     const hasUpdate = updatedStr && a.updatedAt !== a.createdAt;
     const metaStr = `發布於 ${createdStr}` + (hasUpdate ? ` ・ 最後更新 ${updatedStr}` : '');
     const editBtn = canEditThisAnnouncement(a) ? `<button class="btn btn-sm btn-g" onclick="openAnnounceEditModal('${a.id}')">✏️ 編輯</button>` : '';
+    const newBadge = _isAnnounceNew(a.createdAt) ? '<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;background:var(--redl);color:var(--red);flex-shrink:0;white-space:nowrap">新 NEW</span>' : '';
     return `<div class="announce-item" style="padding:12px 18px;border-bottom:1px solid var(--bdr)">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0;flex:1">
           <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:${cat.bg};color:${cat.fg};flex-shrink:0;white-space:nowrap">${escH(a.category||'公告')}</span>
           <span style="font-size:14px;font-weight:700;color:var(--tx);word-break:break-word">${escH(a.title||'（無標題）')}</span>
+          ${newBadge}
         </div>
         <div style="display:flex;gap:6px;flex-shrink:0">
           ${editBtn}
