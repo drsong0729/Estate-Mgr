@@ -191,7 +191,7 @@
   window._firebaseStaffDirRef   = (id) => doc(db_fs, 'staff_directory', id);
   window._firebaseStaffDirColl  = () => collection(db_fs, 'staff_directory');
   window._firebaseStaffDirNewRef = () => doc(collection(db_fs, 'staff_directory'));
-  // 契據領用（店秘書專屬，工具選單）：公司各類委託書／收據等契據的領用登記紀錄
+  // 契據領用（店秘書／幕僚，工具選單）：公司各類委託書／收據等契據的領用登記紀錄
   window._firebaseDeedRef    = (id) => doc(db_fs, 'deed_receipts', id);
   window._firebaseDeedColl   = () => collection(db_fs, 'deed_receipts');
   window._firebaseDeedNewRef = () => doc(collection(db_fs, 'deed_receipts'));
@@ -2427,7 +2427,7 @@ function gm_authFailure() {
 </div>
 </div>
 
-<!-- PAGE: 契據領用（工具選單，店秘書／系統管理員專屬）-->
+<!-- PAGE: 契據領用（工具選單，店秘書／幕僚／系統管理員可用）-->
 <div class="page" id="page-deedreceipt">
   <div class="ph" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:space-between">
     <div style="font-size:12px;color:var(--tx3);line-height:1.6">💡 各類委託書／收據等契據的領用登記紀錄，依契據類型分頁檢視。</div>
@@ -3390,9 +3390,9 @@ function canPostAnnouncement(){
 function canViewStaffDirectory(){
   return window._myRole === ROLES.SECRETARY || window._myRole === ROLES.SYSADMIN;
 }
-// 可檢視／編輯「契據領用」（工具選單）：店秘書專屬新頁面，系統管理員亦可檢視作為後盾（與員工總表權限一致）
+// 可檢視／編輯「契據領用」（工具選單）：店秘書與幕僚皆可使用，系統管理員亦可檢視作為後盾
 function canViewDeedReceipts(){
-  return window._myRole === ROLES.SECRETARY || window._myRole === ROLES.SYSADMIN;
+  return window._myRole === ROLES.SECRETARY || window._myRole === ROLES.ADVISOR || window._myRole === ROLES.SYSADMIN;
 }
 // 特定一則公告是否可被目前登入者編輯／刪除：僅發布者本人，系統管理員例外（可編輯／刪除任何人的公告）
 function canEditThisAnnouncement(a){
@@ -7869,7 +7869,7 @@ window.onFirebaseLogin = async function(user){
   const sdMbn = document.getElementById('mbn-staffdirectory');
   if(sdMbn) sdMbn.style.display = canViewStaffDirectory() ? '' : 'none';
 
-  // 「契據領用」導覽按鈕：僅店秘書／系統管理員可見（電腦版側邊欄 + 手機版底部工具選單皆需切換）
+  // 「契據領用」導覽按鈕：店秘書／幕僚／系統管理員可見（電腦版側邊欄 + 手機版底部工具選單皆需切換）
   const ddNav = document.getElementById('dnav-deedreceipt');
   if(ddNav) ddNav.style.display = canViewDeedReceipts() ? '' : 'none';
   const ddMbn = document.getElementById('mbn-deedreceipt');
@@ -9840,8 +9840,8 @@ function renderSysadminTable(){
     sysadmin:   '所有功能 + 系統管理員後台',
     owner:      '所有功能 + 主管後台 + 修改員工名稱',
     supervisor: '所有功能 + 主管後台',
-    advisor:    '基本功能 + 每日戰報編輯',
-    secretary:  '基本功能 + 每日戰報編輯（同幕僚）+ 員工總表',
+    advisor:    '基本功能 + 每日戰報編輯 + 契據領用',
+    secretary:  '基本功能 + 每日戰報編輯（同幕僚）+ 員工總表 + 契據領用',
     staff:      '基本功能'
   };
 
@@ -12579,7 +12579,7 @@ async function deleteStaffDirEntry(){
 }
 
 // ══════════════════════════════════════════════════════════════════
-// 契據領用（工具選單，店秘書／系統管理員專屬新頁面）
+// 契據領用（工具選單，店秘書／幕僚可用，系統管理員亦可檢視作為後盾）
 // 資料來源：deed_receipts（獨立集合），記錄公司各類委託書／收據等契據的領用登記。
 // 領用人下拉選單沿用「員工總表」（staff_directory）名冊；物件名稱可從公司庫存（db.inventory）帶入，或手動輸入。
 // ══════════════════════════════════════════════════════════════════
