@@ -9309,15 +9309,36 @@ function renderInventory(){
         ${actionsHtml}
       </div>`;
     }).join('');
+    const isCollapsed = _invCollapsedAgents.has(agentUid);
     return `<div style="margin-bottom:18px">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:8px 0;border-bottom:2px solid var(--bdr)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:8px 0;border-bottom:2px solid var(--bdr);cursor:pointer;user-select:none" onclick="toggleInvGroup('${agentUid}')">
+        <span id="inv-grp-chevron-${agentUid}" style="font-size:11px;color:var(--tx3);transition:transform .2s;display:inline-block;transform:rotate(${isCollapsed?'-90':'0'}deg)">▼</span>
         <span style="font-size:15px;font-weight:700;color:var(--tx)">👤 ${escH(displayName)}</span>
         <span style="font-size:11px;color:var(--tx3)">${g.items.length} 筆委託</span>
         ${updAt?`<span style="font-size:11px;color:var(--tx3);margin-left:auto">更新：${updAt}</span>`:''}
       </div>
-      ${cardsHtml}
+      <div id="inv-grp-body-${agentUid}" style="display:${isCollapsed?'none':''}">
+        ${cardsHtml}
+      </div>
     </div>`;
   }).join('');
+}
+
+// 每位業務底下的委託清單可收合展開（僅前端顯示狀態，不持久化，重新整理頁面預設全部展開）
+let _invCollapsedAgents = new Set();
+function toggleInvGroup(uid){
+  const body = document.getElementById('inv-grp-body-' + uid);
+  const chevron = document.getElementById('inv-grp-chevron-' + uid);
+  if(!body) return;
+  if(_invCollapsedAgents.has(uid)){
+    _invCollapsedAgents.delete(uid);
+    body.style.display = '';
+    if(chevron) chevron.style.transform = 'rotate(0deg)';
+  } else {
+    _invCollapsedAgents.add(uid);
+    body.style.display = 'none';
+    if(chevron) chevron.style.transform = 'rotate(-90deg)';
+  }
 }
 // ── 公司庫存：列印／匯出 PDF（資料筆數不固定，可能很長，採「一般多頁排版」而非單頁縮字），直向 A4 ──
 const _INV_PRINT_STYLE = `
