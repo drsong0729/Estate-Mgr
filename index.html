@@ -5892,18 +5892,27 @@ function toggleTheme(){
 })();
 
 // 電腦版漢堡選單「屋主／買方／工具」可收合區塊：預設收合以精簡選單複雜度、減少擁擠感，
+// 手風琴模式：一次只能展開一個分類，展開某分類時其餘分類會自動收合；
 // 使用者展開／收合後會記住偏好（localStorage），下次開啟選單時沿用上次的狀態
 const DRAWER_SECTIONS = ['owner','buyer','tools'];
 function _drawerSecLsKey(key){ return 'drawerSecCollapsed_' + key; }
 function toggleDrawerSection(key){
   const body = document.getElementById('drawer-sec-'+key);
   if(!body) return;
-  const hd = body.previousElementSibling;
-  const collapsed = body.classList.toggle('collapsed');
-  if(hd) hd.classList.toggle('collapsed', collapsed);
-  try{ localStorage.setItem(_drawerSecLsKey(key), collapsed ? '1' : '0'); }catch(e){}
+  const willCollapse = !body.classList.contains('collapsed'); // 目前是展開的 → 這次點擊要收合它
+  DRAWER_SECTIONS.forEach(k=>{
+    const b = document.getElementById('drawer-sec-'+k);
+    if(!b) return;
+    const hd = b.previousElementSibling;
+    // 手風琴：點擊的分類依 willCollapse 切換開闔，其餘分類一律強制收合
+    const shouldCollapse = (k===key) ? willCollapse : true;
+    b.classList.toggle('collapsed', shouldCollapse);
+    if(hd) hd.classList.toggle('collapsed', shouldCollapse);
+    try{ localStorage.setItem(_drawerSecLsKey(k), shouldCollapse ? '1' : '0'); }catch(e){}
+  });
 }
 function initDrawerSections(){
+  let openFound = false;
   DRAWER_SECTIONS.forEach(key=>{
     const body = document.getElementById('drawer-sec-'+key);
     if(!body) return;
@@ -5913,6 +5922,10 @@ function initDrawerSections(){
       const saved = localStorage.getItem(_drawerSecLsKey(key));
       collapsed = saved===null ? true : saved==='1'; // 尚未有偏好紀錄時，預設收合
     }catch(e){ collapsed = true; }
+    // 手風琴模式：若舊版資料曾同時記錄多個分類展開，僅保留第一個，其餘強制收合
+    if(!collapsed){
+      if(openFound) collapsed = true; else openFound = true;
+    }
     body.classList.toggle('collapsed', collapsed);
     if(hd) hd.classList.toggle('collapsed', collapsed);
   });
@@ -10208,26 +10221,71 @@ function _warFindLatestPrior(personId, dateStr){
   list.sort((a,b) => a.date < b.date ? 1 : -1);
   return list[0];
 }
+// 依「當月結束歸零、年度S 僅跨年歸零」規則，找出指定日期應沿用的「目標月S/B/A、預計達成日期、當月S、年度S」起始值。
+// 因員工本人「填寫我的今日數字」不會寫入這些幕僚管理欄位，同月內某幾天的快照可能個別缺少這些欄位，
+// 故各欄位需分別往前找「同月內最近一筆『確實有填寫該欄位』的快照」，而非只看最新一筆快照整體。
+// ・目標群組（targetMonthS/targetB/targetA/expectedDate/monthS）：僅同月內沿用，一旦跨月即歸零／清空。
+// ・年度S（yearS）：整個年度內都沿用（可跨月），僅跨年（隔年1月1日起）才歸零。
+function _warCarryForwardBase(p, dateStr){
+  const ym = dateStr.slice(0,7);
+  const year = dateStr.slice(0,4);
+  const monthList = (_warMonthCache[ym] || [])
+    .filter(s => s.personId === p.id && s.date < dateStr)
+    .sort((a,b) => a.date < b.date ? 1 : -1); // 新到舊
+  const hasVal = v => v !== undefined && v !== null && v !== '';
+  const findMonthField = (field) => {
+    for(const s of monthList){ if(hasVal(s[field])) return s[field]; }
+    if(p.latest && p.updatedAt && p.updatedAt.slice(0,7) === ym && hasVal(p.latest[field])) return p.latest[field];
+    return null;
+  };
+  const findYearField = (field) => {
+    for(const s of monthList){ if(hasVal(s[field])) return s[field]; }
+    if(p.latest && p.updatedAt && p.updatedAt.slice(0,4) === year && hasVal(p.latest[field])) return p.latest[field];
+    return null;
+  };
+  return {
+    targetMonthS: findMonthField('targetMonthS') ?? 0,
+    targetB:      findMonthField('targetB') ?? 0,
+    targetA:      findMonthField('targetA') ?? 0,
+    expectedDate: findMonthField('expectedDate') || '',
+    monthS:       findMonthField('monthS') ?? 0,
+    yearS:        findYearField('yearS') ?? 0
+  };
+}
+
 // 取得某人在指定日期「表格顯示用」的有效快照：
-// 若當天已經有人填過快照，直接原樣回傳；若當天是新的一天（尚無快照），
-// 累積性欄位（目標／年度S／當月S／A／A+B／庫存／月統計）沿用「同月最近一筆快照 → 名冊最近一次填寫的快取值」直接帶入表格，
+// 若當天已經有人填過快照，以快照實際值為準；但「目標／預計達成日期／年度S／當月S」這幾個幕僚管理欄位，
+// 若當天快照沒有填寫（例如業務本人只填寫「今日數字」，未觸及這些欄位），仍依沿用規則補齊，避免顯示空白。
+// 若當天是全新的一天（尚無快照），累積性欄位（目標／年度S／當月S／月統計）沿用「同月最近一筆快照 → 名冊最近一次填寫的快取值」直接帶入表格，
 // 但「今日」欄位（今日追蹤／募集／電話／今日進案）一律歸零／清空，等待使用者當天輸入。
 // 若完全沒有任何歷史資料可沿用（全新業務、從未填寫過），回傳 null，表格會顯示「尚無快照紀錄」。
 function _warEffectiveSnap(p, dateStr){
   const daySnap = _warFindSnapshot(p.id, dateStr);
-  if(daySnap) return daySnap;
+  const carry = _warCarryForwardBase(p, dateStr);
+  if(daySnap){
+    return {
+      ...daySnap,
+      targetMonthS: hasDef(daySnap.targetMonthS) ? daySnap.targetMonthS : carry.targetMonthS,
+      targetB:      hasDef(daySnap.targetB)      ? daySnap.targetB      : carry.targetB,
+      targetA:      hasDef(daySnap.targetA)      ? daySnap.targetA      : carry.targetA,
+      expectedDate: daySnap.expectedDate ? daySnap.expectedDate : carry.expectedDate,
+      monthS:       hasDef(daySnap.monthS)       ? daySnap.monthS       : carry.monthS,
+      yearS:        hasDef(daySnap.yearS)        ? daySnap.yearS        : carry.yearS
+    };
+  }
   const priorSnap = _warFindLatestPrior(p.id, dateStr);
   const base = priorSnap || p.latest || null;
   if(!base) return null;
   return {
-    targetMonthS: base.targetMonthS, targetB: base.targetB, targetA: base.targetA,
-    expectedDate: base.expectedDate,
-    yearS: base.yearS, monthS: base.monthS,
+    targetMonthS: carry.targetMonthS, targetB: carry.targetB, targetA: carry.targetA,
+    expectedDate: carry.expectedDate,
+    yearS: carry.yearS, monthS: carry.monthS,
     aCount: base.aCount, abCount: base.abCount, inventory: base.inventory,
     monthTrack: base.monthTrack, monthRecruit: base.monthRecruit, monthCall: base.monthCall,
     todayTrack: 0, todayRecruit: 0, todayCall: 0, todayNewCase: null
   };
 }
+function hasDef(v){ return v !== undefined && v !== null; }
 
 // 進入「每日戰報」頁面時初始化
 async function initWarReportPage(){
@@ -10563,13 +10621,15 @@ async function openWarPersonModal(id){
   const daySnap = p ? _warFindSnapshot(p.id, dateStr) : null;
   const priorSnap = (!daySnap && p) ? _warFindLatestPrior(p.id, dateStr) : null;
   const base = daySnap || priorSnap || (p && p.latest) || {};
+  // 目標月S/B/A、預計達成日期、當月S：僅同月內沿用，跨月自動歸零／清空；年度S：整年沿用，僅跨年歸零
+  const carry = p ? _warCarryForwardBase(p, dateStr) : { targetMonthS:0, targetB:0, targetA:0, expectedDate:'', yearS:0, monthS:0 };
 
-  document.getElementById('wp-target-month-s').value = base.targetMonthS ?? '';
-  document.getElementById('wp-target-b').value = base.targetB ?? '';
-  document.getElementById('wp-target-a').value = base.targetA ?? '';
-  document.getElementById('wp-expected-date').value = base.expectedDate || '';
-  document.getElementById('wp-year-s').value = base.yearS ?? '';
-  document.getElementById('wp-month-s').value = base.monthS ?? '';
+  document.getElementById('wp-target-month-s').value = hasDef(daySnap?.targetMonthS) ? daySnap.targetMonthS : carry.targetMonthS;
+  document.getElementById('wp-target-b').value = hasDef(daySnap?.targetB) ? daySnap.targetB : carry.targetB;
+  document.getElementById('wp-target-a').value = hasDef(daySnap?.targetA) ? daySnap.targetA : carry.targetA;
+  document.getElementById('wp-expected-date').value = daySnap?.expectedDate ? daySnap.expectedDate : carry.expectedDate;
+  document.getElementById('wp-year-s').value = hasDef(daySnap?.yearS) ? daySnap.yearS : carry.yearS;
+  document.getElementById('wp-month-s').value = hasDef(daySnap?.monthS) ? daySnap.monthS : carry.monthS;
   _renderWpStatsDisplay();
   document.getElementById('wp-month-track').value = base.monthTrack ?? 0;
   document.getElementById('wp-month-recruit').value = base.monthRecruit ?? 0;
@@ -11636,11 +11696,11 @@ body{display:flex;flex-direction:column;height:794px;padding:14px}
 // 發布權限：系統管理員／老闆／主管／幕僚（canPostAnnouncement()）；其餘身份組僅能檢視與投票。
 // ══════════════════════════════════════════════════════════════════
 let _announceList = [];            // 全部公告快取，已依發布時間新到舊排序
-let _announcePage = 1;             // 目前頁碼（每頁 10 則）
+let _announcePage = 1;             // 目前頁碼（每頁 5 則）
 let _announceExpanded = new Set(); // 目前展開中的公告 id
 let _announceEditingId = null;
 let _announceLoadError = null;
-const ANNOUNCE_PAGE_SIZE = 10;
+const ANNOUNCE_PAGE_SIZE = 5;
 const ANNOUNCE_CATEGORIES = ['系統公告','公司命令','行政宣導','活動訊息'];
 const ANNOUNCE_CATEGORY_COLORS = {
   '系統公告': { bg:'var(--redl)', fg:'var(--red)' },
