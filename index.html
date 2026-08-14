@@ -2105,7 +2105,8 @@ function gm_authFailure() {
       <input class="fc" type="number" id="ws-call" placeholder="0">
     </div>
     <div style="border-top:1px dashed var(--bdr);margin:4px 0 0;padding-top:12px">
-      <div style="font-size:12px;font-weight:700;color:var(--tx2);margin-bottom:8px">今日進案（選填；僅顯示於每日戰報，不會建立到委託管理）</div>
+      <div style="font-size:12px;font-weight:700;color:var(--tx2);margin-bottom:8px">今日進案（選填，可新增多筆；僅顯示於每日戰報，不會建立到委託管理）</div>
+      <div id="ws-case-list" style="margin-bottom:4px"></div>
       <div class="fgp">
         <label class="lbl">買賣／租賃</label>
         <div style="display:flex;gap:14px">
@@ -2135,6 +2136,7 @@ function gm_authFailure() {
         <div id="ws-extrafees-list"></div>
         <button type="button" class="btn btn-g" style="margin-top:6px;font-size:12px;padding:5px 10px" onclick="addExtraFeeRow('ws')">＋ 新增費用</button>
       </div>
+      <button type="button" class="btn btn-g" style="margin-top:10px;width:100%;font-size:13px" onclick="_warAddCaseToList('ws')">＋ 新增這筆進案到清單</button>
     </div>
   </div>
   <div class="mf">
@@ -2210,7 +2212,8 @@ function gm_authFailure() {
       </div>
     </div>
     <div style="border-top:1px dashed var(--bdr);margin:4px 0 0;padding-top:12px">
-      <div style="font-size:12px;font-weight:700;color:var(--tx2);margin-bottom:8px">今日進案（選填，對應上方選擇的日期；僅顯示於每日戰報，不會建立到委託管理）</div>
+      <div style="font-size:12px;font-weight:700;color:var(--tx2);margin-bottom:8px">今日進案（選填，可新增多筆，對應上方選擇的日期；僅顯示於每日戰報，不會建立到委託管理）</div>
+      <div id="wp-case-list" style="margin-bottom:4px"></div>
       <div class="fgp">
         <label class="lbl">買賣／租賃</label>
         <div style="display:flex;gap:14px">
@@ -2240,6 +2243,7 @@ function gm_authFailure() {
         <div id="wp-extrafees-list"></div>
         <button type="button" class="btn btn-g" style="margin-top:6px;font-size:12px;padding:5px 10px" onclick="addExtraFeeRow('wp')">＋ 新增費用</button>
       </div>
+      <button type="button" class="btn btn-g" style="margin-top:10px;width:100%;font-size:13px" onclick="_warAddCaseToList('wp')">＋ 新增這筆進案到清單</button>
     </div>
   </div>
   <div class="mf" style="justify-content:space-between">
@@ -5420,6 +5424,9 @@ function _getAllNotifs(){
   const today = nowDate();
 
   // 1. 委託即將到期（30天內）
+  // 【key 設計】以委託 id 為準（不含天數字樣），天數字樣每天都會變動，若把天數字樣一併納入
+  // 識別碼，使用者刪除今天的通知後，隔天天數變了會被視為「新通知」又重新出現，
+  // 違背「刪除後不再顯示」的需求，故 key 只用穩定不變的 id。
   db.commission.forEach(r=>{
     if(!r.commEnd) return;
     const d = daysUntil(r.commEnd);
@@ -5427,6 +5434,7 @@ function _getAllNotifs(){
       const label = r.caseName || ownersLabel(r);
       notifs.push({
         type:'expiring', priority: d <= 7 ? 0 : 1,
+        key: `expiring:${r.id}`,
         icon: d <= 7 ? '🔴' : '🟡',
         title: `${escH(label)}`,
         sub: `委託到期：${r.commEnd}（剩 ${d} 天）`,
@@ -5446,6 +5454,7 @@ function _getAllNotifs(){
       const label = r.caseName || ownersLabel(r);
       notifs.push({
         type:'expired', priority: 0,
+        key: `expired:${r.id}`,
         icon: '⛔',
         title: `${escH(label)}`,
         sub: `委託已逾期 ${Math.abs(d)} 天（到期：${r.commEnd}）`,
@@ -5456,7 +5465,10 @@ function _getAllNotifs(){
   });
 
   // 3. 買方生日（前後3天）
+  // 【key 設計】額外加上年份：生日每年都會再次到來，隔年應該要能重新提醒，
+  // 不會因為去年刪除過同一位買方的生日通知，今年就永遠不再顯示。
   const buyers = db.buyers || [];
+  const curYearStr = today.slice(0,4);
   buyers.forEach(b=>{
     if(!b.birthday) return;
     const bday = b.birthday.slice(5); // MM-DD
@@ -5466,6 +5478,7 @@ function _getAllNotifs(){
     if(d >= 0 && d <= 3){
       notifs.push({
         type:'birthday', priority: d===0 ? 0 : 1,
+        key: `birthday:${b.id}:${curYearStr}`,
         icon: '🎂',
         title: `${escH(b.name||'—')}`,
         sub: d===0 ? `今天生日！記得聯繫 🎉` : `${d} 天後生日（${b.birthday}）`,
@@ -5481,6 +5494,7 @@ function _getAllNotifs(){
     const isToday = p.day === new Date().getDate();
     notifs.push({
       type:'staff_birthday', priority: isToday ? 0 : 1,
+      key: `staff_birthday:${p.id||p.name}:${curYearStr}`,
       icon: '🎂',
       title: `${escH(p.name)}`,
       sub: isToday ? `今天生日！記得祝賀 🎉` : `本月 ${p.day} 日生日`,
@@ -5499,6 +5513,7 @@ function _getAllNotifs(){
       const label = r.caseName || ownersLabel(r);
       notifs.push({
         type:'stale_ended', priority: 2,
+        key: `stale_ended:${r.id}`,
         icon: '📁',
         title: `${escH(label)}`,
         sub: `已結束委託封存 ${daysSince} 天（結束原因：${escH(r.endReason||'—')}）`,
@@ -5509,10 +5524,12 @@ function _getAllNotifs(){
   });
 
   // 5. 帳號註冊待審核（僅系統管理員）
+  // 【key 設計】含目前件數：件數不變時維持刪除狀態不再提醒；一旦有新申請件數改變，視為新通知重新提醒
   if(window._myRole === ROLES.SYSADMIN && (window._pendingRegCount||0) > 0){
     const c = window._pendingRegCount;
     notifs.push({
       type:'pending_reg', priority: -1,
+      key: `pending_reg:${c}`,
       icon:'📝',
       title:'帳號註冊待審核',
       sub:`有 ${c} 筆新帳號申請等待您審核`,
@@ -5527,10 +5544,13 @@ function _getAllNotifs(){
 }
 
 function checkNotifs(){
-  const notifs = _getAllNotifs();
+  // 已刪除（下次登入也不再顯示）的通知，一律從舊版紅色通知列與鈴鐺徽章數量中排除，
+  // 與通知中心面板（_renderNotifCenter()）的過濾邏輯保持一致
+  const notifs = _getAllNotifs().filter(n => !window._dismissedNotifs.has(_notifKey(n)));
 
-  // 舊版紅色通知列（只顯示到期）
-  const expiring = db.commission.filter(r=>r.commEnd && daysUntil(r.commEnd)>=0 && daysUntil(r.commEnd)<=30);
+  // 舊版紅色通知列（只顯示到期，且未被刪除過的）
+  const expiring = db.commission.filter(r=>r.commEnd && daysUntil(r.commEnd)>=0 && daysUntil(r.commEnd)<=30
+    && !window._dismissedNotifs.has(`expiring:${r.id}`));
   const bar = document.getElementById('notifBar');
   if(expiring.length){
     bar.classList.add('show');
@@ -5562,10 +5582,29 @@ async function checkPendingRegNotif(){
   checkNotifs();
 }
 
-// 已被使用者刪除的通知 key 集合（session 級別）
+// 已被使用者刪除的通知 key 集合：登入後從 localStorage 讀取（依帳號 uid 各自獨立儲存），
+// 刪除／清空時即時寫回，讓「刪除過的通知」下次登入（同瀏覽器）也不會再顯示。
 if(!window._dismissedNotifs) window._dismissedNotifs = new Set();
+function _dismissedNotifsLsKey(uid){ return 're_dismissed_notifs__' + uid; }
+function _loadDismissedNotifs(uid){
+  window._dismissedNotifs = new Set();
+  if(!uid) return;
+  try{
+    const raw = localStorage.getItem(_dismissedNotifsLsKey(uid));
+    if(raw){ JSON.parse(raw).forEach(k=>window._dismissedNotifs.add(k)); }
+  }catch(e){}
+}
+function _saveDismissedNotifs(){
+  try{
+    const uid = window._currentUser && window._currentUser.uid;
+    if(!uid) return;
+    localStorage.setItem(_dismissedNotifsLsKey(uid), JSON.stringify([...window._dismissedNotifs]));
+  }catch(e){}
+}
 
-function _notifKey(n){ return n.type + ':' + (n.title||'') + ':' + (n.sub||'').slice(0,30); }
+// 【改動】key 優先使用各通知自帶的穩定識別碼（n.key，見 _getAllNotifs()）；
+// 舊資料若沒有 n.key（理論上不會發生，保留作為安全備援）才退回舊版以標題/內容拼湊的方式。
+function _notifKey(n){ return n.key || (n.type + ':' + (n.title||'') + ':' + (n.sub||'').slice(0,30)); }
 
 function openNotifCenter(){
   _renderNotifCenter();
@@ -5629,13 +5668,17 @@ function _renderNotifCenter(){
 
 function dismissNotif(key){
   window._dismissedNotifs.add(key);
+  _saveDismissedNotifs();
   _renderNotifCenter();
+  checkNotifs(); // 同步更新舊版紅色通知列與鈴鐺徽章數量
 }
 
 function clearAllNotifs(){
   const allNotifs = _getAllNotifs();
   allNotifs.forEach(n => window._dismissedNotifs.add(_notifKey(n)));
+  _saveDismissedNotifs();
   _renderNotifCenter();
+  checkNotifs();
 }
 
 function _ncItemClick(idx){
@@ -7849,6 +7892,7 @@ async function handleSignOut(){
   clearTimeout(window._idleTimer);
   await window._firebaseSignOut();
   db = {recruit:[], track:[], commission:[], closed:[]};
+  window._dismissedNotifs = new Set(); // 清除記憶體中的已刪除通知快取（持久化紀錄仍保留在 localStorage，下次同帳號登入會重新讀回）
   _clearLocalPII();
   location.reload();
 }
@@ -7873,6 +7917,9 @@ window.onFirebaseLogin = async function(user){
   // 通過檢查 → 顯示主畫面
   document.getElementById('login-screen').classList.remove('lp-show');
   document.getElementById('app-content').style.display = 'block';
+
+  // 讀取此帳號先前刪除過的通知紀錄（localStorage，依 uid 區分），確保刪除過的通知這次登入不會再出現
+  _loadDismissedNotifs(user.uid);
 
   // 更新抽屜使用者資訊
   const dAvatar = document.getElementById('drawer-avatar');
@@ -10532,17 +10579,23 @@ async function renderWarReport(){
   tbody.innerHTML = rowsHtml + totalRowHtml;
 }
 
-// 「今日進案」欄位的顯示內容：只在有暫定案名時顯示，其餘為 —
+// 「今日進案」欄位的顯示內容：todayNewCase 可能是陣列（可新增多筆，新版）或單一物件／null（舊資料，向下相容），
+// 一律先正規化為陣列處理；完全沒有任何有效進案（缺暫定案名）時顯示 —，有多筆則逐筆疊加顯示
 function _warCaseCellHtml(c){
-  if(!c || !c.caseName) return '<span style="color:var(--tx3)">—</span>';
-  const isRental = c.dealType === DEAL_KIND.RENTAL;
-  const typeLabel = isRental ? '租賃' : (c.type === 'exclusive' ? '專任' : '一般');
-  const typeColor = isRental ? 'var(--grn)' : (c.type === 'exclusive' ? 'var(--acc)' : 'var(--tx2)');
-  const detail = isRental
-    ? `月租${fmtWarNum(c.askPrice)}／底${fmtWarNum(c.floorPrice)}／服務費${fmtWarNum(c.feePct)}(月)`
-    : `開${fmtWarNum(c.askPrice)}／底${fmtWarNum(c.floorPrice)}／斡${fmtWarNum(c.offerPrice)}／服務費${fmtWarNum(c.feePct)}%`;
-  return `<div style="font-weight:700">${escH(c.caseName)} <span style="font-size:10px;font-weight:700;color:${typeColor};background:var(--accl);padding:0 5px;border-radius:4px">${typeLabel}</span></div>
-    <div style="color:var(--tx3);white-space:nowrap">${detail}</div>`;
+  const list = (Array.isArray(c) ? c : (c ? [c] : [])).filter(x => x && x.caseName);
+  if(!list.length) return '<span style="color:var(--tx3)">—</span>';
+  return list.map((x,i)=>{
+    const isRental = x.dealType === DEAL_KIND.RENTAL;
+    const typeLabel = isRental ? '租賃' : (x.type === 'exclusive' ? '專任' : '一般');
+    const typeColor = isRental ? 'var(--grn)' : (x.type === 'exclusive' ? 'var(--acc)' : 'var(--tx2)');
+    const detail = isRental
+      ? `月租${fmtWarNum(x.askPrice)}／底${fmtWarNum(x.floorPrice)}／服務費${fmtWarNum(x.feePct)}(月)`
+      : `開${fmtWarNum(x.askPrice)}／底${fmtWarNum(x.floorPrice)}／斡${fmtWarNum(x.offerPrice)}／服務費${fmtWarNum(x.feePct)}%`;
+    return `<div style="${i>0?'margin-top:6px;padding-top:6px;border-top:1px dashed var(--bdr2)':''}">
+      <div style="font-weight:700">${escH(x.caseName)} <span style="font-size:10px;font-weight:700;color:${typeColor};background:var(--accl);padding:0 5px;border-radius:4px">${typeLabel}</span></div>
+      <div style="color:var(--tx3);white-space:nowrap">${detail}</div>
+    </div>`;
+  }).join('');
 }
 // 買賣／租賃切換（今日進案：ov-warself 的 ws- 前綴、ov-warperson 的 wp- 前綴共用同一套規則）
 function onCaseDealKindChange(prefix){
@@ -10656,7 +10709,7 @@ async function openWarPersonModal(id){
   document.getElementById('wp-today-track').value = daySnap?.todayTrack ?? '';
   document.getElementById('wp-today-recruit').value = daySnap?.todayRecruit ?? '';
   document.getElementById('wp-today-call').value = daySnap?.todayCall ?? '';
-  _warFillCaseForm('wp', daySnap?.todayNewCase || null);
+  _warFillCaseList('wp', daySnap?.todayNewCase || null);
 
   openOv('warperson');
 }
@@ -10733,7 +10786,7 @@ async function saveWarPerson(){
     // 不再手動輸入／儲存於快照，故此處不再寫入 aCount/abCount/rCount/inventory
     monthTrack: mTrack, monthRecruit: mRecruit, monthCall: mCall,
     todayTrack: newTodayTrack, todayRecruit: newTodayRecruit, todayCall: newTodayCall,
-    todayNewCase: _warReadCaseForm('wp')
+    todayNewCase: _warReadCaseList('wp')
   };
 
   const linkSel = document.getElementById('wp-linked-uid');
@@ -10930,6 +10983,50 @@ function _warFillCaseForm(prefix, c){
   onCaseDealKindChange(prefix);
 }
 
+// ── 今日進案：可新增多筆（陣列儲存）──────────────────────────
+// 上方輸入區（暫定案名等欄位）僅作為「新增用的輸入區」：填好後點「新增這筆進案到清單」即加入下方清單並清空輸入區，
+// 方便連續新增第二、第三筆；若使用者只有一筆進案，直接填寫、不點加入按鈕也沒關係——
+// 儲存時（_warReadCaseList）會自動把輸入區裡尚未點加入、但已填寫暫定案名的內容一併併入清單，維持既有單筆填寫的簡便操作。
+window._warCaseList = { ws: [], wp: [] };
+
+function _warAddCaseToList(prefix){
+  const c = _warReadCaseForm(prefix);
+  if(!c){ alert('請先填寫暫定案名，才能加入清單'); return; }
+  if(!window._warCaseList[prefix]) window._warCaseList[prefix] = [];
+  window._warCaseList[prefix].push(c);
+  _warFillCaseForm(prefix, null); // 清空輸入區，準備新增下一筆
+  _warRenderCaseList(prefix);
+}
+function _warRemoveCaseFromList(prefix, idx){
+  if(!window._warCaseList[prefix]) return;
+  window._warCaseList[prefix].splice(idx, 1);
+  _warRenderCaseList(prefix);
+}
+function _warRenderCaseList(prefix){
+  const wrap = document.getElementById(prefix+'-case-list');
+  if(!wrap) return;
+  const list = window._warCaseList[prefix] || [];
+  if(!list.length){ wrap.innerHTML = ''; return; }
+  wrap.innerHTML = list.map((c,idx)=>`<div style="display:flex;align-items:flex-start;gap:8px;background:var(--surf2);border:1px solid var(--bdr);border-radius:var(--r);padding:8px 10px;margin-bottom:6px">
+      <div style="flex:1;min-width:0">${_warCaseCellHtml(c)}</div>
+      <button type="button" class="owner-row-del" onclick="_warRemoveCaseFromList('${prefix}',${idx})" title="刪除此筆進案">✕</button>
+    </div>`).join('');
+}
+// 開啟表單時：把既有資料（陣列＝新資料，或單一物件／null＝舊資料，向下相容）帶入清單顯示，並清空輸入區準備新增
+function _warFillCaseList(prefix, cases){
+  const arr = Array.isArray(cases) ? cases : (cases ? [cases] : []);
+  window._warCaseList[prefix] = arr.slice();
+  _warFillCaseForm(prefix, null);
+  _warRenderCaseList(prefix);
+}
+// 儲存時讀取：清單中已加入的筆數，加上輸入區目前尚未點「加入」但已填寫暫定案名的那一筆（若有），一併存檔
+function _warReadCaseList(prefix){
+  const list = (window._warCaseList[prefix] || []).slice();
+  const pending = _warReadCaseForm(prefix);
+  if(pending) list.push(pending);
+  return list;
+}
+
 async function openWarSelfModal(){
   if(!_warMyPerson){ alert('您的帳號尚未綁定「對應業務」，請聯繫幕僚協助綁定後再填寫。'); return; }
   const todayStr = nowDate();
@@ -10940,7 +11037,7 @@ async function openWarSelfModal(){
   document.getElementById('ws-track').value   = daySnap?.todayTrack   ?? '';
   document.getElementById('ws-recruit').value = daySnap?.todayRecruit ?? '';
   document.getElementById('ws-call').value    = daySnap?.todayCall    ?? '';
-  _warFillCaseForm('ws', daySnap?.todayNewCase || null);
+  _warFillCaseList('ws', daySnap?.todayNewCase || null);
   openOv('warself');
 }
 
@@ -10980,7 +11077,7 @@ async function saveWarSelf(){
     monthTrack:   base.track   + (newTodayTrack   - oldTodayTrack),
     monthRecruit: base.recruit + (newTodayRecruit - oldTodayRecruit),
     monthCall:    base.call    + (newTodayCall    - oldTodayCall),
-    todayNewCase: _warReadCaseForm('ws'),
+    todayNewCase: _warReadCaseList('ws'),
     savedAt: new Date().toISOString(),
     savedBy: (window._currentUser && window._currentUser.email) || ''
   };
@@ -12914,7 +13011,7 @@ async function checkStaffBirthdays(){
       if(!x.birthday) return;
       const bMonth = parseInt(x.birthday.slice(5,7), 10);
       if(bMonth === nowMonth){
-        list.push({ name: x.name || '（未命名）', day: parseInt(x.birthday.slice(8,10), 10) });
+        list.push({ id: d.id, name: x.name || '（未命名）', day: parseInt(x.birthday.slice(8,10), 10) });
       }
     });
     list.sort((a,b)=>a.day-b.day);
