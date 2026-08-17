@@ -5067,30 +5067,92 @@ async function loadMarketComps(pool, id){
 }
 
 // ─── 樂居（leju.com.tw）建案「一年成交均價」查詢 ───────────────────────────────
-// 樂居沒有公開的跨網域查詢 API，前端瀏覽器直接對其發送請求會被 CORS 政策擋下，
-// 因此透過公開 CORS Proxy（allorigins／corsproxy.io，依序嘗試，其一失敗自動換下一個）
-// 讀取 DuckDuckGo 的 HTML 搜尋結果頁找出對應的樂居社區頁面，再讀取該頁面內容擷取
-// 「一年成交均價」數字。此做法仰賴第三方免費服務與外部網站頁面結構，僅供業務參考，
-// 若代理服務異常、樂居改版或查無建案資料，會安靜地不顯示任何數字（不影響其餘介面）。
-const _LEJU_PROXIES = [
-  u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
-  u => 'https://corsproxy.io/?url=' + encodeURIComponent(u)
-];
-const _lejuCache = {}; // cacheKey -> {avgPrice:number|null, url:string} | null（null＝查無資料或查詢失敗）
+// 樂居沒有公開的跨網域查詢 API，前端瀏覽器直接請求會被 CORS 擋下，因此需經公開 CORS Proxy。
+// 流程：① 用建案名稱＋縣市行政區找出樂居社區頁網址 → ② 讀取該頁 → ③ 擷取「一年成交均價」。
+// 注意：這條路徑依賴多個免費第三方服務（代理、搜尋引擎），任一環節被限流或關閉都會查不到。
+// 因此每筆查詢都會回報明確狀態（ok／nodata／notfound／error），失敗時畫面會顯示原因而非靜默消失。
+// 診斷用：在瀏覽器 Console 執行 testLeju('京城鉅誕','高雄市','左營區') 可看到每一步的結果。
 
+// 代理清單（依序嘗試，成功即止）。mode:'raw'＝直接回傳內容；'json'＝內容包在 JSON 的 contents 欄位
+const _LEJU_PROXIES = [
+  { name:'codetabs',      mode:'raw',  build:u=>'https://api.codetabs.com/v1/proxy?quest='+encodeURIComponent(u) },
+  { name:'allorigins-raw',mode:'raw',  build:u=>'https://api.allorigins.win/raw?url='+encodeURIComponent(u) },
+  { name:'allorigins-get',mode:'json', build:u=>'https://api.allorigins.win/get?url='+encodeURIComponent(u) },
+  { name:'corsproxy.io',  mode:'raw',  build:u=>'https://corsproxy.io/?url='+encodeURIComponent(u) }
+];
+
+const _lejuCache = {};          // cacheKey -> 查詢結果物件（含 status），同一建案本次瀏覽只查一次
+let _lejuLastProxyOk = null;    // 上次成功的代理名稱：下次優先使用，減少無謂的失敗等待
+const _LEJU_DEBUG_KEY = 'leju_debug';               // localStorage：設為 '1' 時在 Console 輸出詳細過程
+const _LEJU_URLMAP_KEY = 'leju_url_map';            // localStorage：建案 -> 樂居網址的手動對應表
+
+function _lejuLog(){
+  try{ if(localStorage.getItem(_LEJU_DEBUG_KEY)==='1') console.log('[樂居]', ...arguments); }catch(e){}
+}
+// 臺／台 等異體字與空白差異會造成比對失敗，正規化後再比對
+function _lejuNorm(s){ return (s||'').replace(/臺/g,'台').replace(/\s/g,'').trim(); }
 function _lejuCacheKey(bldg, city, dist){
-  return `${(bldg||'').trim()}_${(city||'').trim()}_${(dist||'').trim()}`;
+  return `${_lejuNorm(bldg)}_${_lejuNorm(city)}_${_lejuNorm(dist)}`;
 }
 
+// ── 手動對應表：自動搜尋查不到時，可自行指定該建案的樂居網址（存在瀏覽器本機） ──
+function _lejuUrlMap(){
+  try{ return JSON.parse(localStorage.getItem(_LEJU_URLMAP_KEY)||'{}'); }catch(e){ return {}; }
+}
+// 手動綁定建案對應的樂居網址；設定後該建案即不需再經搜尋引擎，查詢成功率最高
+function setLejuUrl(bldg, city, dist, url){
+  const map = _lejuUrlMap();
+  map[_lejuCacheKey(bldg, city, dist)] = url;
+  try{ localStorage.setItem(_LEJU_URLMAP_KEY, JSON.stringify(map)); }catch(e){}
+  delete _lejuCache[_lejuCacheKey(bldg, city, dist)];   // 清掉舊快取讓下次重新查
+  console.log(`✅ 已綁定「${bldg}」→ ${url}，重新整理頁面即可生效`);
+}
+function listLejuUrls(){ console.table(_lejuUrlMap()); return _lejuUrlMap(); }
+function clearLejuCache(){ Object.keys(_lejuCache).forEach(k=>delete _lejuCache[k]); console.log('✅ 已清除本次查詢快取'); }
+
+// ── 節流：codetabs 限每秒 5 次，一頁可能有 20 筆建案，需排隊送出避免被回 429 ──
+const _lejuQueue = [];
+let _lejuActive = 0;
+const _LEJU_MAX_PARALLEL = 2;
+const _LEJU_GAP_MS = 350;
+function _lejuEnqueue(taskFn){
+  return new Promise(resolve=>{
+    _lejuQueue.push({taskFn, resolve});
+    _lejuPump();
+  });
+}
+function _lejuPump(){
+  if(_lejuActive >= _LEJU_MAX_PARALLEL || !_lejuQueue.length) return;
+  const {taskFn, resolve} = _lejuQueue.shift();
+  _lejuActive++;
+  taskFn().then(resolve).catch(()=>resolve(null)).finally(()=>{
+    setTimeout(()=>{ _lejuActive--; _lejuPump(); }, _LEJU_GAP_MS);
+  });
+}
+
+// 依序試各代理抓取網頁內容；全部失敗回傳 null（代表這次是「連不出去」而非「查無資料」）
 async function _lejuProxyFetchText(url){
-  for(const buildProxyUrl of _LEJU_PROXIES){
+  const ordered = _lejuLastProxyOk
+    ? [..._LEJU_PROXIES].sort((a,b)=>(b.name===_lejuLastProxyOk)-(a.name===_lejuLastProxyOk))
+    : _LEJU_PROXIES;
+  for(const p of ordered){
     try{
-      const res = await fetch(buildProxyUrl(url));
-      if(res && res.ok){
-        const t = await res.text();
-        if(t) return t;
+      const ctrl = new AbortController();
+      const timer = setTimeout(()=>ctrl.abort(), 12000);   // 免費代理常卡住，逾時就換下一個
+      const res = await fetch(p.build(url), {signal: ctrl.signal});
+      clearTimeout(timer);
+      if(!res || !res.ok){ _lejuLog(`代理 ${p.name} 回應 ${res && res.status}`); continue; }
+      let text = await res.text();
+      if(p.mode==='json'){
+        try{ text = (JSON.parse(text)||{}).contents || ''; }catch(e){ text = ''; }
       }
-    }catch(e){ /* 此代理失敗，換下一個再試 */ }
+      if(text && text.length > 200){
+        _lejuLastProxyOk = p.name;
+        _lejuLog(`代理 ${p.name} 成功，取得 ${text.length} 字元`);
+        return text;
+      }
+      _lejuLog(`代理 ${p.name} 回傳內容過短`);
+    }catch(e){ _lejuLog(`代理 ${p.name} 失敗：${e.message}`); }
   }
   return null;
 }
@@ -5106,81 +5168,148 @@ function _lejuHtmlToText(html){
     .trim();
 }
 
-// 透過 DuckDuckGo HTML 搜尋結果，找出 leju.com.tw 該建案的社區頁面網址
-async function _lejuFindCommunityUrl(bldg, city, dist){
-  const q = `site:leju.com.tw ${bldg} ${city||''}${dist||''}`;
-  const ddgUrl = 'https://html.duckduckgo.com/html/?q=' + encodeURIComponent(q);
-  const html = await _lejuProxyFetchText(ddgUrl);
-  if(!html) return null;
-  const hrefRe = /href="([^"]+)"/gi;
-  let m, url = null;
-  while((m = hrefRe.exec(html))){
+// 從搜尋引擎結果頁的 HTML 裡挑出第一個樂居社區頁網址（DDG 結果為 uddg= 轉址格式，需解碼）
+function _lejuPickCommunityUrl(html){
+  const re = /href="([^"]+)"/gi;
+  let m;
+  while((m = re.exec(html))){
     let u = m[1];
-    // DDG 的搜尋結果連結是轉址格式（/l/?uddg=<編碼後的真實網址>&...），需先解碼還原
-    const uddgIdx = u.indexOf('uddg=');
-    if(uddgIdx > -1){
-      const rest = u.slice(uddgIdx + 5).split('&')[0];
-      try{ u = decodeURIComponent(rest); }catch(e){ continue; }
+    const i = u.indexOf('uddg=');
+    if(i > -1){
+      try{ u = decodeURIComponent(u.slice(i+5).split('&')[0]); }catch(e){ continue; }
     }
-    if(u.includes('leju.com.tw/community/')){ url = u; break; }
+    if(u.includes('leju.com.tw/community/')) return u.split('#')[0].replace(/^http:/,'https:');
   }
-  return url;
+  return null;
 }
 
-// 查詢單一建案的「一年成交均價」；同一建案＋縣市＋行政區在本次瀏覽期間只會查詢一次（有快取）
+// 找出建案的樂居社區頁網址：先看手動對應表，再試 DuckDuckGo（html 版與 lite 版）
+async function _lejuFindCommunityUrl(bldg, city, dist){
+  const manual = _lejuUrlMap()[_lejuCacheKey(bldg, city, dist)];
+  if(manual){ _lejuLog('使用手動綁定網址', manual); return {url: manual, via: 'manual'}; }
+  const q = `site:leju.com.tw ${bldg} ${_lejuNorm(city)}${_lejuNorm(dist)}`;
+  const engines = [
+    { via:'ddg-html', url:'https://html.duckduckgo.com/html/?q='+encodeURIComponent(q) },
+    { via:'ddg-lite', url:'https://lite.duckduckgo.com/lite/?q='+encodeURIComponent(q) }
+  ];
+  for(const eng of engines){
+    const html = await _lejuProxyFetchText(eng.url);
+    if(!html){ _lejuLog(`${eng.via}：代理全部失敗`); continue; }
+    const found = _lejuPickCommunityUrl(html);
+    if(found){ _lejuLog(`${eng.via} 找到`, found); return {url: found, via: eng.via}; }
+    _lejuLog(`${eng.via}：結果頁中找不到樂居社區連結（可能被搜尋引擎限流）`);
+  }
+  return null;
+}
+
+// 從樂居社區頁擷取「一年成交均價」；標題已含均價，優先用標題解析，失敗再掃正文
+function _lejuParseAvgPrice(html){
+  const titleM = html.match(/一年均價\s*([\d]+(?:\.[\d]+)?)\s*萬/);
+  if(titleM) return parseFloat(titleM[1]);
+  const bodyM = _lejuHtmlToText(html).match(/一年成交均價[^\d]{0,20}([\d]+(?:\.[\d]+)?)\s*萬/);
+  return bodyM ? parseFloat(bodyM[1]) : null;
+}
+
+// 查詢單一建案的一年成交均價
+// 回傳 {status, avgPrice, url, via}；status：ok＝有均價／nodata＝有建案但無均價／
+// notfound＝找不到對應建案或縣市行政區不符／error＝代理或網路失敗（非「查無資料」）
 async function fetchLejuAvgPrice(bldg, city, dist){
-  if(!bldg || !bldg.trim()) return null;
+  if(!bldg || !bldg.trim()) return {status:'notfound'};
   const key = _lejuCacheKey(bldg, city, dist);
   if(Object.prototype.hasOwnProperty.call(_lejuCache, key)) return _lejuCache[key];
-  let result = null;
-  try{
-    const pageUrl = await _lejuFindCommunityUrl(bldg, city, dist);
-    if(pageUrl){
-      const html = await _lejuProxyFetchText(pageUrl);
-      if(html){
-        const text = _lejuHtmlToText(html);
-        // 需縣市與行政區都相符才採用（避免同名建案分佈在不同縣市行政區被誤判為同一筆）
-        const cityOk = city ? text.includes(city) : true;
-        const distOk = dist ? text.includes(dist) : true;
-        if(cityOk && distOk){
-          const priceMatch = text.match(/一年成交均價[^\d]{0,20}([\d]+(?:\.[\d]+)?)\s*萬\s*\/?\s*坪/);
-          result = { avgPrice: priceMatch ? parseFloat(priceMatch[1]) : null, url: pageUrl };
-        }
+  const out = await _lejuEnqueue(async ()=>{
+    try{
+      const found = await _lejuFindCommunityUrl(bldg, city, dist);
+      if(!found) return {status:'notfound'};
+      const html = await _lejuProxyFetchText(found.url);
+      if(!html) return {status:'error', url:found.url};
+      const text = _lejuNorm(_lejuHtmlToText(html));
+      // 縣市與行政區都要相符才採用，避免不同縣市的同名建案被誤判
+      const cityOk = city ? text.includes(_lejuNorm(city)) : true;
+      const distOk = dist ? text.includes(_lejuNorm(dist)) : true;
+      if(!cityOk || !distOk){
+        _lejuLog(`「${bldg}」找到頁面但縣市／行政區不符（需 ${city}${dist}）`, found.url);
+        return {status:'notfound', url:found.url};
       }
+      const avgPrice = _lejuParseAvgPrice(html);
+      return { status: avgPrice!=null ? 'ok' : 'nodata', avgPrice, url:found.url, via:found.via };
+    }catch(e){
+      console.error('樂居一年成交均價查詢失敗', e);
+      return {status:'error'};
     }
-  }catch(e){ console.error('樂居一年成交均價查詢失敗', e); }
+  });
+  const result = out || {status:'error'};
   _lejuCache[key] = result;
   return result;
 }
 
-// 產生「一年成交均價」佔位標籤（查詢完成前先不顯示任何內容，避免介面閃爍或誤導）
+// 佔位標籤：查詢中先顯示淡色提示，讓使用者知道系統正在查（而不是壞掉了）
 function _lejuBadgePlaceholder(uid){
-  return `<span id="leju-${uid}"></span>`;
+  return `<span id="leju-${uid}" style="font-size:11px;margin-left:6px;color:var(--tx3)">一年成交均價：查詢中…</span>`;
 }
-// 依查詢結果與該筆資料單價，組出顯示用 HTML；正負 10% 內才顯示 🍎 APPLE案件
+// 依查詢結果與該筆單價組出顯示內容；單價在均價 ±10% 內才加上 🍎 APPLE案件
 function _lejuBadgeInnerHtml(data, unit, isRental){
-  if(!data) return ''; // 查無對應建案或查詢失敗：不顯示任何東西
-  const priceHtml = data.avgPrice != null
-    ? `一年成交均價：<strong style="color:var(--acc)">${data.avgPrice}</strong> 萬/坪`
-    : `<span style="color:var(--tx3)">一年成交均價：無一年內均價</span>`;
+  if(!data) return '';
+  if(data.status==='error'){
+    return `<span style="color:var(--tx3)" title="免費 CORS 代理或搜尋引擎連線失敗，請稍後重新整理；若持續失敗建議改用後端代理">⚠️ 樂居查詢失敗</span>`;
+  }
+  if(data.status==='notfound' || data.status==='nodata' || data.avgPrice==null){
+    return `<span style="color:var(--tx3)">一年成交均價：無一年內均價</span>`;
+  }
+  const linkOpen = data.url ? `<a href="${escH(data.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="text-decoration:none;color:inherit">` : '';
+  const linkClose = data.url ? '</a>' : '';
   let appleHtml = '';
-  if(!isRental && data.avgPrice != null && unit){
+  if(!isRental && unit){
     const u = parseFloat(unit);
-    if(!isNaN(u) && u > 0){
-      const diffPct = (u - data.avgPrice) / data.avgPrice;
-      if(Math.abs(diffPct) <= 0.10) appleHtml = ' <span style="font-weight:700">🍎 APPLE案件</span>';
+    if(!isNaN(u) && u > 0 && Math.abs((u - data.avgPrice) / data.avgPrice) <= 0.10){
+      appleHtml = ' <span style="font-weight:700" title="本案單價與樂居一年成交均價相差在 ±10% 以內">🍎 APPLE案件</span>';
     }
   }
-  return `<span style="font-size:11px;margin-left:6px">${priceHtml}${appleHtml}</span>`;
+  return `${linkOpen}一年成交均價：<strong style="color:var(--acc)">${data.avgPrice}</strong> 萬/坪${linkClose}${appleHtml}`;
 }
-// 非同步查詢並將結果填入畫面上對應的佔位標籤（若使用者已翻頁／收合導致該元素消失，會安靜地忽略）
+// 非同步查詢並填入畫面對應位置（若使用者已翻頁導致元素消失，會安靜忽略）
 function _scheduleLejuLookup(uid, bldg, city, dist, unit, isRental){
-  if(!bldg || !bldg.trim()) return;
+  const el0 = document.getElementById('leju-'+uid);
+  if(!bldg || !bldg.trim()){ if(el0) el0.innerHTML=''; return; }
   fetchLejuAvgPrice(bldg, city, dist).then(data=>{
     const el = document.getElementById('leju-'+uid);
     if(el) el.innerHTML = _lejuBadgeInnerHtml(data, unit, isRental);
   });
 }
+
+// ── 診斷工具：在 Console 執行 testLeju('京城鉅誕','高雄市','左營區') 逐步檢查哪一層失敗 ──
+async function testLeju(bldg, city, dist){
+  console.log('=== 樂居查詢診斷開始 ===');
+  console.log(`建案：${bldg}／縣市：${city}／行政區：${dist}`);
+  console.log('① 測試代理連線（抓取樂居首頁）...');
+  const probe = await _lejuProxyFetchText('https://www.leju.com.tw/');
+  if(!probe){ console.log('❌ 所有代理都失敗 → 問題在 CORS 代理層，建議改用後端代理（Netlify Function）'); return; }
+  console.log(`✅ 代理可用：${_lejuLastProxyOk}`);
+  console.log('② 搜尋樂居社區頁網址...');
+  const found = await _lejuFindCommunityUrl(bldg, city, dist);
+  if(!found){
+    console.log('❌ 搜尋不到社區頁 → 問題在搜尋引擎層（DuckDuckGo 常擋代理流量）');
+    console.log(`   解法：手動到樂居找到該建案頁面，然後執行：\n   setLejuUrl('${bldg}','${city}','${dist}','樂居網址')`);
+    return;
+  }
+  console.log(`✅ 找到（來源 ${found.via}）：${found.url}`);
+  console.log('③ 讀取頁面並擷取均價...');
+  delete _lejuCache[_lejuCacheKey(bldg, city, dist)];
+  const r = await fetchLejuAvgPrice(bldg, city, dist);
+  console.log('結果：', r);
+  if(r.status==='ok') console.log(`✅ 一年成交均價 ${r.avgPrice} 萬/坪`);
+  else if(r.status==='nodata') console.log('⚠️ 頁面存在但沒有一年成交均價數據 → 顯示「無一年內均價」');
+  else if(r.status==='notfound') console.log('⚠️ 縣市／行政區比對不符，已排除');
+  else console.log('❌ 讀取頁面失敗');
+  console.log('=== 診斷結束 ===');
+}
+// 開啟／關閉詳細記錄：lejuDebug(true) 之後重新整理頁面，Console 會輸出每一步
+function lejuDebug(on){
+  try{ localStorage.setItem(_LEJU_DEBUG_KEY, on===false?'0':'1'); }catch(e){}
+  console.log(on===false?'已關閉樂居查詢記錄':'已開啟樂居查詢記錄，重新整理頁面後可在 Console 看到過程');
+}
+window.testLeju=testLeju; window.lejuDebug=lejuDebug; window.setLejuUrl=setLejuUrl;
+window.listLejuUrls=listLejuUrls; window.clearLejuCache=clearLejuCache;
 
 function ownersLabel(r,full){
   const owners=r.owners&&r.owners.length
