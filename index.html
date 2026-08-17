@@ -5074,10 +5074,14 @@ async function loadMarketComps(pool, id){
 // 診斷用：在瀏覽器 Console 執行 testLeju('京城鉅誕','高雄市','左營區') 可看到每一步的結果。
 
 // 代理清單（依序嘗試，成功即止）。mode:'raw'＝直接回傳內容；'json'＝內容包在 JSON 的 contents 欄位
+// 註：corsproxy.io 對正式網域（含 github.io）會回 403，已排到最後；allorigins 常 408 逾時。
+// killcors／corsfix 為備援候選，若某個代理長期失效，直接把它那行刪掉即可。
 const _LEJU_PROXIES = [
   { name:'codetabs',      mode:'raw',  build:u=>'https://api.codetabs.com/v1/proxy?quest='+encodeURIComponent(u) },
-  { name:'allorigins-raw',mode:'raw',  build:u=>'https://api.allorigins.win/raw?url='+encodeURIComponent(u) },
+  { name:'killcors',      mode:'raw',  build:u=>'https://proxy.killcors.com/?url='+encodeURIComponent(u) },
+  { name:'corsfix',       mode:'raw',  build:u=>'https://proxy.corsfix.com/?'+u },
   { name:'allorigins-get',mode:'json', build:u=>'https://api.allorigins.win/get?url='+encodeURIComponent(u) },
+  { name:'allorigins-raw',mode:'raw',  build:u=>'https://api.allorigins.win/raw?url='+encodeURIComponent(u) },
   { name:'corsproxy.io',  mode:'raw',  build:u=>'https://corsproxy.io/?url='+encodeURIComponent(u) }
 ];
 
@@ -5130,8 +5134,25 @@ function _lejuPump(){
   });
 }
 
+// ── 斷路器：若連續多次「所有代理都失敗」，代表代理層整體掛掉，
+// 就停止後續嘗試並直接回報失敗，避免幾十筆資料各自等上數分鐘、畫面永遠停在「查詢中…」。
+let _lejuConsecutiveFails = 0;
+let _lejuCircuitOpen = false;
+const _LEJU_FAIL_LIMIT = 3;
+function _lejuTripCircuit(){
+  _lejuCircuitOpen = true;
+  console.warn('[樂居] 連續查詢失敗，已停止本次自動查詢以免拖慢頁面。'
+    + '\n診斷請執行 lejuProxyTest()；恢復請執行 lejuReset() 或重新整理頁面。');
+}
+function lejuReset(){
+  _lejuCircuitOpen = false; _lejuConsecutiveFails = 0; _lejuLastProxyOk = null;
+  clearLejuCache();
+  console.log('✅ 已重設樂居查詢，重新整理頁面或切換分頁即會重新查詢');
+}
+
 // 依序試各代理抓取網頁內容；全部失敗回傳 null（代表這次是「連不出去」而非「查無資料」）
 async function _lejuProxyFetchText(url){
+  if(_lejuCircuitOpen) return null;
   const ordered = _lejuLastProxyOk
     ? [..._LEJU_PROXIES].sort((a,b)=>(b.name===_lejuLastProxyOk)-(a.name===_lejuLastProxyOk))
     : _LEJU_PROXIES;
@@ -5148,12 +5169,15 @@ async function _lejuProxyFetchText(url){
       }
       if(text && text.length > 200){
         _lejuLastProxyOk = p.name;
+        _lejuConsecutiveFails = 0;      // 有成功就重置失敗計數
         _lejuLog(`代理 ${p.name} 成功，取得 ${text.length} 字元`);
         return text;
       }
       _lejuLog(`代理 ${p.name} 回傳內容過短`);
     }catch(e){ _lejuLog(`代理 ${p.name} 失敗：${e.message}`); }
   }
+  _lejuConsecutiveFails++;
+  if(_lejuConsecutiveFails >= _LEJU_FAIL_LIMIT) _lejuTripCircuit();
   return null;
 }
 
@@ -5280,6 +5304,7 @@ function _scheduleLejuLookup(uid, bldg, city, dist, unit, isRental){
 // ── 診斷工具：在 Console 執行 testLeju('京城鉅誕','高雄市','左營區') 逐步檢查哪一層失敗 ──
 async function testLeju(bldg, city, dist){
   console.log('=== 樂居查詢診斷開始 ===');
+  _lejuCircuitOpen = false; _lejuConsecutiveFails = 0;   // 診斷時忽略斷路器，強制實際測試一次
   console.log(`建案：${bldg}／縣市：${city}／行政區：${dist}`);
   console.log('① 測試代理連線（抓取樂居首頁）...');
   const probe = await _lejuProxyFetchText('https://www.leju.com.tw/');
@@ -5303,6 +5328,54 @@ async function testLeju(bldg, city, dist){
   else console.log('❌ 讀取頁面失敗');
   console.log('=== 診斷結束 ===');
 }
+// ── 代理健檢：逐一測試每個代理能否抓到樂居頁面，結果以表格列出，用來確認哪個代理還活著 ──
+// 用法：lejuProxyTest()　（約需 10~60 秒，視代理反應速度）
+async function lejuProxyTest(){
+  const targets = [
+    { label:'樂居首頁',   url:'https://www.leju.com.tw/' },
+    { label:'樂居社區頁', url:'https://www.leju.com.tw/community/L8ca9512530e7c' }
+  ];
+  console.log('=== 代理健檢開始（請稍候，逐一測試中）===');
+  const rows = [];
+  for(const p of _LEJU_PROXIES){
+    for(const t of targets){
+      const started = Date.now();
+      let status = '', note = '';
+      try{
+        const ctrl = new AbortController();
+        const timer = setTimeout(()=>ctrl.abort(), 15000);
+        const res = await fetch(p.build(t.url), {signal: ctrl.signal});
+        clearTimeout(timer);
+        status = res.status;
+        if(res.ok){
+          let text = await res.text();
+          if(p.mode==='json'){ try{ text = (JSON.parse(text)||{}).contents||''; }catch(e){ text=''; } }
+          const gotPrice = /一年均價\s*[\d.]+\s*萬|一年成交均價/.test(text);
+          note = text.length > 200
+            ? `✅ 取得 ${text.length} 字元${t.label==='樂居社區頁' ? (gotPrice?'（含均價欄位）':'（⚠️ 找不到均價欄位）') : ''}`
+            : `⚠️ 內容過短（${text.length} 字元）`;
+        } else {
+          note = '❌ HTTP 錯誤';
+        }
+      }catch(e){
+        status = '—';
+        note = e.name==='AbortError' ? '❌ 逾時（>15秒）' : `❌ ${e.message}`;
+      }
+      rows.push({ 代理:p.name, 目標:t.label, HTTP:status, 耗時秒:((Date.now()-started)/1000).toFixed(1), 結果:note });
+    }
+  }
+  console.table(rows);
+  const ok = rows.filter(r=>String(r.結果).startsWith('✅')).map(r=>r.代理);
+  const usable = [...new Set(ok)];
+  if(usable.length){
+    console.log(`✅ 可用的代理：${usable.join('、')}　→ 樂居查詢應該可以正常運作`);
+  } else {
+    console.log('❌ 所有代理都不通。公開 CORS 代理這條路已走不通，建議改用後端代理（Netlify Function）。');
+  }
+  console.log('=== 代理健檢結束 ===');
+  return rows;
+}
+
 // 開啟／關閉詳細記錄：lejuDebug(true) 之後重新整理頁面，Console 會輸出每一步
 function lejuDebug(on){
   try{ localStorage.setItem(_LEJU_DEBUG_KEY, on===false?'0':'1'); }catch(e){}
@@ -5310,6 +5383,7 @@ function lejuDebug(on){
 }
 window.testLeju=testLeju; window.lejuDebug=lejuDebug; window.setLejuUrl=setLejuUrl;
 window.listLejuUrls=listLejuUrls; window.clearLejuCache=clearLejuCache;
+window.lejuProxyTest=lejuProxyTest; window.lejuReset=lejuReset;
 
 function ownersLabel(r,full){
   const owners=r.owners&&r.owners.length
