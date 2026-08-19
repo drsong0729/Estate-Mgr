@@ -472,6 +472,9 @@ function gm_authFailure() {
       <button class="drawer-nav" id="dnav-taxcalc" onclick="switchPage('taxcalc');toggleDrawer()">
         <span>🧮</span> 稅務與貸款試算
       </button>
+      <button class="drawer-nav" id="dnav-newproj" onclick="switchPage('newproj');toggleDrawer()">
+        <span>🏗️</span> 新建案估價試算
+      </button>
       <button class="drawer-nav" id="dnav-warreport" onclick="switchPage('warreport');toggleDrawer()">
         <span>📊</span> 每日戰報
       </button>
@@ -1729,6 +1732,842 @@ function gm_authFailure() {
   <!-- 列表 -->
   <div id="inv-list" style="padding:0 16px 24px"></div>
 </div>
+
+<!-- PAGE: 新建案估價試算（工具選單）
+     說明：本工具原為獨立 HTML，其 CSS 使用 .card/.row/.btn/.wrap 等通用類別，
+     並直接設定 body/table/th/td 等元素樣式，且 --acc/--bg/--tx 等變數與本系統同名。
+     若直接內嵌會污染全站樣式，故改以 iframe 完全隔離：
+     原始碼放在下方 <template>（不會被瀏覽器執行），首次進入頁面時才寫入 iframe。
+     列印時瀏覽器只會輸出 iframe 內容，工具原有的 A4 列印樣式因此可完整保留。 -->
+<div class="page" id="page-newproj">
+  <div style="padding:12px 16px 4px">
+    <div style="font-size:12px;color:var(--tx3);line-height:1.7">
+      依《不動產估價技術規則》土地開發分析法試算新建案開發效益與合理地價。
+      本工具為獨立試算模組，資料不會存入系統，離開頁面後即重設。
+    </div>
+  </div>
+  <div style="padding:0 16px 16px">
+    <iframe id="newproj-frame" title="新建案估價試算"
+      style="width:100%;height:calc(100vh - 190px);min-height:520px;border:1px solid var(--bdr);border-radius:12px;background:#0e1116;display:block"></iframe>
+  </div>
+</div>
+
+<template id="newproj-tpl">
+<style>
+:root{--bg:#0e1116;--panel:#161b22;--panel2:#1c232c;--line:#2a323d;
+ --tx:#e6edf3;--tx2:#93a1b0;--acc:#4c9aff;--good:#3fb950;--warn:#d29922;--bad:#f85149;--kh:#c084fc}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);
+ font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+ line-height:1.6;padding:18px 16px 60px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto}
+h1{font-size:1.45rem;margin:0 0 3px;letter-spacing:.5px}
+.sub{color:var(--tx2);font-size:.85rem;margin-bottom:16px}
+.grid{display:grid;grid-template-columns:340px 1fr;gap:18px}
+@media(max-width:900px){.grid{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+.card h2{font-size:.9rem;margin:0 0 12px;color:var(--acc);letter-spacing:1px;font-weight:600;
+ display:flex;justify-content:space-between;align-items:center;gap:8px}
+.card.khon{border-color:#c084fc55}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:7px}
+.row label{font-size:.8rem;color:var(--tx2);flex:1}
+.row input,.row select{width:100px;background:var(--panel2);border:1px solid var(--line);color:var(--tx);
+ border-radius:6px;padding:5px 7px;font-size:.82rem;text-align:right;font-variant-numeric:tabular-nums;font-family:inherit}
+.row select{text-align:left;width:145px}
+.row input:focus,.row select:focus{outline:none;border-color:var(--acc)}
+.row input.key{border-color:#4c9aff66;background:#1f6feb14}
+.row input.khv{border-color:#c084fc66;background:#c084fc14}
+.row input.txt{text-align:left;width:170px}
+.row .ro{width:100px;text-align:right;font-size:.82rem;padding:5px 7px;font-variant-numeric:tabular-nums;
+ background:#ffffff08;border:1px dashed var(--line);border-radius:6px}
+.unit{font-size:.7rem;color:var(--tx2);width:44px;flex:0 0 44px}
+.f2{display:grid;grid-template-columns:1fr 1fr;gap:0 18px}
+@media(max-width:620px){.f2{grid-template-columns:1fr}}
+hr.s{border:0;border-top:1px solid var(--line);margin:10px 0}
+
+.toolbar{position:sticky;top:0;z-index:50;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;
+ padding:8px 0 12px;background:linear-gradient(var(--bg) 70%,transparent)}
+.btn{display:inline-flex;align-items:center;gap:6px;background:var(--panel);color:var(--tx);
+ border:1px solid var(--line);border-radius:8px;padding:8px 13px;font-size:.82rem;cursor:pointer;font-family:inherit;transition:.15s}
+.btn:hover{border-color:var(--acc);background:#1f6feb18}
+.btn.p{background:#1f6feb;border-color:#1f6feb;color:#fff;font-weight:600}
+.btn.p:hover{background:#3b82f6}
+.btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+.tabs{display:grid;grid-template-columns:repeat(6,1fr);gap:7px;margin-bottom:14px}
+@media(max-width:900px){.tabs{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:560px){.tabs{grid-template-columns:repeat(2,1fr)}}
+.tab{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px 11px;cursor:pointer;transition:.15s}
+.tab:hover{border-color:#3d4855}
+.tab.on{border-color:var(--acc);background:#1f6feb18}
+.tab .t{font-size:.87rem;font-weight:600}
+.tab .d{font-size:.68rem;color:var(--tx2);margin-top:1px}
+
+.khbar{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);
+ border-radius:10px;padding:10px 14px;margin-bottom:16px;flex-wrap:wrap}
+.khbar.on{border-color:#c084fc66;background:#c084fc12}
+.sw{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:.85rem;font-weight:600}
+.sw input{width:38px;height:20px;appearance:none;background:var(--panel2);border:1px solid var(--line);
+ border-radius:99px;position:relative;cursor:pointer;transition:.2s;margin:0}
+.sw input:checked{background:#c084fc;border-color:#c084fc}
+.sw input::after{content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;
+ background:var(--tx2);transition:.2s}
+.sw input:checked::after{left:20px;background:#fff}
+.khbar .info{font-size:.75rem;color:var(--tx2);flex:1;min-width:220px}
+
+.hero{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px}
+@media(max-width:900px){.hero{grid-template-columns:repeat(2,1fr)}}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px 15px}
+.kpi .k{font-size:.71rem;color:var(--tx2);letter-spacing:.8px}
+.kpi .v{font-size:1.28rem;font-weight:700;font-variant-numeric:tabular-nums;margin-top:1px}
+.kpi .n{font-size:.69rem;color:var(--tx2)}
+.v.acc{color:var(--acc)}.v.good{color:var(--good)}.v.warn{color:var(--warn)}.v.bad{color:var(--bad)}
+
+table{width:100%;border-collapse:collapse;font-size:.82rem;font-variant-numeric:tabular-nums}
+th,td{padding:6px 7px;border-bottom:1px solid var(--line);text-align:right}
+th:first-child,td:first-child{text-align:left}
+thead th{color:var(--tx2);font-weight:500;font-size:.74rem;letter-spacing:.4px}
+tr.total td{font-weight:700;border-top:1px solid var(--line);border-bottom:2px solid var(--line)}
+tr.grand td{font-weight:700;background:#1f6feb14;border-top:2px solid var(--acc);border-bottom:2px solid var(--acc)}
+tr.ded td:first-child{padding-left:20px;color:var(--tx2)}
+tr.khrow td{color:var(--kh)}
+td.dim{color:var(--tx2);font-size:.77rem}
+td.hi{color:var(--good);font-weight:600}
+td.mid{color:var(--warn);font-weight:600}
+td.lo{color:var(--bad);font-weight:600}
+td.neg{color:var(--bad)}
+.pill{display:inline-block;padding:1px 7px;border-radius:99px;font-size:.69rem;
+ background:#1f6feb22;color:var(--acc);border:1px solid #1f6feb44}
+.pill.g{background:#3fb95022;color:var(--good);border-color:#3fb95044}
+.pill.r{background:#f8514922;color:var(--bad);border-color:#f8514944}
+.pill.y{background:#d2992222;color:var(--warn);border-color:#d2992244}
+.pill.k{background:#c084fc22;color:var(--kh);border-color:#c084fc44}
+.alert{border-radius:8px;padding:8px 11px;font-size:.77rem;margin-top:10px;line-height:1.6}
+.alert.g{background:#3fb95014;border:1px solid #3fb95040;color:#7ee787}
+.alert.y{background:#d2992214;border:1px solid #d2992240;color:#e3b341}
+.alert.r{background:#f8514914;border:1px solid #f8514940;color:#ff9492}
+.alert.k{background:#c084fc14;border:1px solid #c084fc40;color:#ddb4fe}
+.note{font-size:.76rem;color:var(--tx2);margin-top:10px;line-height:1.7}
+.formula{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:.8rem;background:var(--panel2);
+ border:1px solid var(--line);border-radius:6px;padding:8px 11px;margin:8px 0;color:#9dc4ff;overflow-x:auto}
+.mt{margin-top:18px}
+.legend{font-size:.73rem;color:var(--tx2);margin-top:6px}
+.matrix td,.matrix th{text-align:center;padding:5px 4px;font-size:.78rem}
+.matrix th:first-child,.matrix td:first-child{text-align:left}
+.printhead,#report,.disc{display:none}
+
+@media print{
+  @page{size:A4 portrait;margin:11mm 9mm 13mm}
+  html,body{background:#fff!important;color:#111!important}
+  body{padding:0;font-size:9.3pt;line-height:1.45}
+  .wrap{max-width:none}
+  .toolbar,.tabs{display:none!important}
+  .khbar{border:1px solid #bbb!important;background:#fff!important;padding:5px 9px;font-size:8pt}
+  .khbar .sw input{display:none}
+  .printhead{display:block!important;border-bottom:2px solid #111;padding-bottom:6px;margin-bottom:10px}
+  .printhead .pt{font-size:13.5pt;font-weight:700}
+  .printhead .pc{font-size:8pt;color:#444}
+  .printhead .pm{font-size:8pt;color:#333;margin-top:4px}
+  .disc{display:block!important;margin-top:10px;font-size:7.4pt;color:#555;line-height:1.55;
+   border-top:1px solid #bbb;padding-top:6px}
+  h1,.sub{display:none}
+  .grid{display:block!important}
+  .grid>div:first-child{display:grid;grid-template-columns:1fr 1fr;gap:9px;align-items:start}
+  .card,.kpi{background:#fff!important;border:1px solid #bbb!important;border-radius:4px;
+   break-inside:avoid;page-break-inside:avoid;padding:9px 11px;margin-top:9px}
+  .card h2{color:#0b4a9e!important;font-size:9.3pt;margin-bottom:7px}
+  .hero{display:grid!important;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:0}
+  .kpi .k{color:#555!important;font-size:7pt}
+  .kpi .v{font-size:11.5pt;color:#111!important}
+  .kpi .n{color:#555!important;font-size:6.6pt}
+  .row{margin-bottom:2px}
+  .row label,.unit{color:#444!important;font-size:7.8pt}
+  .row input,.row select,.row .ro{border:none!important;background:transparent!important;color:#111!important;
+   font-weight:700;padding:0;width:auto;font-size:8.3pt;text-align:right;-webkit-appearance:none;appearance:none}
+  .row select,.row input.txt{text-align:left}
+  table{font-size:8pt}
+  th,td{padding:2.5px 4px;border-bottom:1px solid #ddd!important;color:#111!important}
+  thead th{color:#555!important;font-size:7.3pt}
+  tr.total td{border-top:1px solid #111!important;border-bottom:1.5px solid #111!important}
+  tr.grand td{background:#eef4ff!important;border-color:#0b4a9e!important;
+   -webkit-print-color-adjust:exact;print-color-adjust:exact}
+  tr.ded td:first-child{color:#555!important}
+  tr.khrow td{color:#6b21a8!important}
+  tr[style]{background:transparent!important}
+  td.dim,.note,.legend{color:#444!important}
+  td.hi{color:#0a7a2f!important} td.mid{color:#8a6100!important} td.lo,td.neg{color:#b3261e!important}
+  .note{font-size:7.6pt;line-height:1.55}
+  .formula{background:#f4f6f9!important;border-color:#ccc!important;color:#0b4a9e!important;font-size:7.8pt;
+   -webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .pill,.alert{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .pill{background:#eef4ff!important;color:#0b4a9e!important;border-color:#9dbcf0!important;font-size:6.8pt}
+  .pill.g{background:#e9f7ec!important;color:#0a7a2f!important;border-color:#8fcf9f!important}
+  .pill.r{background:#fdecea!important;color:#b3261e!important;border-color:#e8a29b!important}
+  .pill.y{background:#fdf3e0!important;color:#8a6100!important;border-color:#dcc48a!important}
+  .pill.k{background:#f6edfe!important;color:#6b21a8!important;border-color:#d3b0f5!important}
+  .alert{font-size:7.7pt;padding:5px 8px}
+  .alert.g{background:#e9f7ec!important;border-color:#8fcf9f!important;color:#0a5c25!important}
+  .alert.y{background:#fdf3e0!important;border-color:#dcc48a!important;color:#7a5500!important}
+  .alert.r{background:#fdecea!important;border-color:#e8a29b!important;color:#8f1d13!important}
+  .alert.k{background:#f6edfe!important;border-color:#d3b0f5!important;color:#6b21a8!important}
+  body.report-mode .grid,body.report-mode .hero,body.report-mode .khbar,
+  body.report-mode>.wrap>.card{display:none!important}
+  body.report-mode #report{display:block!important}
+  #report .rsec{break-inside:avoid;page-break-inside:avoid;border:1px solid #bbb;border-radius:4px;
+   padding:9px 11px;margin-bottom:9px}
+  #report h3{font-size:10pt;margin:0 0 6px;color:#0b4a9e}
+  #report .two{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+}
+</style>
+
+<div class="wrap">
+
+<div class="toolbar">
+  <button class="btn p" id="btnPrint"><svg viewBox="0 0 24 24"><path d="M6 9V3h12v6M6 18H4v-6h16v6h-2M8 14h8v7H8z"/></svg>列印／存成 PDF（目前方案）</button>
+  <button class="btn" id="btnReport"><svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8zM14 3v5h5M9 13h6M9 17h6"/></svg>完整估價報告（全類型比較）</button>
+</div>
+
+<div class="printhead" id="printhead"></div>
+
+<h1>新建案開發效益評估與土地估價分析</h1>
+<div class="sub">依《不動產估價技術規則》土地開發分析法（§69、75、77、78）與《建築技術規則》§162 免計容積規定建立　·　金額單位：新臺幣萬元</div>
+
+<div class="card">
+  <h2>一、案件基本資料</h2>
+  <div class="f2">
+    <div>
+      <div class="row"><label>案件名稱</label><input class="txt" id="pjName" value="三民區建工路建地開發評估"></div>
+      <div class="row"><label>標的地址</label><input class="txt" id="pjAddr" value="高雄市三民區○○路○段○號"></div>
+      <div class="row"><label>地號</label><input class="txt" id="pjLot" value="○○段 ○○○ 地號"></div>
+      <div class="row"><label>土地現況</label><input class="txt" id="pjNow" value="現有4層加強磚造透天（屋齡42年）"></div>
+    </div>
+    <div>
+      <div class="row"><label>勘估基準日</label><input class="txt" id="pjDate" value=""></div>
+      <div class="row"><label>受託單位</label><input class="txt" id="pjCo" value="○○不動產仲介經紀有限公司"></div>
+      <div class="row"><label>承辦業務</label><input class="txt" id="pjAgent" value="○○○　經紀人"></div>
+      <div class="row"><label>聯絡電話</label><input class="txt" id="pjTel" value="07-000-0000"></div>
+    </div>
+  </div>
+</div>
+
+<div class="tabs mt" id="tabs">
+  <div class="tab" data-k="apt"><div class="t">公寓</div><div class="d">5F 以下 · 無電梯</div></div>
+  <div class="tab" data-k="villa"><div class="t">華廈</div><div class="d">6–10F · 有電梯</div></div>
+  <div class="tab on" data-k="tower"><div class="t">電梯大樓</div><div class="d">11F 以上 · 雙梯</div></div>
+  <div class="tab" data-k="shop"><div class="t">店住混合</div><div class="d">1F 店面 + 住宅</div></div>
+  <div class="tab" data-k="etown"><div class="t">電梯透天</div><div class="d">整棟單一所有權</div></div>
+  <div class="tab" data-k="town"><div class="t">傳統透天</div><div class="d">5F 以下 · 無電梯</div></div>
+</div>
+
+<div class="khbar" id="khbar">
+  <label class="sw"><input type="checkbox" id="khOn"> 套用「高雄厝」</label>
+  <div class="info" id="khInfo"></div>
+</div>
+
+<div class="hero">
+  <div class="kpi"><div class="k">預期總銷金額</div><div class="v acc" id="kS">—</div><div class="n" id="kSn">—</div></div>
+  <div class="kpi"><div class="k">稅前淨利</div><div class="v" id="kPt">—</div><div class="n" id="kPtn">—</div></div>
+  <div class="kpi"><div class="k">稅後淨利</div><div class="v warn" id="kAt">—</div><div class="n" id="kAtn">—</div></div>
+  <div class="kpi"><div class="k">土開法合理地價</div><div class="v good" id="kV">—</div><div class="n" id="kVn">—</div></div>
+  <div class="kpi"><div class="k">與地主開價價差</div><div class="v" id="kGap">—</div><div class="n" id="kGapn">—</div></div>
+</div>
+
+<div class="grid">
+  <div>
+    <div class="card">
+      <h2>二、土地與法定條件</h2>
+      <div class="row"><label>土地面積</label><input id="land" value="36"><span class="unit">坪</span></div>
+      <div class="row"><label>土地面積（換算）</label><div class="ro" id="oM2">—</div><span class="unit">㎡</span></div>
+      <div class="row"><label>地主開價／取得成本</label><input id="landCost" value="1570"><span class="unit">萬</span></div>
+      <div class="row"><label>土地單價</label><div class="ro" id="oLandU">—</div><span class="unit">萬/坪</span></div>
+      <div class="row"><label>土地公告現值</label><input id="pubVal" value="130000"><span class="unit">元/㎡</span></div>
+      <div class="row"><label>使用分區</label><select id="zone"></select></div>
+      <div class="row"><label>法定建蔽率</label><input id="covBase" value="50"><span class="unit">%</span></div>
+      <div class="row"><label>法定容積率</label><input id="far" value="300"><span class="unit">%</span></div>
+      <div class="row"><label>面前道路寬度</label><input id="road" value="8"><span class="unit">公尺</span></div>
+    </div>
+
+    <div class="card mt">
+      <h2>三、容積獎勵</h2>
+      <div class="row"><label>獎勵類型</label><select id="bType">
+        <option value="none">一般新建案（無獎勵）</option>
+        <option value="weilao" selected>危老重建</option>
+        <option value="renew">都市更新</option>
+        <option value="custom">自訂獎勵</option>
+      </select></div>
+      <div class="row"><label>容積獎勵比例</label><input id="bonus" class="key" value="20"><span class="unit">%</span></div>
+      <div class="row"><label>獎勵上限（法定）</label><div class="ro" id="oBcap">—</div><span class="unit">%</span></div>
+      <div class="row"><label>實設建蔽率</label><input id="cov" class="key" value="60"><span class="unit">%</span></div>
+      <div id="bNote" class="note"></div>
+    </div>
+
+    <div class="card mt">
+      <h2>四、免計容積（技術規則 §162）</h2>
+      <div class="row"><label>陽台免計比例</label><input id="balcR" class="key" value="10"><span class="unit">%樓地板</span></div>
+      <div class="row"><label>梯廳／樓梯／昇降機間</label><input id="lobbyR" class="key" value="5"><span class="unit">%樓地板</span></div>
+      <div class="row"><label>陽台＋梯廳合計</label><div class="ro" id="oAB">—</div><span class="unit">%</span></div>
+      <div class="row"><label>機電／安全梯／管委會</label><input id="mepR" class="key" value="15"><span class="unit">%容積</span></div>
+      <div class="row"><label>屋頂突出物樓地板</label><input id="roofA" value="7.5"><span class="unit">坪</span></div>
+      <div class="row"><label>扣陽台梯廳後容積率</label><div class="ro" id="oEff">—</div><span class="unit">%</span></div>
+      <div class="row"><label>免計容積佔總樓地板</label><div class="ro" id="oDedR">—</div><span class="unit">%</span></div>
+      <div class="note">§162：陽台免計上限為該層樓地板 10%（無共同梯廳之住宅得 12.5%），與梯廳合計不得逾 15%；機電設備空間、安全梯梯間、緊急昇降機機道、排煙室及管委會空間之和，僅設一座直通樓梯者不逾基地容積 10%，其餘不逾 15%。屋頂突出物免計容積、不列入權狀。</div>
+    </div>
+
+    <div class="card mt" id="khCard">
+      <h2>五、高雄厝設施 <span class="pill k" id="khTag">未套用</span></h2>
+      <div class="row"><label>景觀陽台</label><input id="khBalc" class="khv" value="12.5"><span class="unit">%樓地板</span></div>
+      <div class="row"><label>通用化設計空間</label><input id="khUniv" class="khv" value="2"><span class="unit">%基準容積</span></div>
+      <div class="row"><label>綠能設施（屋前＋屋後）</label><input id="khGreen" value="0"><span class="unit">㎡</span></div>
+      <div class="row"><label>回饋金係數</label><input id="khFee" value="0.25"><span class="unit">倍</span></div>
+      <div class="row"><label>增加可售坪數</label><div class="ro" id="oKhArea">—</div><span class="unit">坪</span></div>
+      <div class="row"><label>應繳回饋金</label><div class="ro" id="oKhFee">—</div><span class="unit">萬</span></div>
+      <div class="note">依《高雄市高雄厝設計及鼓勵回饋辦法》：景觀陽台每層不逾樓地板 1/8（最小深度 1 m、平均 2 m），免計容積且免計建蔽率；通用化設計空間合計不逾基準容積 2%。回饋金＝設施面積 × 基地公告現值 ÷ 法定容積率 × 係數（六層以上及供公眾使用 0.25；五層以下屋後綠能 0.24、其他 0.16）。</div>
+    </div>
+
+    <div class="card mt">
+      <h2>六、量體規劃 <span class="pill" id="pName">電梯大樓</span></h2>
+      <div class="row"><label><b style="color:var(--acc)">地上樓層數</b></label><input id="fl" class="key" value="9"><span class="unit">層</span></div>
+      <div class="row"><label>層高</label><input id="fh" value="3.15"><span class="unit">公尺</span></div>
+      <div class="row"><label>每層戶數（0＝整棟）</label><input id="upf" value="1"><span class="unit">戶</span></div>
+      <div class="row"><label>公設比（描述用）</label><input id="pubR" value="33"><span class="unit">%</span></div>
+      <div class="row"><label>地下室層數</label><input id="bFl" value="1"><span class="unit">層</span></div>
+      <div class="row"><label>地下室開挖率</label><input id="bCov" value="85"><span class="unit">%</span></div>
+      <hr class="s">
+      <div class="row"><label>每層可計容積</label><div class="ro" id="oPer">—</div><span class="unit">坪</span></div>
+      <div class="row"><label>最適樓層</label><div class="ro" id="oNeed">—</div><span class="unit">層</span></div>
+      <div class="row"><label>容積使用率</label><div class="ro" id="oUse">—</div><span class="unit">%</span></div>
+      <div class="row"><label>建物高度</label><div class="ro" id="oH">—</div><span class="unit">公尺</span></div>
+    </div>
+
+    <div class="card mt">
+      <h2>七、銷售條件</h2>
+      <div class="row"><label>房屋銷售單價</label><input id="px" class="key" value="44"><span class="unit">萬/坪</span></div>
+      <div class="row"><label>一樓溢價倍數</label><input id="f1p" value="1.0"><span class="unit">倍</span></div>
+      <div class="row"><label>車位數</label><input id="parkN" value="2"><span class="unit">個</span></div>
+      <div class="row"><label>車位單價</label><input id="parkP" value="130"><span class="unit">萬/個</span></div>
+      <div class="row"><label>地下室可容車位</label><div class="ro" id="oParkCap">—</div><span class="unit">個</span></div>
+    </div>
+
+    <div class="card mt">
+      <h2>八、開發成本</h2>
+      <div class="row"><label>地上營建單價</label><input id="uc" class="key" value="21"><span class="unit">萬/坪</span></div>
+      <div class="row"><label>地下室營建單價</label><input id="ucB" value="16"><span class="unit">萬/坪</span></div>
+      <div class="row"><label>規劃設計監造費</label><input id="designR" value="6"><span class="unit">%營建</span></div>
+      <div class="row"><label>土地取得附屬費</label><input id="landFee" value="2.5"><span class="unit">%地價</span></div>
+      <div class="row"><label>拆除／鑑定／規費等</label><input id="misc" value="180"><span class="unit">萬</span></div>
+      <div class="row"><label>融資利率</label><input id="ir" value="3.1"><span class="unit">%</span></div>
+      <div class="row"><label>開發總期程</label><input id="yrs" value="2.5"><span class="unit">年</span></div>
+    </div>
+
+    <div class="card mt">
+      <h2>九、費用、稅捐與利潤</h2>
+      <div class="row"><label>廣告銷售費</label><input id="mkt" value="5"><span class="unit">%總銷</span></div>
+      <div class="row"><label>管理費</label><input id="adm" value="3"><span class="unit">%總銷</span></div>
+      <div class="row"><label>稅捐及其他負擔</label><input id="mtax" value="0.3"><span class="unit">%總銷</span></div>
+      <div class="row"><label>土開法適當利潤率 R</label><input id="R" value="15"><span class="unit">%</span></div>
+      <div class="row"><label>營利事業所得稅</label><input id="cit" value="20"><span class="unit">%</span></div>
+    </div>
+  </div>
+
+  <div>
+    <div class="card">
+      <h2>十、量體與免計容積計算</h2>
+      <table><tbody id="tVol"></tbody></table>
+      <div id="alert"></div>
+    </div>
+
+    <div class="card mt">
+      <h2>十一、預期總銷金額（S）</h2>
+      <table><thead><tr><th>銷售項目</th><th>數量</th><th>單價</th><th>金額（萬）</th><th>佔比</th></tr></thead><tbody id="tRev"></tbody></table>
+    </div>
+
+    <div class="card mt">
+      <h2>十二、開發成本與損益</h2>
+      <table><thead><tr><th>項目</th><th>金額（萬）</th><th>佔總銷</th><th>攤／權狀坪</th></tr></thead><tbody id="tCost"></tbody></table>
+      <div class="legend" id="barLeg"></div>
+    </div>
+
+    <div class="card mt">
+      <h2>十三、土地開發分析價格（估價技術規則 §78）</h2>
+      <div class="formula">V ＝ S ÷ (1＋R) ÷ (1＋i) － (C＋M)　　i ＝ 年利率 × (土地價值比率 ＋ 建物價值比率 × ½) × 開發年數</div>
+      <table><tbody id="tLand"></tbody></table>
+      <div id="landAlert"></div>
+      <div class="note">C＝直接成本（營造施工費）；M＝間接成本（規劃設計費、廣告銷售費、管理費、稅捐及其他負擔）。資本利息不另列成本，已由 (1＋i) 折現處理，避免重複計算。土地價值比率採疊代法收斂求解。</div>
+    </div>
+
+    <div class="card mt">
+      <h2>十四、樓層數敏感度</h2>
+      <table><thead><tr><th>樓層</th><th>使用容積</th><th>使用率</th><th>總樓地板</th><th>權狀坪</th><th>總銷</th><th>稅前淨利</th><th>淨利率</th><th>合理地價</th></tr></thead><tbody id="tFl"></tbody></table>
+      <div class="note">容積用滿後頂層樓地板自動收斂（不再依建蔽率滿版配置），故總樓地板與權狀坪不會再增加。</div>
+    </div>
+
+    <div class="card mt">
+      <h2>十五、售價 × 營建單價 雙變數敏感度（稅前淨利率）</h2>
+      <table class="matrix"><thead id="tMxH"></thead><tbody id="tMx"></tbody></table>
+      <div class="legend">列＝房屋銷售單價（萬/坪）　欄＝地上營建單價（萬/坪）　綠＝淨利率 ≥15%　黃＝8–15%　紅＝&lt;8%</div>
+    </div>
+
+    <div class="card mt">
+      <h2>十六、建築種類比較</h2>
+      <table><thead><tr><th>建築種類</th><th>樓層</th><th>使用容積</th><th>總樓地板</th><th>權狀坪</th><th>營建</th><th>售價</th><th>總銷</th><th>淨利率</th><th>合理地價</th></tr></thead><tbody id="tCmp"></tbody></table>
+      <div class="note">電梯大樓另列「高雄厝」與「一般」兩種版本比較；其餘類型依目前高雄厝開關計算。</div>
+    </div>
+
+    <div class="card mt">
+      <h2>十七、情境分析</h2>
+      <table><thead><tr><th>情境</th><th>售價</th><th>營建單價</th><th>獎勵</th><th>總銷</th><th>稅前淨利</th><th>淨利率</th><th>合理地價</th><th>對照開價</th></tr></thead><tbody id="tScen"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<div class="card mt">
+  <h2>評估結論與注意事項</h2>
+  <div class="note" id="concl"></div>
+</div>
+
+<div id="report"></div>
+<div class="disc" id="disc"></div>
+
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const V=id=>{const e=$(id);if(!e)return 0;
+  if(e.type==='checkbox')return e.checked;
+  if(e.tagName==='SELECT'||e.classList.contains('txt'))return e.value;
+  const n=parseFloat(e.value);return isFinite(n)?n:0;};
+const T=id=>{const e=$(id);return e?e.value:'';};
+const fmt=(n,d=0)=>isFinite(n)?n.toLocaleString('zh-TW',{minimumFractionDigits:d,maximumFractionDigits:d}):'—';
+const PING=3.305785;
+
+/* ---------- 高雄市使用分區 ---------- */
+const ZONES=[
+ ['住宅區',[['第一種住宅區',40,80],['第二種住宅區',50,150],['第三種住宅區',50,240],
+   ['第四種住宅區',50,300],['第五種住宅區',60,420],['其他未劃分住宅區',60,240]]],
+ ['商業區',[['第一種商業區',40,240],['第二種商業區',50,300],['第三種商業區',60,490],
+   ['第四種商業區',60,630],['第五種商業區',70,840],['其他未劃分商業區',80,400]]],
+ ['工業區',[['特種工業區',40,160],['甲種工業區',50,200],['乙種工業區',60,300],['零星工業區',70,200]]],
+ ['其他分區',[['行政區',40,480],['文教區',40,240],['倉儲區',60,240],['保存區',60,160],
+   ['專用區',60,400],['體育運動區',60,250],['宗教專用區',60,160],['農會專用區',60,250],
+   ['漁業區',50,250],['風景區',20,60]]],
+];
+(function(){const s=$('zone');ZONES.forEach(([g,arr])=>{
+  const og=document.createElement('optgroup');og.label=g;
+  arr.forEach(([n,c,f])=>{const o=document.createElement('option');o.value=`${c}|${f}`;o.textContent=n;
+    if(n==='第四種住宅區')o.selected=true;og.appendChild(o);});
+  s.appendChild(og);});})();
+$('zone').addEventListener('change',e=>{
+  const [c,f]=e.target.value.split('|').map(Number);
+  $('covBase').value=c;$('far').value=f;
+  if($('bType').value!=='weilao')$('cov').value=c;
+  render();});
+
+/* ---------- 容積獎勵 ---------- */
+const BONUS={
+  none:  {cap:0,  def:0,  note:'素地或一般建地依法定容積開發，不適用容積獎勵，建蔽率依分區法定值。'},
+  weilao:{cap:30, def:20, note:'《都市危險及老舊建築物加速重建條例》：獎勵上限為基準容積 30%（1.3 倍基準容積或 1.15 倍原建築容積）。時程獎勵自 2025/5/12 起歸零；基地未達 200 ㎡ 無規模獎勵。高雄市住宅區依《危險及老舊建築物重建建蔽率放寬標準》第 4 條，建蔽率得放寬至 60%。'},
+  renew: {cap:50, def:30, note:'《都市更新條例》第 65 條：獎勵後容積不得超過基準容積 1.5 倍（獎勵上限 50%），或基準容積 0.3 倍加原建築容積，擇優適用。'},
+  custom:{cap:100,def:30, note:'自訂比例，涵蓋增額容積、容積移轉（TDR）、停車獎勵或個案都審核定之其他情形，務必註明核定依據。'},
+};
+$('bType').addEventListener('change',e=>{
+  const b=BONUS[e.target.value];$('bonus').value=b.def;
+  $('cov').value=(e.target.value==='weilao')?60:V('covBase');render();});
+
+/* ---------- 建築種類 ---------- */
+const PRESET={
+  apt:  {name:'公寓',    fl:5, fh:3.20,upf:1,pubR:18,balcR:12.5,lobbyR:0, mepR:0, roofA:5.0,bFl:0,bCov:0,
+         px:32,f1p:1.0,parkN:0,parkP:0,  uc:15,ucB:16,mkt:3,kh:false,
+         desc:'5 層以下無電梯集合住宅。無安全梯與昇降機，機電免計額度為 0；陽台得依 §162 但書用 12.5%。'},
+  villa:{name:'華廈',    fl:8, fh:3.15,upf:1,pubR:28,balcR:10,  lobbyR:5, mepR:10,roofA:6.5,bFl:1,bCov:85,
+         px:42,f1p:1.0,parkN:2,parkP:120,uc:19,ucB:16,mkt:4,kh:false,
+         desc:'6–10 層電梯住宅，僅設一座直通樓梯，機電等免計額度上限為基地容積 10%。'},
+  tower:{name:'電梯大樓',fl:9, fh:3.15,upf:1,pubR:33,balcR:10,  lobbyR:5, mepR:15,roofA:7.5,bFl:1,bCov:85,
+         px:44,f1p:1.0,parkN:2,parkP:130,uc:21,ucB:16,mkt:5,kh:false,
+         desc:'11 層以上須設兩座直通樓梯與緊急昇降機，機電等免計額度上限為基地容積 15%。'},
+  shop: {name:'店住混合',fl:8, fh:3.30,upf:1,pubR:31,balcR:10,  lobbyR:5, mepR:12,roofA:7.0,bFl:1,bCov:85,
+         px:44,f1p:1.8,parkN:2,parkP:130,uc:20,ucB:16,mkt:5,kh:false,
+         desc:'一樓店面加樓上住宅，一樓以溢價倍數計價，適合臨路商業性格明顯之基地。'},
+  etown:{name:'電梯透天',fl:7, fh:3.30,upf:0,pubR:0, balcR:12.5,lobbyR:0, mepR:0, roofA:5.5,bFl:0,bCov:0,
+         px:36,f1p:1.0,parkN:0,parkP:0,  uc:17,ucB:16,mkt:3,kh:false,
+         desc:'整棟單一所有權，無公設分攤，權狀等於實際樓地板；總價高，去化集中於單一買方。'},
+  town: {name:'傳統透天',fl:5, fh:3.30,upf:0,pubR:0, balcR:12.5,lobbyR:0, mepR:0, roofA:4.5,bFl:0,bCov:0,
+         px:33,f1p:1.0,parkN:0,parkP:0,  uc:14,ucB:16,mkt:3,kh:false,
+         desc:'5 層以下免設電梯，建蔽率依高雄市 108 年通盤檢討得為 60%；容積多半用不完。'},
+};
+const PKEYS=['fl','fh','upf','pubR','balcR','lobbyR','mepR','roofA','bFl','bCov','px','f1p','parkN','parkP','uc','ucB','mkt'];
+let cur='tower';
+function curP(){const o={name:PRESET[cur].name,kh:$('khOn').checked};PKEYS.forEach(k=>o[k]=V(k));return o;}
+function applyPreset(k){cur=k;const p=PRESET[k];PKEYS.forEach(f=>$(f).value=p[f]);
+  $('pName').textContent=p.name;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.k===k));render();}
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>applyPreset(t.dataset.k)));
+$('khOn').addEventListener('change',render);
+
+function common(){return {land:V('land'),landCost:V('landCost'),pubVal:V('pubVal'),covBase:V('covBase'),
+  cov:V('cov'),far:V('far'),bonus:V('bonus'),road:V('road'),khBalc:V('khBalc'),khUniv:V('khUniv'),
+  khGreen:V('khGreen'),khFee:V('khFee'),designR:V('designR'),landFee:V('landFee'),misc:V('misc'),
+  ir:V('ir'),yrs:V('yrs'),adm:V('adm'),mtax:V('mtax'),R:V('R'),cit:V('cit')};}
+
+/* ================= 核心計算 ================= */
+function core(c,p,ov){
+  ov=ov||{};
+  const fl   = ov.fl   !==undefined?ov.fl   :p.fl;
+  const uc   = ov.uc   !==undefined?ov.uc   :p.uc;
+  const px   = ov.px   !==undefined?ov.px   :p.px;
+  const bonus= ov.bonus!==undefined?ov.bonus:c.bonus;
+  const kh   = ov.kh   !==undefined?ov.kh   :p.kh;
+
+  const baseFar = c.land*c.far/100;                       // 基準容積
+  const maxFar  = baseFar*(1+bonus/100);                  // 獎勵後容積上限
+  const F       = c.land*c.cov/100;                       // 每層建築面積（建蔽率上限）
+  const a       = (p.balcR+p.lobbyR)/100;                 // 陽台＋梯廳免計比例（佔樓地板）
+  const perFl   = F*(1-a);                                // 每層可計容積
+  const mepAllow= maxFar*p.mepR/100;                      // 機電等免計額度
+  const univ    = kh?baseFar*c.khUniv/100:0;              // 高雄厝通用化設計免計
+
+  // 用滿容積所需樓層 & 實際樓地板（容積用滿後頂層自動收斂）
+  const needFl  = perFl>0?Math.ceil((maxFar+mepAllow+univ)/F/(1-a)):0;
+  const capBase = (1-a)>0?(maxFar+mepAllow+univ)/(1-a):0; // 容積用滿時的基本樓地板上限
+  const baseFA  = Math.min(fl*F, capBase);                // 地上基本樓地板（不含高雄厝陽台）
+  const usedFl  = F>0?Math.min(fl,Math.ceil(baseFA/F)):0;
+
+  const dedBL   = baseFA*a;                               // 陽台＋梯廳免計
+  const dedBalc = baseFA*p.balcR/100;                     // 其中陽台
+  const dedMep  = Math.min(mepAllow, Math.max(0,baseFA-dedBL)); // 機電免計（不超過剩餘）
+  const khBalcA = kh?baseFA*c.khBalc/100:0;               // 高雄厝景觀陽台（免容積、免建蔽率）
+  const khGreenA= kh?c.khGreen/PING:0;                    // 綠能設施（坪）
+  const farFloor= Math.max(0, baseFA-dedBL-dedMep-univ);  // 實際容積樓地板
+  const useR    = maxFar>0?farFloor/maxFar*100:0;
+
+  const upper   = baseFA+khBalcA+khGreenA;                // 地上總樓地板（不含屋突）
+  const sale    = upper;                                  // 權狀坪（屋突不登記）
+  const oneFl   = usedFl>0?sale/usedFl:0;
+  const bArea   = p.bFl*c.land*p.bCov/100;
+  const gross   = upper+p.roofA+bArea;                    // 營建計價總樓地板
+  const parkCap = Math.floor(bArea/12);
+
+  // 高雄厝回饋金：設施面積(㎡) × 公告現值 ÷ 法定容積率 × 係數
+  const khM2    = (khBalcA+univ)*PING + (kh?c.khGreen:0);
+  const khFeeAmt= (kh&&c.far>0)?khM2*c.pubVal/(c.far/100)*c.khFee/10000:0;  // 萬元
+
+  // 收入
+  const revF1   = oneFl*px*p.f1p;
+  const revUp   = Math.max(0,sale-oneFl)*px;
+  const revHouse= revF1+revUp;
+  const revPark = p.parkN*p.parkP;
+  const S       = revHouse+revPark;
+
+  // 成本
+  const build   = (upper+p.roofA)*uc + bArea*p.ucB;       // C 直接成本
+  const design  = build*c.designR/100;
+  const landFee = c.landCost*c.landFee/100;
+  const mktC=S*p.mkt/100, admC=S*c.adm/100, taxC=S*c.mtax/100;
+  const M       = design+mktC+admC+taxC+c.misc+khFeeAmt;  // M 間接成本（回饋金歸入其他負擔）
+  const interest= c.landCost*0.6*c.ir/100*c.yrs + build*0.7*0.5*c.ir/100*(c.yrs*0.6);
+  const totalCost=c.landCost+landFee+build+design+c.misc+khFeeAmt+interest+mktC+admC+taxC;
+  const pretax  = S-totalCost;
+  const tax     = pretax>0?pretax*c.cit/100:0;
+  const after   = pretax-tax;
+  const margin  = S>0?pretax/S*100:0;
+  const roc     = totalCost>0?pretax/totalCost*100:0;
+
+  // 土開法 §78
+  const CM=build+M, Rr=c.R/100;
+  let Vland=Math.max(0,S/(1+Rr)-CM), i=0;
+  for(let k=0;k<50;k++){
+    const tot=Vland+CM, lr=tot>0?Vland/tot:0;
+    i=c.ir/100*(lr+(1-lr)*0.5)*c.yrs;
+    const nv=S/(1+Rr)/(1+i)-CM;
+    if(Math.abs(nv-Vland)<0.005){Vland=nv;break;}
+    Vland=Vland*0.5+nv*0.5;
+  }
+  return {fl,uc,px,bonus,kh,baseFar,maxFar,F,a,perFl,mepAllow,univ,needFl,baseFA,usedFl,
+    dedBL,dedBalc,dedMep,khBalcA,khGreenA,khM2,khFeeAmt,farFloor,useR,upper,sale,oneFl,bArea,gross,
+    roofA:p.roofA,parkCap,revF1,revUp,revHouse,revPark,S,build,design,landFee,mktC,admC,taxC,M,CM,
+    interest,totalCost,pretax,tax,after,margin,roc,Vland,i,gap:Vland-c.landCost,
+    height:fl*p.fh,wasted:Math.max(0,maxFar-farFloor),unit:sale>0?S/sale:0};
+}
+
+/* ================= 畫面 ================= */
+function render(){
+  const c=common(),p=curP(),r=core(c,p),b=BONUS[$('bType').value];
+  const kh=p.kh;
+
+  $('khbar').classList.toggle('on',kh);
+  $('khCard').classList.toggle('khon',kh);
+  $('khTag').textContent=kh?'已套用':'未套用';
+  $('khInfo').innerHTML=kh
+    ? `景觀陽台 <b>${fmt(r.khBalcA,1)} 坪</b>＋通用化設計 <b>${fmt(r.univ,1)} 坪</b>${c.khGreen>0?`＋綠能 ${fmt(r.khGreenA,1)} 坪`:''}
+       ＝額外免計容積可售 <b>${fmt(r.khBalcA+r.univ+r.khGreenA,1)} 坪</b>；應繳回饋金 <b>${fmt(r.khFeeAmt)} 萬</b>。`
+    : '勾選後套用《高雄市高雄厝設計及鼓勵回饋辦法》：景觀陽台與通用化設計空間免計容積、免計建蔽率，可增加權狀可售坪數，但須繳納回饋金。';
+
+  $('oM2').textContent=fmt(c.land*PING,1);
+  $('oLandU').textContent=fmt(c.land>0?c.landCost/c.land:0,1);
+  $('oBcap').textContent=b.cap;$('bNote').textContent=b.note;
+  $('oAB').textContent=fmt(p.balcR+p.lobbyR,1);
+  $('oEff').textContent=fmt((1-r.a)*100,1);
+  $('oDedR').textContent=fmt(r.sale>0?(r.dedBL+r.dedMep+r.univ+r.khBalcA)/r.sale*100:0,1);
+  $('oKhArea').textContent=fmt(kh?(r.khBalcA+r.univ+r.khGreenA):0,1);
+  $('oKhFee').textContent=fmt(r.khFeeAmt);
+  $('oPer').textContent=fmt(r.perFl,2);
+  $('oNeed').textContent=fmt(r.needFl,0);
+  $('oUse').textContent=fmt(r.useR,1);
+  $('oH').textContent=fmt(r.height,1);
+  $('oParkCap').textContent=fmt(r.parkCap,0);
+
+  const units=p.upf>0?Math.max(1,Math.round(r.usedFl*p.upf)):1;
+  const inner=r.sale/units*(1-p.pubR/100);
+  $('kS').textContent=fmt(r.S);
+  $('kSn').textContent=`房屋 ${fmt(r.sale,1)} 坪 × ${r.px} 萬${r.revPark>0?` ＋ 車位 ${p.parkN} 個`:''}`;
+  $('kPt').textContent=fmt(r.pretax);
+  $('kPt').className='v '+(r.margin>=15?'good':r.margin>=8?'warn':'bad');
+  $('kPtn').textContent=`淨利率 ${fmt(r.margin,1)}%　成本利潤率 ${fmt(r.roc,1)}%`;
+  $('kAt').textContent=fmt(r.after);
+  $('kAtn').textContent=units>1?`${units} 戶／每戶權狀 ${fmt(r.sale/units,1)} 坪、室內約 ${fmt(inner,1)} 坪`:'整棟 1 戶';
+  $('kV').textContent=fmt(r.Vland);
+  $('kVn').textContent=`${fmt(c.land>0?r.Vland/c.land:0,1)} 萬/坪　R=${c.R}%　i=${fmt(r.i*100,2)}%`;
+  $('kGap').textContent=(r.gap>=0?'+':'')+fmt(r.gap);
+  $('kGap').className='v '+(r.gap>=0?'good':'bad');
+  $('kGapn').textContent=r.gap>=0?`低於合理地價，尚有 ${fmt(r.gap)} 萬空間`:`高於合理地價 ${fmt(-r.gap)} 萬，須議價`;
+
+  // 量體與免計容積
+  $('tVol').innerHTML=`
+   <tr><td>基準容積樓地板</td><td>${fmt(r.baseFar,1)} 坪</td><td class="dim">${c.land} 坪 × 容積率 ${c.far}%</td></tr>
+   <tr><td>獎勵後容積上限</td><td>${fmt(r.maxFar,1)} 坪</td><td class="dim">＋${c.bonus}%（法定上限 ${b.cap}%）</td></tr>
+   <tr><td>每層建築面積（建蔽率 ${c.cov}%）</td><td>${fmt(r.F,2)} 坪</td><td class="dim">每層可計容積 ${fmt(r.perFl,2)} 坪</td></tr>
+   <tr class="total"><td>地上基本樓地板（${r.usedFl} 層）</td><td>${fmt(r.baseFA,1)} 坪</td><td class="dim">${r.baseFA<r.fl*r.F?'容積用滿，頂層樓地板收斂':'依建蔽率滿版配置'}</td></tr>
+   <tr class="ded"><td>－ 陽台免計容積（${p.balcR}%）</td><td>${fmt(r.dedBalc,1)} 坪</td><td class="dim">§162 上限 10%（無共同梯廳 12.5%）</td></tr>
+   <tr class="ded"><td>－ 梯廳／樓梯／昇降機間（${p.lobbyR}%）</td><td>${fmt(r.dedBL-r.dedBalc,1)} 坪</td><td class="dim">與陽台合計上限 15%</td></tr>
+   <tr class="ded"><td>－ 機電／安全梯／管委會（容積 ${p.mepR}%）</td><td>${fmt(r.dedMep,1)} 坪</td><td class="dim">§162 上限 10%／15%</td></tr>
+   ${kh?`<tr class="ded khrow"><td>－ 高雄厝通用化設計（基準容積 ${c.khUniv}%）</td><td>${fmt(r.univ,1)} 坪</td><td class="dim">浴廁、交誼室</td></tr>`:''}
+   <tr class="total"><td>＝ 實際容積樓地板</td><td>${fmt(r.farFloor,1)} 坪</td><td class="dim">使用率 ${fmt(r.useR,1)}%　免計容積合計 ${fmt(r.dedBL+r.dedMep+r.univ,1)} 坪（${fmt((r.dedBL+r.dedMep+r.univ)/r.baseFA*100,1)}%）</td></tr>
+   ${kh?`<tr class="khrow"><td>＋ 高雄厝景觀陽台（樓地板 ${c.khBalc}%）</td><td>${fmt(r.khBalcA,1)} 坪</td><td class="dim">免計容積且免計建蔽率</td></tr>`:''}
+   ${kh&&c.khGreen>0?`<tr class="khrow"><td>＋ 綠能設施</td><td>${fmt(r.khGreenA,1)} 坪</td><td class="dim">${c.khGreen} ㎡</td></tr>`:''}
+   <tr class="grand"><td>地上總樓地板 ＝ 可銷售權狀坪</td><td>${fmt(r.sale,1)} 坪</td><td class="dim">${units>1?`${units} 戶／每戶 ${fmt(r.sale/units,1)} 坪（公設比 ${p.pubR}% → 室內約 ${fmt(inner,1)} 坪）`:'整棟 1 戶'}</td></tr>
+   <tr><td>屋頂突出物（不計容積、不登記）</td><td>${fmt(r.roofA,1)} 坪</td><td class="dim">樓梯間、電梯機房、水箱</td></tr>
+   <tr><td>地下室（${p.bFl} 層 × 開挖率 ${p.bCov}%）</td><td>${fmt(r.bArea,1)} 坪</td><td class="dim">可容車位約 ${r.parkCap} 個</td></tr>
+   <tr class="total"><td>營建計價總樓地板</td><td>${fmt(r.gross,1)} 坪</td><td class="dim">地上＋屋突＋地下</td></tr>`;
+
+  let al='';
+  if(r.wasted>1) al=`<div class="alert y">容積未用滿，尚有 <b>${fmt(r.wasted,1)} 坪</b>未使用（使用率 ${fmt(r.useR,1)}%）。吃滿需 <b>${r.needFl} 層</b>，目前 ${p.fl} 層。土地成本固定，少蓋的樓地板直接侵蝕利潤。</div>`;
+  else if(p.fl>r.needFl) al=`<div class="alert r">容積已用滿，第 <b>${r.needFl+1} 層</b>以上無容積可配置。計算已自動以 ${r.needFl} 層收斂，建議將樓層數改回 <b>${r.needFl} 層</b>。</div>`;
+  else al=`<div class="alert g">樓層數與容積匹配良好（使用率 ${fmt(r.useR,1)}%），為本組參數下的最適配置。</div>`;
+  if(kh) al+=`<div class="alert k">高雄厝：增加 <b>${fmt(r.khBalcA+r.univ+r.khGreenA,1)} 坪</b>免計容積可售面積（約 ${fmt((r.khBalcA+r.univ+r.khGreenA)*r.px)} 萬銷售額），
+    營建成本增加約 ${fmt((r.khBalcA+r.univ+r.khGreenA)*r.uc)} 萬，回饋金 ${fmt(r.khFeeAmt)} 萬
+    → 淨效益約 <b>${fmt((r.khBalcA+r.univ+r.khGreenA)*(r.px-r.uc)-r.khFeeAmt)} 萬</b>。景觀陽台須符合最小深度 1 m、平均深度 2 m 之規定，並經建管處審查。</div>`;
+  if(p.parkN>r.parkCap) al+=`<div class="alert y">設定車位 ${p.parkN} 個超過地下室概估可容 <b>${r.parkCap} 個</b>（每車位含車道 12 坪）。請增加地下室層數／開挖率或改機械式車位。</div>`;
+  const hCap=c.road*1.5+6;
+  if(r.height>hCap) al+=`<div class="alert y">建物高度 ${fmt(r.height,1)} m 超過「面前道路 ${c.road} m ×1.5＋6 ＝ ${fmt(hCap,1)} m」概估上限（約 ${Math.floor(hCap/p.fh)} 層）。實際高度管制須依個案都市計畫書、都審規範與日照退縮認定。</div>`;
+  if(cur==='apt'&&p.fl>5) al+=`<div class="alert y">公寓定義為 5 層以下無電梯建築，目前設定 ${p.fl} 層；6 層以上依建築技術規則應設昇降機，請改用「華廈」或「電梯大樓」。</div>`;
+  if(cur==='town'&&p.fl>5) al+=`<div class="alert y">傳統透天為 5 層以下；超過 5 層應設電梯，請改用「電梯透天」。另高雄市建蔽率 60% 之通盤檢討放寬僅適用 5 層以下（危老另依放寬標準辦理）。</div>`;
+  if(cur==='tower'&&p.fl<11) al+=`<div class="alert y">一般以 11 層以上稱大樓，目前 ${p.fl} 層較接近「華廈」；若採華廈規劃，機電免計額度應降為基地容積 10%。</div>`;
+  $('alert').innerHTML=al;
+
+  // 收入
+  let rv='';
+  if(r.oneFl>0&&p.f1p!==1) rv+=`<tr><td>一樓${p.f1p>1?'店面':''}</td><td>${fmt(r.oneFl,1)} 坪</td><td>${fmt(r.px*p.f1p,1)} 萬/坪</td><td>${fmt(r.revF1)}</td><td>${fmt(r.revF1/r.S*100,1)}%</td></tr>
+    <tr><td>二樓以上住宅</td><td>${fmt(r.sale-r.oneFl,1)} 坪</td><td>${fmt(r.px,1)} 萬/坪</td><td>${fmt(r.revUp)}</td><td>${fmt(r.revUp/r.S*100,1)}%</td></tr>`;
+  else rv+=`<tr><td>房屋銷售</td><td>${fmt(r.sale,1)} 坪</td><td>${fmt(r.px,1)} 萬/坪</td><td>${fmt(r.revHouse)}</td><td>${fmt(r.revHouse/r.S*100,1)}%</td></tr>`;
+  if(r.revPark>0) rv+=`<tr><td>停車位</td><td>${p.parkN} 個</td><td>${fmt(p.parkP)} 萬/個</td><td>${fmt(r.revPark)}</td><td>${fmt(r.revPark/r.S*100,1)}%</td></tr>`;
+  rv+=`<tr class="grand"><td>預期總銷金額 S</td><td colspan="2">平均 ${fmt(r.unit,1)} 萬/權狀坪</td><td>${fmt(r.S)}</td><td>100%</td></tr>`;
+  $('tRev').innerHTML=rv;
+
+  // 成本
+  const rows=[['土地購置成本',c.landCost],['土地取得附屬費用',r.landFee],
+    ['營造施工費（直接成本 C）',r.build],['規劃設計監造費',r.design],
+    ['拆除／鑑定／規費等雜項',c.misc]];
+  if(kh) rows.push(['高雄厝回饋金',r.khFeeAmt]);
+  rows.push(['廣告銷售費',r.mktC],['管理費',r.admC],['稅捐及其他負擔',r.taxC],['土地及建築融資利息',r.interest]);
+  let h=rows.map(([n,v])=>`<tr${n==='高雄厝回饋金'?' class="khrow"':''}><td>${n}</td><td>${fmt(v)}</td><td>${fmt(v/r.S*100,1)}%</td><td>${fmt(v/r.sale,1)}</td></tr>`).join('');
+  h+=`<tr class="total"><td>開發總成本</td><td>${fmt(r.totalCost)}</td><td>${fmt(r.totalCost/r.S*100,1)}%</td><td>${fmt(r.totalCost/r.sale,1)}</td></tr>`;
+  h+=`<tr><td>稅前淨利</td><td class="${r.pretax<0?'neg':''}">${fmt(r.pretax)}</td><td>${fmt(r.margin,1)}%</td><td>${fmt(r.pretax/r.sale,1)}</td></tr>`;
+  h+=`<tr><td>營利事業所得稅（${c.cit}%）</td><td>${fmt(r.tax)}</td><td>${fmt(r.tax/r.S*100,1)}%</td><td>${fmt(r.tax/r.sale,1)}</td></tr>`;
+  h+=`<tr class="grand"><td>稅後淨利</td><td class="${r.after<0?'neg':''}">${fmt(r.after)}</td><td>${fmt(r.after/r.S*100,1)}%</td><td>${fmt(r.after/r.sale,1)}</td></tr>`;
+  $('tCost').innerHTML=h;
+  $('barLeg').textContent=`成本利潤率（稅前淨利／開發總成本）${fmt(r.roc,1)}%　·　自有資金約 ${fmt(c.landCost*0.4+r.build*0.4)} 萬`;
+
+  // 土開法
+  $('tLand').innerHTML=`
+   <tr><td>S　預期總銷金額</td><td>${fmt(r.S)} 萬</td></tr>
+   <tr><td>R　適當利潤率</td><td>${c.R}%</td></tr>
+   <tr><td>C　直接成本（營造施工費）</td><td>${fmt(r.build)} 萬</td></tr>
+   <tr><td>M　間接成本（設計＋廣告銷售＋管理＋稅捐＋雜項${kh?'＋回饋金':''}）</td><td>${fmt(r.M)} 萬</td></tr>
+   <tr><td>i　資本利息綜合利率</td><td>${fmt(r.i*100,2)}%　<span class="dim">＝ ${c.ir}% ×（土地比 ${fmt(r.Vland/(r.Vland+r.CM)*100,1)}% ＋ 建物比 ${fmt(r.CM/(r.Vland+r.CM)*100,1)}% × ½）× ${c.yrs} 年</span></td></tr>
+   <tr class="grand"><td>V　土地開發分析價格</td><td>${fmt(r.Vland)} 萬　（${fmt(c.land>0?r.Vland/c.land:0,1)} 萬/坪）</td></tr>
+   <tr><td>地主開價／取得成本</td><td>${fmt(c.landCost)} 萬　（${fmt(c.land>0?c.landCost/c.land:0,1)} 萬/坪）</td></tr>
+   <tr class="total"><td>價差</td><td class="${r.gap>=0?'hi':'lo'}">${r.gap>=0?'+':''}${fmt(r.gap)} 萬　（${r.gap>=0?'+':''}${fmt(c.land>0?r.gap/c.land:0,1)} 萬/坪）</td></tr>`;
+  $('landAlert').innerHTML=r.gap>=0
+   ? `<div class="alert g">依土開法，本案土地合理價格為 <b>${fmt(r.Vland)} 萬</b>（${fmt(r.Vland/c.land,1)} 萬/坪）。地主開價 ${fmt(c.landCost)} 萬<b>低於</b>合理地價 ${fmt(r.gap)} 萬，在既定售價與成本假設下建商仍有承接空間。</div>`
+   : `<div class="alert r">依土開法，本案土地合理價格為 <b>${fmt(r.Vland)} 萬</b>（${fmt(r.Vland/c.land,1)} 萬/坪）。地主開價 ${fmt(c.landCost)} 萬<b>高出</b> ${fmt(-r.gap)} 萬（${fmt(-r.gap/c.land,1)} 萬/坪），建議議價至 ${fmt(r.Vland)} 萬以下，或需售價提升至 ${fmt(r.px*(1+(-r.gap)/r.S),1)} 萬/坪以上方能成立。</div>`;
+
+  // 樓層敏感度
+  const lo=Math.max(2,p.fl-4),hi=p.fl+4;let f2='';
+  for(let n=lo;n<=hi;n++){
+    const rr=core(c,p,{fl:n});
+    const cls=rr.margin>=15?'hi':(rr.margin<8?'lo':'mid');
+    const tag=n===r.needFl?' <span class="pill g">最適</span>':(n===p.fl?' <span class="pill">目前</span>':'');
+    f2+=`<tr${n===p.fl?' style="background:#1f6feb12"':''}><td>${n} 層${tag}</td><td>${fmt(rr.farFloor,1)}</td>
+      <td>${fmt(rr.useR,1)}%</td><td>${fmt(rr.upper,1)}</td><td>${fmt(rr.sale,1)}</td><td>${fmt(rr.S)}</td>
+      <td class="${rr.pretax<0?'neg':''}">${fmt(rr.pretax)}</td><td class="${cls}">${fmt(rr.margin,1)}%</td>
+      <td>${fmt(rr.Vland)}</td></tr>`;}
+  $('tFl').innerHTML=f2;
+
+  // 雙變數矩陣
+  const pxs=[-8,-4,0,4,8].map(d=>Math.round(p.px)+d);
+  const ucs=[-3,-1.5,0,1.5,3].map(d=>+(p.uc+d).toFixed(1));
+  $('tMxH').innerHTML=`<tr><th>售價＼營建</th>${ucs.map(u=>`<th>${u}</th>`).join('')}</tr>`;
+  $('tMx').innerHTML=pxs.map(px=>`<tr><td><b>${px}</b></td>`+ucs.map(u=>{
+    const rr=core(c,p,{px,uc:u});
+    const cls=rr.margin>=15?'hi':(rr.margin<8?'lo':'mid');
+    return `<td class="${cls}">${fmt(rr.margin,1)}%</td>`;}).join('')+`</tr>`).join('');
+
+  // 建築種類比較（大樓拆高雄厝／一般）
+  const cmp=[];
+  Object.entries(PRESET).forEach(([k,pp])=>{
+    const use=(k===cur)?p:Object.assign({},pp,{kh:kh});
+    if(k==='tower'){
+      cmp.push(['電梯大樓（一般）',Object.assign({},use,{kh:false}),k]);
+      cmp.push(['電梯大樓（高雄厝）',Object.assign({},use,{kh:true}),k]);
+    } else cmp.push([pp.name+(kh?'（高雄厝）':''),use,k]);
+  });
+  $('tCmp').innerHTML=cmp.map(([nm,up,k])=>{
+    const rr=core(c,up);
+    const cls=rr.margin>=15?'hi':(rr.margin<8?'lo':'mid');
+    const isCur=(k===cur)&&((k!=='tower')||(up.kh===kh));
+    return `<tr${isCur?' style="background:#1f6feb12"':''}${up.kh?' class="khrow"':''}><td>${nm}${isCur?' ◀':''}</td>
+      <td>${up.fl}</td><td>${fmt(rr.farFloor,1)}${rr.wasted>1?` <span style="color:var(--bad)">(剩${fmt(rr.wasted,0)})</span>`:''}</td>
+      <td>${fmt(rr.upper,1)}</td><td>${fmt(rr.sale,1)}</td><td>${up.uc}</td><td>${up.px}</td>
+      <td>${fmt(rr.S)}</td><td class="${cls}">${fmt(rr.margin,1)}%</td><td>${fmt(rr.Vland)}</td></tr>`;}).join('');
+
+  // 情境
+  const scens=[['保守',-4,+2,-10],['中性',0,0,0],['樂觀',+4,-2,+10]];
+  $('tScen').innerHTML=scens.map(([n,dp,du,db])=>{
+    const bn=Math.max(0,Math.min(b.cap,c.bonus+db));
+    const rr=core(c,p,{px:p.px+dp,uc:p.uc+du,bonus:bn});
+    const cls=rr.margin>=15?'hi':(rr.margin<8?'lo':'mid');
+    return `<tr><td><b>${n}</b></td><td>${fmt(p.px+dp,1)}</td><td>${fmt(p.uc+du,1)}</td><td>+${bn}%</td>
+      <td>${fmt(rr.S)}</td><td class="${rr.pretax<0?'neg':''}">${fmt(rr.pretax)}</td>
+      <td class="${cls}">${fmt(rr.margin,1)}%</td><td>${fmt(rr.Vland)}</td>
+      <td class="${rr.gap>=0?'hi':'lo'}">${rr.gap>=0?'+':''}${fmt(rr.gap)}</td></tr>`;}).join('');
+
+  const verdict=r.margin>=15?'具開發效益':(r.margin>=8?'效益偏低、須議價或優化產品':'現行條件下不具開發效益');
+  $('concl').innerHTML=
+   `<b>結論：${verdict}。</b>以「${p.name}${kh?'（高雄厝）':''}」配置 ${r.usedFl} 層、容積使用率 ${fmt(r.useR,1)}%、房屋售價 ${r.px} 萬／坪計算，
+    地上總樓地板 ${fmt(r.upper,1)} 坪（其中免計容積 ${fmt(r.dedBL+r.dedMep+r.univ+r.khBalcA,1)} 坪），
+    預期總銷 <b>${fmt(r.S)} 萬</b>，開發總成本 ${fmt(r.totalCost)} 萬，稅前淨利 <b>${fmt(r.pretax)} 萬（${fmt(r.margin,1)}%）</b>、稅後 ${fmt(r.after)} 萬。<br>
+    依《不動產估價技術規則》第 78 條土地開發分析法，本案土地合理價格為 <b>${fmt(r.Vland)} 萬（${fmt(r.Vland/c.land,1)} 萬／坪）</b>，
+    與地主開價 ${fmt(c.landCost)} 萬相較${r.gap>=0?`尚低 ${fmt(r.gap)} 萬`:`高出 ${fmt(-r.gap)} 萬`}。<br>
+    ${p.name==='公寓'||p.name==='傳統透天'?'<b>提醒：</b>本類型限 5 層以下，容積多半無法用盡，土地效率偏低，僅在基地細小或市場偏好透天產品時採用。<br>':''}
+    <b>${p.desc||''}</b><br><br>
+    <b>應併同查證事項：</b>① 地籍圖之面寬與深度是否足以配置所選產品；② 建物使照所載原建築容積（若高於基準容積，危老／都更得依 1.15 倍原容積或 0.3 倍基準容積加原容積重建）；
+    ③ 面前道路寬度、都審與日照退縮對高度之實際限制；④ 法定停車位設置標準與是否得免設；⑤ 免計容積各項目須經建築師依 §162 逐項檢討，本表為額度上限之概估；
+    ${kh?'⑥ 高雄厝景觀陽台之深度、綠化與構造須符合設計基準並經建管處審查，回饋金應於領照時全額繳納；':''}
+    ⑦ 有無禁限建、地質敏感區、既有巷道或分割地界爭議。<br>
+    <b>稅務提醒：</b>營利事業興建房屋完成後第一次移轉，其房地交易所得依所得稅法第 24 條之 5 併計營所稅按 20% 課徵，不適用房地合一 2.0 之 45%／35%。
+    土地免徵營業稅，房屋款銷項稅額可用營造成本進項稅額扣抵，故未於損益表單獨計列。`;
+  buildDisc();
+}
+
+/* ---------- 列印 ---------- */
+const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
+$('pjDate').value=today();
+function buildDisc(){
+  $('disc').innerHTML=`【免責聲明】本報告係依委託人提供之基地條件與市場資訊，運用《不動產估價技術規則》土地開發分析法所作之<b>投資可行性初步評估</b>，
+   非不動產估價師依法簽證之估價報告書，不得作為金融機構貸放、法院拍賣、稅務申報或其他法定用途之依據。
+   容積獎勵比例、免計容積額度、營建單價、銷售單價及各項費率均為假設值；免計容積各項目應由建築師依《建築技術規則》第 162 條逐項檢討，實際數值以核准之建造執照圖說為準。
+   高雄厝相關設施及回饋金依《高雄市高雄厝設計及鼓勵回饋辦法》，實際適用範圍與金額以主管機關核定為準。
+   使用分區與建蔽容積依《都市計畫法高雄市施行細則》附表二，個案仍應以土地使用分區證明書及都市計畫書為準。
+   ${T('pjCo')}　${T('pjAgent')}　${T('pjTel')}　製表日：${today()}`;
+}
+function printHeader(mode){
+  const c=common(),p=curP();
+  $('printhead').innerHTML=
+   `<div class="pt">新建案開發效益評估與土地估價分析${mode==='report'?'（完整報告）':`　—　${p.name}${p.kh?'（高雄厝）':''}方案`}</div>
+    <div class="pc">${T('pjCo')}　·　承辦：${T('pjAgent')}　·　${T('pjTel')}</div>
+    <div class="pm"><b>${T('pjName')}</b>｜${T('pjAddr')}｜${T('pjLot')}｜現況：${T('pjNow')}<br>
+    土地 ${c.land} 坪（${fmt(c.land*PING,1)} ㎡）·
+    ${$('zone').selectedOptions[0].textContent}（建蔽率 ${c.cov}%／容積率 ${c.far}%）·
+    ${$('bType').selectedOptions[0].textContent} 獎勵 +${c.bonus}%${p.kh?' · 套用高雄厝':''} ·
+    地主開價 ${fmt(c.landCost)} 萬（${fmt(c.landCost/c.land,1)} 萬/坪）· 勘估基準日 ${T('pjDate')}</div>`;
+}
+function doPrint(mode,fname){
+  printHeader(mode);buildDisc();
+  const old=document.title;document.title=fname;
+  document.body.classList.toggle('report-mode',mode==='report');
+  const done=()=>{document.title=old;document.body.classList.remove('report-mode');
+    window.removeEventListener('afterprint',done);};
+  window.addEventListener('afterprint',done);
+  setTimeout(()=>window.print(),60);setTimeout(done,3000);
+}
+function buildReport(){
+  const c=common(),kh=$('khOn').checked,pc=curP();
+  const list=[];
+  Object.entries(PRESET).forEach(([k,pp])=>{
+    const use=(k===cur)?pc:Object.assign({},pp,{kh:kh});
+    if(k==='tower'){
+      list.push(['電梯大樓（一般）',Object.assign({},use,{kh:false})]);
+      list.push(['電梯大樓（高雄厝）',Object.assign({},use,{kh:true})]);
+    } else list.push([pp.name+(use.kh?'（高雄厝）':''),use]);
+  });
+  let h=`<div class="rsec"><h3>一、結論摘要</h3>
+   <table><thead><tr><th>建築種類</th><th>樓層</th><th>容積</th><th>使用率</th><th>總樓地板</th><th>權狀坪</th>
+   <th>售價</th><th>總銷</th><th>總成本</th><th>稅前淨利</th><th>淨利率</th><th>土開法地價</th><th>對照開價</th></tr></thead><tbody>`;
+  list.forEach(([nm,p])=>{
+    const r=core(c,p);const cls=r.margin>=15?'hi':(r.margin<8?'lo':'mid');
+    h+=`<tr${p.kh?' class="khrow"':''}><td><b>${nm}</b></td><td>${p.fl}</td><td>${fmt(r.farFloor,1)}</td>
+      <td>${fmt(r.useR,1)}%</td><td>${fmt(r.upper,1)}</td><td>${fmt(r.sale,1)}</td><td>${p.px}</td>
+      <td><b>${fmt(r.S)}</b></td><td>${fmt(r.totalCost)}</td><td class="${r.pretax<0?'neg':''}">${fmt(r.pretax)}</td>
+      <td class="${cls}">${fmt(r.margin,1)}%</td><td><b>${fmt(r.Vland)}</b></td>
+      <td class="${r.gap>=0?'hi':'lo'}">${r.gap>=0?'+':''}${fmt(r.gap)}</td></tr>`;});
+  h+=`</tbody></table><div class="note">金額單位：萬元。「土開法地價」依《不動產估價技術規則》第 78 條
+   V＝S÷(1+R)÷(1+i)−(C+M) 計算，R＝${c.R}%、開發年數 ${c.yrs} 年、年利率 ${c.ir}%。
+   「對照開價」為土開法地價減地主開價 ${fmt(c.landCost)} 萬，正值代表尚有承接空間。
+   權狀坪已計入《建築技術規則》§162 陽台、梯廳、機電等免計容積樓地板。</div></div>`;
+
+  list.forEach(([nm,p])=>{
+    const r=core(c,p);
+    const rows=[['土地購置成本',c.landCost],['土地取得附屬費',r.landFee],['營造施工費（C）',r.build],
+      ['規劃設計監造費',r.design],['拆除／鑑定／雜項',c.misc]];
+    if(p.kh) rows.push(['高雄厝回饋金',r.khFeeAmt]);
+    rows.push(['廣告銷售費',r.mktC],['管理費',r.admC],['稅捐及其他負擔',r.taxC],['融資利息',r.interest]);
+    let cost=rows.map(([n,v])=>`<tr><td>${n}</td><td>${fmt(v)}</td><td>${fmt(v/r.S*100,1)}%</td></tr>`).join('');
+    cost+=`<tr class="total"><td>開發總成本</td><td>${fmt(r.totalCost)}</td><td>${fmt(r.totalCost/r.S*100,1)}%</td></tr>`;
+    cost+=`<tr><td>稅前淨利</td><td class="${r.pretax<0?'neg':''}">${fmt(r.pretax)}</td><td>${fmt(r.margin,1)}%</td></tr>`;
+    cost+=`<tr><td>營所稅 ${c.cit}%</td><td>${fmt(r.tax)}</td><td>${fmt(r.tax/r.S*100,1)}%</td></tr>`;
+    cost+=`<tr class="total"><td>稅後淨利</td><td class="${r.after<0?'neg':''}">${fmt(r.after)}</td><td>${fmt(r.after/r.S*100,1)}%</td></tr>`;
+    const units=p.upf>0?Math.max(1,Math.round(r.usedFl*p.upf)):1;
+    h+=`<div class="rsec"><h3>${nm}　${r.usedFl} 層</h3>
+      <div class="two">
+        <div><table><tbody>
+          <tr><td>基準容積 / 獎勵後上限</td><td>${fmt(r.baseFar,1)} / ${fmt(r.maxFar,1)} 坪</td></tr>
+          <tr><td>地上基本樓地板</td><td>${fmt(r.baseFA,1)} 坪</td></tr>
+          <tr class="ded"><td>－陽台＋梯廳免計（${p.balcR}+${p.lobbyR}%）</td><td>${fmt(r.dedBL,1)} 坪</td></tr>
+          <tr class="ded"><td>－機電／安全梯／管委會（${p.mepR}%）</td><td>${fmt(r.dedMep,1)} 坪</td></tr>
+          ${p.kh?`<tr class="ded"><td>－高雄厝通用化設計</td><td>${fmt(r.univ,1)} 坪</td></tr>`:''}
+          <tr class="total"><td>＝實際容積樓地板</td><td>${fmt(r.farFloor,1)} 坪（${fmt(r.useR,1)}%）</td></tr>
+          ${p.kh?`<tr><td>＋高雄厝景觀陽台</td><td>${fmt(r.khBalcA,1)} 坪</td></tr>`:''}
+          <tr class="total"><td>可銷售權狀坪</td><td>${fmt(r.sale,1)} 坪</td></tr>
+          <tr><td>免計容積合計</td><td>${fmt(r.dedBL+r.dedMep+r.univ+r.khBalcA,1)} 坪（${fmt((r.dedBL+r.dedMep+r.univ+r.khBalcA)/r.sale*100,1)}%）</td></tr>
+          <tr><td>屋突 / 地下室</td><td>${fmt(r.roofA,1)} / ${fmt(r.bArea,1)} 坪</td></tr>
+          <tr><td>戶數 / 每戶權狀</td><td>${units>1?`${units} 戶 / ${fmt(r.sale/units,1)} 坪`:'整棟 1 戶'}</td></tr>
+          <tr><td>車位 / 建物高度</td><td>${p.parkN} 個 / ${fmt(r.height,1)} m</td></tr>
+          <tr class="total"><td>預期總銷 S</td><td>${fmt(r.S)} 萬</td></tr>
+          <tr class="total"><td>土開法地價 V</td><td>${fmt(r.Vland)} 萬（${fmt(r.Vland/c.land,1)} 萬/坪）</td></tr>
+        </tbody></table></div>
+        <div><table><thead><tr><th>成本項目</th><th>金額</th><th>佔總銷</th></tr></thead><tbody>${cost}</tbody></table></div>
+      </div></div>`;});
+  h+=`<div class="rsec"><h3>三、評估說明與注意事項</h3><div class="note">${$('concl').innerHTML}</div></div>`;
+  $('report').innerHTML=h;
+}
+$('btnPrint').addEventListener('click',()=>doPrint('view',`開發效益評估_${curP().name}${$('khOn').checked?'_高雄厝':''}_${today()}`));
+$('btnReport').addEventListener('click',()=>{buildReport();doPrint('report',`開發效益評估_完整報告_${today()}`);});
+window.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key==='p'){e.preventDefault();$('btnPrint').click();}});
+
+document.querySelectorAll('input,select').forEach(el=>el.addEventListener('input',render));
+render();
+</script>
+
+</template>
+
 
 <!-- PAGE: 每日戰報 -->
 <div class="page" id="page-warreport">
@@ -3548,7 +4387,7 @@ function toggleFilter(pool){
   btn.textContent=open?'⚙ 收起篩選':'⚙ 進階篩選';
 }
 
-const PAGE_TITLES={'recruit':'募集線','track':'追蹤線','commission':'委託管理','stats':'首頁','trip':'行程規劃','closed':'已結案','admin':'管理後台','buyer':'買方管理','inventory':'公司庫存','taxcalc':'稅務與貸款試算','profile':'個人頁面','warreport':'每日戰報','dutyroster':'每月出勤排休表','rosterduty':'輪值表','staffdirectory':'員工總表','deedreceipt':'契據領用'};
+const PAGE_TITLES={'recruit':'募集線','track':'追蹤線','commission':'委託管理','stats':'首頁','trip':'行程規劃','closed':'已結案','admin':'管理後台','buyer':'買方管理','inventory':'公司庫存','taxcalc':'稅務與貸款試算','profile':'個人頁面','warreport':'每日戰報','dutyroster':'每月出勤排休表','rosterduty':'輪值表','staffdirectory':'員工總表','deedreceipt':'契據領用','newproj':'新建案估價試算'};
 function switchPage(p){
   currentPage=p;
   document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));
@@ -3571,6 +4410,7 @@ function switchPage(p){
   else if(p==='rosterduty'){initRosterDutyPage();}
   else if(p==='staffdirectory'){initStaffDirectoryPage();}
   else if(p==='deedreceipt'){initDeedReceiptPage();}
+  else if(p==='newproj'){initNewProjPage();}
   if(p==='commission') _updateEndedBadge();
   else renderAll();
 }
@@ -14124,6 +14964,34 @@ td{border:1px solid #ccc;padding:2px 3px;vertical-align:middle;text-align:center
   closeWeekReportModal();
 }
 
+// ─── 新建案估價試算（工具選單）─────────────────────────────────────
+// 這支試算工具原本是獨立的 HTML 檔，樣式使用 .card/.row/.btn/.wrap 等通用類別，
+// 又直接設定 body/table/th/td 元素樣式，且 --acc/--bg/--tx 等變數與本系統同名，
+// 直接內嵌會把全站樣式弄壞，因此改放進 iframe 完全隔離（CSS 與 JS 都互不干擾）。
+// 原始碼存在頁面上的 <template> 內；<template> 的內容不會被瀏覽器解析執行，
+// 因此工具的 <script> 在寫入 iframe 之前不會運作，不會拖慢系統啟動。
+let _newProjLoaded = false;
+function initNewProjPage(){
+  if(_newProjLoaded) return;            // 已載入過就不重建，保留使用者已輸入的數值
+  const frame = document.getElementById('newproj-frame');
+  const tpl   = document.getElementById('newproj-tpl');
+  if(!frame || !tpl) return;
+  frame.srcdoc =
+    '<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">' +
+    '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<title>新建案估價試算</title></head><body>' +
+    tpl.innerHTML +
+    '</body></html>';
+  _newProjLoaded = true;
+}
+// 重新整理按鈕用：清空並重建，等同回到預設值
+function resetNewProjPage(){
+  _newProjLoaded = false;
+  const frame = document.getElementById('newproj-frame');
+  if(frame) frame.removeAttribute('srcdoc');
+  initNewProjPage();
+}
+
 // ─── 工具 ─────────────────────────────────────────────────────────
 function escHtml(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -14191,7 +15059,8 @@ if (typeof window.switchPage === 'function') {
   <div class="mbn-popup-handle"></div>
   <button class="mbn-popup-item" onclick="mbnGo('trip')"><span class="mbn-popup-item-icon">📍</span>行程規劃</button>
   <button class="mbn-popup-item" onclick="mbnGo('taxcalc')"><span class="mbn-popup-item-icon">🧮</span>稅務與貸款試算</button>
-  <button class="mbn-popup-item" onclick="mbnGo('warreport')"><span class="mbn-popup-item-icon">📊</span>每日戰報</button>
+  <button class="mbn-popup-item" onclick="mbnGo('newproj')"><span class="mbn-popup-item-icon">🏗️</span>新建案估價試算</button>
+<button class="mbn-popup-item" onclick="mbnGo('warreport')"><span class="mbn-popup-item-icon">📊</span>每日戰報</button>
   <button class="mbn-popup-item" onclick="mbnGo('dutyroster')"><span class="mbn-popup-item-icon">🗓️</span>每月出勤排休表</button>
   <button class="mbn-popup-item" id="mbn-staffdirectory" onclick="mbnGo('staffdirectory')" style="display:none"><span class="mbn-popup-item-icon">🗒️</span>員工總表</button>
   <button class="mbn-popup-item" id="mbn-deedreceipt" onclick="mbnGo('deedreceipt')" style="display:none"><span class="mbn-popup-item-icon">🗂️</span>契據領用</button>
@@ -14267,7 +15136,7 @@ function mbnUpdateActiveTab(page){
     closed:'owner',inventory:'owner',
     buyer:'buyer',
     stats:'home',
-    trip:'tools',taxcalc:'tools',admin:'tools',warreport:'tools',dutyroster:'tools',
+    trip:'tools',taxcalc:'tools',newproj:'tools',admin:'tools',warreport:'tools',dutyroster:'tools',
     profile:'profile'
   };
   const tabKey = map[page] || '';
