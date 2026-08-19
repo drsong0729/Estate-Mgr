@@ -1754,7 +1754,11 @@ function gm_authFailure() {
 
 <template id="newproj-tpl">
 <style>
-:root{--bg:#0e1116;--panel:#161b22;--panel2:#1c232c;--line:#2a323d;
+/* 淺色（預設）：套用與 RE-CMS 系統一致的配色，讓試算工具融入系統外觀 */
+:root{--bg:#f0f4f8;--panel:#ffffff;--panel2:#f6f9fd;--line:#ccd6e8;
+ --tx:#1a2332;--tx2:#3d526b;--acc:#0f519b;--good:#1a7a4a;--warn:#b07800;--bad:#c0182a;--kh:#7c3aed}
+/* 深色：當外層系統切換到深色主題時（<html data-theme="dark">），套用原本工具的深色配色 */
+:root[data-theme="dark"]{--bg:#0e1116;--panel:#161b22;--panel2:#1c232c;--line:#2a323d;
  --tx:#e6edf3;--tx2:#93a1b0;--acc:#4c9aff;--good:#3fb950;--warn:#d29922;--bad:#f85149;--kh:#c084fc}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--tx);
@@ -1779,7 +1783,8 @@ h1{font-size:1.45rem;margin:0 0 3px;letter-spacing:.5px}
 .row input.khv{border-color:#c084fc66;background:#c084fc14}
 .row input.txt{text-align:left;width:170px}
 .row .ro{width:100px;text-align:right;font-size:.82rem;padding:5px 7px;font-variant-numeric:tabular-nums;
- background:#ffffff08;border:1px dashed var(--line);border-radius:6px}
+ background:rgba(0,0,0,.05);border:1px dashed var(--line);border-radius:6px}
+:root[data-theme="dark"] .row .ro{background:#ffffff08}
 .unit{font-size:.7rem;color:var(--tx2);width:44px;flex:0 0 44px}
 .f2{display:grid;grid-template-columns:1fr 1fr;gap:0 18px}
 @media(max-width:620px){.f2{grid-template-columns:1fr}}
@@ -1843,18 +1848,25 @@ td.neg{color:var(--bad)}
 .pill.y{background:#d2992222;color:var(--warn);border-color:#d2992244}
 .pill.k{background:#c084fc22;color:var(--kh);border-color:#c084fc44}
 .alert{border-radius:8px;padding:8px 11px;font-size:.77rem;margin-top:10px;line-height:1.6}
-.alert.g{background:#3fb95014;border:1px solid #3fb95040;color:#7ee787}
-.alert.y{background:#d2992214;border:1px solid #d2992240;color:#e3b341}
-.alert.r{background:#f8514914;border:1px solid #f8514940;color:#ff9492}
-.alert.k{background:#c084fc14;border:1px solid #c084fc40;color:#ddb4fe}
+.alert.g{background:#3fb95014;border:1px solid #3fb95040;color:var(--good)}
+.alert.y{background:#d2992214;border:1px solid #d2992240;color:var(--warn)}
+.alert.r{background:#f8514914;border:1px solid #f8514940;color:var(--bad)}
+.alert.k{background:#c084fc14;border:1px solid #c084fc40;color:var(--kh)}
 .note{font-size:.76rem;color:var(--tx2);margin-top:10px;line-height:1.7}
 .formula{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:.8rem;background:var(--panel2);
- border:1px solid var(--line);border-radius:6px;padding:8px 11px;margin:8px 0;color:#9dc4ff;overflow-x:auto}
+ border:1px solid var(--line);border-radius:6px;padding:8px 11px;margin:8px 0;color:var(--acc);overflow-x:auto}
 .mt{margin-top:18px}
 .legend{font-size:.73rem;color:var(--tx2);margin-top:6px}
 .matrix td,.matrix th{text-align:center;padding:5px 4px;font-size:.78rem}
 .matrix th:first-child,.matrix td:first-child{text-align:left}
 .printhead,#report,.disc{display:none}
+
+/* 深色模式下，alert 文字與公式方塊改用原本柔和的淺色調（維持原深色主題的外觀不變） */
+:root[data-theme="dark"] .alert.g{color:#7ee787}
+:root[data-theme="dark"] .alert.y{color:#e3b341}
+:root[data-theme="dark"] .alert.r{color:#ff9492}
+:root[data-theme="dark"] .alert.k{color:#ddb4fe}
+:root[data-theme="dark"] .formula{color:#9dc4ff}
 
 @media print{
   @page{size:A4 portrait;margin:11mm 9mm 13mm}
@@ -14976,8 +14988,11 @@ function initNewProjPage(){
   const frame = document.getElementById('newproj-frame');
   const tpl   = document.getElementById('newproj-tpl');
   if(!frame || !tpl) return;
+  // 工具的 CSS 已改用 var(--acc)/var(--bg) 等變數並提供淺／深兩組色票，
+  // 這裡把系統目前的主題（data-theme）帶進 iframe 的 <html>，讓工具開啟時直接是正確主題
+  const theme = document.documentElement.dataset.theme || '';
   frame.srcdoc =
-    '<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">' +
+    `<!DOCTYPE html><html lang="zh-Hant" data-theme="${theme}"><head><meta charset="utf-8">` +
     '<meta name="viewport" content="width=device-width,initial-scale=1">' +
     '<title>新建案估價試算</title></head><body>' +
     tpl.innerHTML +
@@ -14991,6 +15006,20 @@ function resetNewProjPage(){
   if(frame) frame.removeAttribute('srcdoc');
   initNewProjPage();
 }
+// 使用者在「新建案估價試算」頁面上切換系統主題時，即時同步 iframe 內的主題，
+// 不必整個重載 iframe（避免使用者已輸入的試算資料被清空）
+(function(){
+  const _origToggleTheme = window.toggleTheme;
+  if(typeof _origToggleTheme !== 'function') return;
+  window.toggleTheme = function(){
+    _origToggleTheme();
+    const frame = document.getElementById('newproj-frame');
+    const doc = frame && frame.contentDocument;
+    if(doc && doc.documentElement){
+      doc.documentElement.dataset.theme = document.documentElement.dataset.theme || '';
+    }
+  };
+})();
 
 // ─── 工具 ─────────────────────────────────────────────────────────
 function escHtml(s) {
