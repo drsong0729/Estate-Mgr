@@ -1734,205 +1734,45 @@ function gm_authFailure() {
 </div>
 
 <!-- PAGE: 新建案估價試算（工具選單）
-     說明：本工具原為獨立 HTML，其 CSS 使用 .card/.row/.btn/.wrap 等通用類別，
-     並直接設定 body/table/th/td 等元素樣式，且 --acc/--bg/--tx 等變數與本系統同名。
-     若直接內嵌會污染全站樣式，故改以 iframe 完全隔離：
-     原始碼放在下方 <template>（不會被瀏覽器執行），首次進入頁面時才寫入 iframe。
-     列印時瀏覽器只會輸出 iframe 內容，工具原有的 A4 列印樣式因此可完整保留。 -->
-<div class="page" id="page-newproj">
-  <div style="padding:12px 16px 4px">
-    <div style="font-size:12px;color:var(--tx3);line-height:1.7">
-      依《不動產估價技術規則》土地開發分析法試算新建案開發效益與合理地價。
-      本工具為獨立試算模組，資料不會存入系統，離開頁面後即重設。
-    </div>
-  </div>
-  <div style="padding:0 16px 16px">
-    <iframe id="newproj-frame" title="新建案估價試算"
-      style="width:100%;height:calc(100vh - 190px);min-height:520px;border:1px solid var(--bdr);border-radius:12px;background:#0e1116;display:block"></iframe>
-  </div>
-</div>
-
-<template id="newproj-tpl">
+     說明：本工具原為獨立 HTML，其 CSS 使用 .card/.row/.btn/.wrap 等通用類別，並直接設定
+     body/table/th/td 等元素樣式，且 --acc/--bg/--tx 等變數與本系統同名，直接內嵌會污染全站樣式。
+     因此所有樣式規則都已改寫成「#newproj-embed 前綴」，只在此容器內生效；
+     色票仍用 CSS 變數，並提供淺／深兩組數值，隨 <html data-theme> 自動切換，不需要額外 JS 同步。
+     JS 整段包在 IIFE 內，避免 $、cur、fmt、today 等變數與系統既有的同名變數互相覆蓋。
+     列印改為跳出新視窗（與系統「稅務與貸款試算」列印同一手法），避免把整個系統介面印出來。 -->
 <style>
-/* 淺色（預設）：套用與 RE-CMS 系統一致的配色，讓試算工具融入系統外觀 */
-:root{--bg:#f0f4f8;--panel:#ffffff;--panel2:#f6f9fd;--line:#ccd6e8;
+
+/* 淺色（預設）：套用與 RE-CMS 系統一致的配色，讓試算工具融入系統外觀 */#newproj-embed{--bg:#f0f4f8;--panel:#ffffff;--panel2:#f6f9fd;--line:#ccd6e8;
  --tx:#1a2332;--tx2:#3d526b;--acc:#0f519b;--good:#1a7a4a;--warn:#b07800;--bad:#c0182a;--kh:#7c3aed}
-/* 深色：當外層系統切換到深色主題時（<html data-theme="dark">），套用原本工具的深色配色 */
-:root[data-theme="dark"]{--bg:#0e1116;--panel:#161b22;--panel2:#1c232c;--line:#2a323d;
- --tx:#e6edf3;--tx2:#93a1b0;--acc:#4c9aff;--good:#3fb950;--warn:#d29922;--bad:#f85149;--kh:#c084fc}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--tx);
+/* 深色：當外層系統切換到深色主題時（<html data-theme="dark">），套用原本工具的深色配色 */html[data-theme="dark"] #newproj-embed{--bg:#0e1116;--panel:#161b22;--panel2:#1c232c;--line:#2a323d;
+ --tx:#e6edf3;--tx2:#93a1b0;--acc:#4c9aff;--good:#3fb950;--warn:#d29922;--bad:#f85149;--kh:#c084fc}#newproj-embed *{box-sizing:border-box}#newproj-embed{margin:0;background:var(--bg);color:var(--tx);
  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
- line-height:1.6;padding:18px 16px 60px;-webkit-font-smoothing:antialiased}
-.wrap{max-width:1180px;margin:0 auto}
-h1{font-size:1.45rem;margin:0 0 3px;letter-spacing:.5px}
-.sub{color:var(--tx2);font-size:.85rem;margin-bottom:16px}
-.grid{display:grid;grid-template-columns:340px 1fr;gap:18px}
-@media(max-width:900px){.grid{grid-template-columns:1fr}}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
-.card h2{font-size:.9rem;margin:0 0 12px;color:var(--acc);letter-spacing:1px;font-weight:600;
- display:flex;justify-content:space-between;align-items:center;gap:8px}
-.card.khon{border-color:#c084fc55}
-.row{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:7px}
-.row label{font-size:.8rem;color:var(--tx2);flex:1}
-.row input,.row select{width:100px;background:var(--panel2);border:1px solid var(--line);color:var(--tx);
- border-radius:6px;padding:5px 7px;font-size:.82rem;text-align:right;font-variant-numeric:tabular-nums;font-family:inherit}
-.row select{text-align:left;width:145px}
-.row input:focus,.row select:focus{outline:none;border-color:var(--acc)}
-.row input.key{border-color:#4c9aff66;background:#1f6feb14}
-.row input.khv{border-color:#c084fc66;background:#c084fc14}
-.row input.txt{text-align:left;width:170px}
-.row .ro{width:100px;text-align:right;font-size:.82rem;padding:5px 7px;font-variant-numeric:tabular-nums;
- background:rgba(0,0,0,.05);border:1px dashed var(--line);border-radius:6px}
-:root[data-theme="dark"] .row .ro{background:#ffffff08}
-.unit{font-size:.7rem;color:var(--tx2);width:44px;flex:0 0 44px}
-.f2{display:grid;grid-template-columns:1fr 1fr;gap:0 18px}
-@media(max-width:620px){.f2{grid-template-columns:1fr}}
-hr.s{border:0;border-top:1px solid var(--line);margin:10px 0}
+ line-height:1.6;padding:18px 16px 60px;-webkit-font-smoothing:antialiased}#newproj-embed .wrap{max-width:1180px;margin:0 auto}#newproj-embed h1{font-size:1.45rem;margin:0 0 3px;letter-spacing:.5px}#newproj-embed .sub{color:var(--tx2);font-size:.85rem;margin-bottom:16px}#newproj-embed .grid{display:grid;grid-template-columns:340px 1fr;gap:18px}
+@media(max-width:900px){#newproj-embed .grid{grid-template-columns:1fr}}#newproj-embed .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px}#newproj-embed .card h2{font-size:.9rem;margin:0 0 12px;color:var(--acc);letter-spacing:1px;font-weight:600;
+ display:flex;justify-content:space-between;align-items:center;gap:8px}#newproj-embed .card.khon{border-color:#c084fc55}#newproj-embed .row{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:7px}#newproj-embed .row label{font-size:.8rem;color:var(--tx2);flex:1}#newproj-embed .row input, #newproj-embed .row select{width:100px;background:var(--panel2);border:1px solid var(--line);color:var(--tx);
+ border-radius:6px;padding:5px 7px;font-size:.82rem;text-align:right;font-variant-numeric:tabular-nums;font-family:inherit}#newproj-embed .row select{text-align:left;width:145px}#newproj-embed .row input:focus, #newproj-embed .row select:focus{outline:none;border-color:var(--acc)}#newproj-embed .row input.key{border-color:#4c9aff66;background:#1f6feb14}#newproj-embed .row input.khv{border-color:#c084fc66;background:#c084fc14}#newproj-embed .row input.txt{text-align:left;width:170px}#newproj-embed .row .ro{width:100px;text-align:right;font-size:.82rem;padding:5px 7px;font-variant-numeric:tabular-nums;
+ background:rgba(0,0,0,.05);border:1px dashed var(--line);border-radius:6px}html[data-theme="dark"] #newproj-embed .row .ro{background:#ffffff08}#newproj-embed .unit{font-size:.7rem;color:var(--tx2);width:44px;flex:0 0 44px}#newproj-embed .f2{display:grid;grid-template-columns:1fr 1fr;gap:0 18px}
+@media(max-width:620px){#newproj-embed .f2{grid-template-columns:1fr}}#newproj-embed hr.s{border:0;border-top:1px solid var(--line);margin:10px 0}#newproj-embed .toolbar{position:sticky;top:0;z-index:50;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;
+ padding:8px 0 12px;background:linear-gradient(var(--bg) 70%,transparent)}#newproj-embed .btn{display:inline-flex;align-items:center;gap:6px;background:var(--panel);color:var(--tx);
+ border:1px solid var(--line);border-radius:8px;padding:8px 13px;font-size:.82rem;cursor:pointer;font-family:inherit;transition:.15s}#newproj-embed .btn:hover{border-color:var(--acc);background:#1f6feb18}#newproj-embed .btn.p{background:#1f6feb;border-color:#1f6feb;color:#fff;font-weight:600}#newproj-embed .btn.p:hover{background:#3b82f6}#newproj-embed .btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}#newproj-embed .tabs{display:grid;grid-template-columns:repeat(6,1fr);gap:7px;margin-bottom:14px}
+@media(max-width:900px){#newproj-embed .tabs{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:560px){#newproj-embed .tabs{grid-template-columns:repeat(2,1fr)}}#newproj-embed .tab{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px 11px;cursor:pointer;transition:.15s}#newproj-embed .tab:hover{border-color:#3d4855}#newproj-embed .tab.on{border-color:var(--acc);background:#1f6feb18}#newproj-embed .tab .t{font-size:.87rem;font-weight:600}#newproj-embed .tab .d{font-size:.68rem;color:var(--tx2);margin-top:1px}#newproj-embed .khbar{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);
+ border-radius:10px;padding:10px 14px;margin-bottom:16px;flex-wrap:wrap}#newproj-embed .khbar.on{border-color:#c084fc66;background:#c084fc12}#newproj-embed .sw{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:.85rem;font-weight:600}#newproj-embed .sw input{width:38px;height:20px;appearance:none;background:var(--panel2);border:1px solid var(--line);
+ border-radius:99px;position:relative;cursor:pointer;transition:.2s;margin:0}#newproj-embed .sw input:checked{background:#c084fc;border-color:#c084fc}#newproj-embed .sw input::after{content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;
+ background:var(--tx2);transition:.2s}#newproj-embed .sw input:checked::after{left:20px;background:#fff}#newproj-embed .khbar .info{font-size:.75rem;color:var(--tx2);flex:1;min-width:220px}#newproj-embed .hero{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px}
+@media(max-width:900px){#newproj-embed .hero{grid-template-columns:repeat(2,1fr)}}#newproj-embed .kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px 15px}#newproj-embed .kpi .k{font-size:.71rem;color:var(--tx2);letter-spacing:.8px}#newproj-embed .kpi .v{font-size:1.28rem;font-weight:700;font-variant-numeric:tabular-nums;margin-top:1px}#newproj-embed .kpi .n{font-size:.69rem;color:var(--tx2)}#newproj-embed .v.acc{color:var(--acc)}#newproj-embed .v.good{color:var(--good)}#newproj-embed .v.warn{color:var(--warn)}#newproj-embed .v.bad{color:var(--bad)}#newproj-embed table{width:100%;border-collapse:collapse;font-size:.82rem;font-variant-numeric:tabular-nums}#newproj-embed th, #newproj-embed td{padding:6px 7px;border-bottom:1px solid var(--line);text-align:right}#newproj-embed th:first-child, #newproj-embed td:first-child{text-align:left}#newproj-embed thead th{color:var(--tx2);font-weight:500;font-size:.74rem;letter-spacing:.4px}#newproj-embed tr.total td{font-weight:700;border-top:1px solid var(--line);border-bottom:2px solid var(--line)}#newproj-embed tr.grand td{font-weight:700;background:#1f6feb14;border-top:2px solid var(--acc);border-bottom:2px solid var(--acc)}#newproj-embed tr.ded td:first-child{padding-left:20px;color:var(--tx2)}#newproj-embed tr.khrow td{color:var(--kh)}#newproj-embed td.dim{color:var(--tx2);font-size:.77rem}#newproj-embed td.hi{color:var(--good);font-weight:600}#newproj-embed td.mid{color:var(--warn);font-weight:600}#newproj-embed td.lo{color:var(--bad);font-weight:600}#newproj-embed td.neg{color:var(--bad)}#newproj-embed .pill{display:inline-block;padding:1px 7px;border-radius:99px;font-size:.69rem;
+ background:#1f6feb22;color:var(--acc);border:1px solid #1f6feb44}#newproj-embed .pill.g{background:#3fb95022;color:var(--good);border-color:#3fb95044}#newproj-embed .pill.r{background:#f8514922;color:var(--bad);border-color:#f8514944}#newproj-embed .pill.y{background:#d2992222;color:var(--warn);border-color:#d2992244}#newproj-embed .pill.k{background:#c084fc22;color:var(--kh);border-color:#c084fc44}#newproj-embed .alert{border-radius:8px;padding:8px 11px;font-size:.77rem;margin-top:10px;line-height:1.6}#newproj-embed .alert.g{background:#3fb95014;border:1px solid #3fb95040;color:var(--good)}#newproj-embed .alert.y{background:#d2992214;border:1px solid #d2992240;color:var(--warn)}#newproj-embed .alert.r{background:#f8514914;border:1px solid #f8514940;color:var(--bad)}#newproj-embed .alert.k{background:#c084fc14;border:1px solid #c084fc40;color:var(--kh)}#newproj-embed .note{font-size:.76rem;color:var(--tx2);margin-top:10px;line-height:1.7}#newproj-embed .formula{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:.8rem;background:var(--panel2);
+ border:1px solid var(--line);border-radius:6px;padding:8px 11px;margin:8px 0;color:var(--acc);overflow-x:auto}#newproj-embed .mt{margin-top:18px}#newproj-embed .legend{font-size:.73rem;color:var(--tx2);margin-top:6px}#newproj-embed .matrix td, #newproj-embed .matrix th{text-align:center;padding:5px 4px;font-size:.78rem}#newproj-embed .matrix th:first-child, #newproj-embed .matrix td:first-child{text-align:left}#newproj-embed .printhead, #newproj-embed #report, #newproj-embed .disc{display:none}
 
-.toolbar{position:sticky;top:0;z-index:50;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;
- padding:8px 0 12px;background:linear-gradient(var(--bg) 70%,transparent)}
-.btn{display:inline-flex;align-items:center;gap:6px;background:var(--panel);color:var(--tx);
- border:1px solid var(--line);border-radius:8px;padding:8px 13px;font-size:.82rem;cursor:pointer;font-family:inherit;transition:.15s}
-.btn:hover{border-color:var(--acc);background:#1f6feb18}
-.btn.p{background:#1f6feb;border-color:#1f6feb;color:#fff;font-weight:600}
-.btn.p:hover{background:#3b82f6}
-.btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+/* 深色模式下，alert 文字與公式方塊改用原本柔和的淺色調（維持原深色主題的外觀不變） */html[data-theme="dark"] #newproj-embed .alert.g{color:#7ee787}html[data-theme="dark"] #newproj-embed .alert.y{color:#e3b341}html[data-theme="dark"] #newproj-embed .alert.r{color:#ff9492}html[data-theme="dark"] #newproj-embed .alert.k{color:#ddb4fe}html[data-theme="dark"] #newproj-embed .formula{color:#9dc4ff}
 
-.tabs{display:grid;grid-template-columns:repeat(6,1fr);gap:7px;margin-bottom:14px}
-@media(max-width:900px){.tabs{grid-template-columns:repeat(3,1fr)}}
-@media(max-width:560px){.tabs{grid-template-columns:repeat(2,1fr)}}
-.tab{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px 11px;cursor:pointer;transition:.15s}
-.tab:hover{border-color:#3d4855}
-.tab.on{border-color:var(--acc);background:#1f6feb18}
-.tab .t{font-size:.87rem;font-weight:600}
-.tab .d{font-size:.68rem;color:var(--tx2);margin-top:1px}
 
-.khbar{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);
- border-radius:10px;padding:10px 14px;margin-bottom:16px;flex-wrap:wrap}
-.khbar.on{border-color:#c084fc66;background:#c084fc12}
-.sw{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:.85rem;font-weight:600}
-.sw input{width:38px;height:20px;appearance:none;background:var(--panel2);border:1px solid var(--line);
- border-radius:99px;position:relative;cursor:pointer;transition:.2s;margin:0}
-.sw input:checked{background:#c084fc;border-color:#c084fc}
-.sw input::after{content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;
- background:var(--tx2);transition:.2s}
-.sw input:checked::after{left:20px;background:#fff}
-.khbar .info{font-size:.75rem;color:var(--tx2);flex:1;min-width:220px}
 
-.hero{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px}
-@media(max-width:900px){.hero{grid-template-columns:repeat(2,1fr)}}
-.kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px 15px}
-.kpi .k{font-size:.71rem;color:var(--tx2);letter-spacing:.8px}
-.kpi .v{font-size:1.28rem;font-weight:700;font-variant-numeric:tabular-nums;margin-top:1px}
-.kpi .n{font-size:.69rem;color:var(--tx2)}
-.v.acc{color:var(--acc)}.v.good{color:var(--good)}.v.warn{color:var(--warn)}.v.bad{color:var(--bad)}
-
-table{width:100%;border-collapse:collapse;font-size:.82rem;font-variant-numeric:tabular-nums}
-th,td{padding:6px 7px;border-bottom:1px solid var(--line);text-align:right}
-th:first-child,td:first-child{text-align:left}
-thead th{color:var(--tx2);font-weight:500;font-size:.74rem;letter-spacing:.4px}
-tr.total td{font-weight:700;border-top:1px solid var(--line);border-bottom:2px solid var(--line)}
-tr.grand td{font-weight:700;background:#1f6feb14;border-top:2px solid var(--acc);border-bottom:2px solid var(--acc)}
-tr.ded td:first-child{padding-left:20px;color:var(--tx2)}
-tr.khrow td{color:var(--kh)}
-td.dim{color:var(--tx2);font-size:.77rem}
-td.hi{color:var(--good);font-weight:600}
-td.mid{color:var(--warn);font-weight:600}
-td.lo{color:var(--bad);font-weight:600}
-td.neg{color:var(--bad)}
-.pill{display:inline-block;padding:1px 7px;border-radius:99px;font-size:.69rem;
- background:#1f6feb22;color:var(--acc);border:1px solid #1f6feb44}
-.pill.g{background:#3fb95022;color:var(--good);border-color:#3fb95044}
-.pill.r{background:#f8514922;color:var(--bad);border-color:#f8514944}
-.pill.y{background:#d2992222;color:var(--warn);border-color:#d2992244}
-.pill.k{background:#c084fc22;color:var(--kh);border-color:#c084fc44}
-.alert{border-radius:8px;padding:8px 11px;font-size:.77rem;margin-top:10px;line-height:1.6}
-.alert.g{background:#3fb95014;border:1px solid #3fb95040;color:var(--good)}
-.alert.y{background:#d2992214;border:1px solid #d2992240;color:var(--warn)}
-.alert.r{background:#f8514914;border:1px solid #f8514940;color:var(--bad)}
-.alert.k{background:#c084fc14;border:1px solid #c084fc40;color:var(--kh)}
-.note{font-size:.76rem;color:var(--tx2);margin-top:10px;line-height:1.7}
-.formula{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:.8rem;background:var(--panel2);
- border:1px solid var(--line);border-radius:6px;padding:8px 11px;margin:8px 0;color:var(--acc);overflow-x:auto}
-.mt{margin-top:18px}
-.legend{font-size:.73rem;color:var(--tx2);margin-top:6px}
-.matrix td,.matrix th{text-align:center;padding:5px 4px;font-size:.78rem}
-.matrix th:first-child,.matrix td:first-child{text-align:left}
-.printhead,#report,.disc{display:none}
-
-/* 深色模式下，alert 文字與公式方塊改用原本柔和的淺色調（維持原深色主題的外觀不變） */
-:root[data-theme="dark"] .alert.g{color:#7ee787}
-:root[data-theme="dark"] .alert.y{color:#e3b341}
-:root[data-theme="dark"] .alert.r{color:#ff9492}
-:root[data-theme="dark"] .alert.k{color:#ddb4fe}
-:root[data-theme="dark"] .formula{color:#9dc4ff}
-
-@media print{
-  @page{size:A4 portrait;margin:11mm 9mm 13mm}
-  html,body{background:#fff!important;color:#111!important}
-  body{padding:0;font-size:9.3pt;line-height:1.45}
-  .wrap{max-width:none}
-  .toolbar,.tabs{display:none!important}
-  .khbar{border:1px solid #bbb!important;background:#fff!important;padding:5px 9px;font-size:8pt}
-  .khbar .sw input{display:none}
-  .printhead{display:block!important;border-bottom:2px solid #111;padding-bottom:6px;margin-bottom:10px}
-  .printhead .pt{font-size:13.5pt;font-weight:700}
-  .printhead .pc{font-size:8pt;color:#444}
-  .printhead .pm{font-size:8pt;color:#333;margin-top:4px}
-  .disc{display:block!important;margin-top:10px;font-size:7.4pt;color:#555;line-height:1.55;
-   border-top:1px solid #bbb;padding-top:6px}
-  h1,.sub{display:none}
-  .grid{display:block!important}
-  .grid>div:first-child{display:grid;grid-template-columns:1fr 1fr;gap:9px;align-items:start}
-  .card,.kpi{background:#fff!important;border:1px solid #bbb!important;border-radius:4px;
-   break-inside:avoid;page-break-inside:avoid;padding:9px 11px;margin-top:9px}
-  .card h2{color:#0b4a9e!important;font-size:9.3pt;margin-bottom:7px}
-  .hero{display:grid!important;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:0}
-  .kpi .k{color:#555!important;font-size:7pt}
-  .kpi .v{font-size:11.5pt;color:#111!important}
-  .kpi .n{color:#555!important;font-size:6.6pt}
-  .row{margin-bottom:2px}
-  .row label,.unit{color:#444!important;font-size:7.8pt}
-  .row input,.row select,.row .ro{border:none!important;background:transparent!important;color:#111!important;
-   font-weight:700;padding:0;width:auto;font-size:8.3pt;text-align:right;-webkit-appearance:none;appearance:none}
-  .row select,.row input.txt{text-align:left}
-  table{font-size:8pt}
-  th,td{padding:2.5px 4px;border-bottom:1px solid #ddd!important;color:#111!important}
-  thead th{color:#555!important;font-size:7.3pt}
-  tr.total td{border-top:1px solid #111!important;border-bottom:1.5px solid #111!important}
-  tr.grand td{background:#eef4ff!important;border-color:#0b4a9e!important;
-   -webkit-print-color-adjust:exact;print-color-adjust:exact}
-  tr.ded td:first-child{color:#555!important}
-  tr.khrow td{color:#6b21a8!important}
-  tr[style]{background:transparent!important}
-  td.dim,.note,.legend{color:#444!important}
-  td.hi{color:#0a7a2f!important} td.mid{color:#8a6100!important} td.lo,td.neg{color:#b3261e!important}
-  .note{font-size:7.6pt;line-height:1.55}
-  .formula{background:#f4f6f9!important;border-color:#ccc!important;color:#0b4a9e!important;font-size:7.8pt;
-   -webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .pill,.alert{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .pill{background:#eef4ff!important;color:#0b4a9e!important;border-color:#9dbcf0!important;font-size:6.8pt}
-  .pill.g{background:#e9f7ec!important;color:#0a7a2f!important;border-color:#8fcf9f!important}
-  .pill.r{background:#fdecea!important;color:#b3261e!important;border-color:#e8a29b!important}
-  .pill.y{background:#fdf3e0!important;color:#8a6100!important;border-color:#dcc48a!important}
-  .pill.k{background:#f6edfe!important;color:#6b21a8!important;border-color:#d3b0f5!important}
-  .alert{font-size:7.7pt;padding:5px 8px}
-  .alert.g{background:#e9f7ec!important;border-color:#8fcf9f!important;color:#0a5c25!important}
-  .alert.y{background:#fdf3e0!important;border-color:#dcc48a!important;color:#7a5500!important}
-  .alert.r{background:#fdecea!important;border-color:#e8a29b!important;color:#8f1d13!important}
-  .alert.k{background:#f6edfe!important;border-color:#d3b0f5!important;color:#6b21a8!important}
-  body.report-mode .grid,body.report-mode .hero,body.report-mode .khbar,
-  body.report-mode>.wrap>.card{display:none!important}
-  body.report-mode #report{display:block!important}
-  #report .rsec{break-inside:avoid;page-break-inside:avoid;border:1px solid #bbb;border-radius:4px;
-   padding:9px 11px;margin-bottom:9px}
-  #report h3{font-size:10pt;margin:0 0 6px;color:#0b4a9e}
-  #report .two{display:grid;grid-template-columns:1fr 1fr;gap:13px}
-}
 </style>
+<div class="page" id="page-newproj">
+  <div id="newproj-embed">
+    <div class="wrap">
 
-<div class="wrap">
 
 <div class="toolbar">
   <button class="btn p" id="btnPrint"><svg viewBox="0 0 24 24"><path d="M6 9V3h12v6M6 18H4v-6h16v6h-2M8 14h8v7H8z"/></svg>列印／存成 PDF（目前方案）</button>
@@ -2139,9 +1979,12 @@ td.neg{color:var(--bad)}
 
 <div id="report"></div>
 <div class="disc" id="disc"></div>
-
+    </div>
+  </div>
 </div>
 <script>
+(function(){
+
 const $=id=>document.getElementById(id);
 const V=id=>{const e=$(id);if(!e)return 0;
   if(e.type==='checkbox')return e.checked;
@@ -2501,14 +2344,212 @@ function printHeader(mode){
     ${$('bType').selectedOptions[0].textContent} 獎勵 +${c.bonus}%${p.kh?' · 套用高雄厝':''} ·
     地主開價 ${fmt(c.landCost)} 萬（${fmt(c.landCost/c.land,1)} 萬/坪）· 勘估基準日 ${T('pjDate')}</div>`;
 }
+// 這支工具已直接內嵌在系統頁面中（不是獨立分頁／iframe），若直接呼叫 window.print()
+// 會把整個 RE-CMS 介面（漢堡選單、其他頁面等）一併印出來。因此改成跳出一個全新視窗，
+// 只放入本工具的內容與原始樣式（在獨立視窗中，原本 .card/.row/.btn 等類別不會與系統衝突），
+// 這與系統「稅務與貸款試算」頁面列印時使用的手法一致。
+const NEWPROJ_PRINT_CSS = `
+/* 淺色（預設）：套用與 RE-CMS 系統一致的配色，讓試算工具融入系統外觀 */
+:root{--bg:#f0f4f8;--panel:#ffffff;--panel2:#f6f9fd;--line:#ccd6e8;
+ --tx:#1a2332;--tx2:#3d526b;--acc:#0f519b;--good:#1a7a4a;--warn:#b07800;--bad:#c0182a;--kh:#7c3aed}
+/* 深色：當外層系統切換到深色主題時（<html data-theme="dark">），套用原本工具的深色配色 */
+:root[data-theme="dark"]{--bg:#0e1116;--panel:#161b22;--panel2:#1c232c;--line:#2a323d;
+ --tx:#e6edf3;--tx2:#93a1b0;--acc:#4c9aff;--good:#3fb950;--warn:#d29922;--bad:#f85149;--kh:#c084fc}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);
+ font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+ line-height:1.6;padding:18px 16px 60px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto}
+h1{font-size:1.45rem;margin:0 0 3px;letter-spacing:.5px}
+.sub{color:var(--tx2);font-size:.85rem;margin-bottom:16px}
+.grid{display:grid;grid-template-columns:340px 1fr;gap:18px}
+@media(max-width:900px){.grid{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+.card h2{font-size:.9rem;margin:0 0 12px;color:var(--acc);letter-spacing:1px;font-weight:600;
+ display:flex;justify-content:space-between;align-items:center;gap:8px}
+.card.khon{border-color:#c084fc55}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:7px}
+.row label{font-size:.8rem;color:var(--tx2);flex:1}
+.row input,.row select{width:100px;background:var(--panel2);border:1px solid var(--line);color:var(--tx);
+ border-radius:6px;padding:5px 7px;font-size:.82rem;text-align:right;font-variant-numeric:tabular-nums;font-family:inherit}
+.row select{text-align:left;width:145px}
+.row input:focus,.row select:focus{outline:none;border-color:var(--acc)}
+.row input.key{border-color:#4c9aff66;background:#1f6feb14}
+.row input.khv{border-color:#c084fc66;background:#c084fc14}
+.row input.txt{text-align:left;width:170px}
+.row .ro{width:100px;text-align:right;font-size:.82rem;padding:5px 7px;font-variant-numeric:tabular-nums;
+ background:rgba(0,0,0,.05);border:1px dashed var(--line);border-radius:6px}
+:root[data-theme="dark"] .row .ro{background:#ffffff08}
+.unit{font-size:.7rem;color:var(--tx2);width:44px;flex:0 0 44px}
+.f2{display:grid;grid-template-columns:1fr 1fr;gap:0 18px}
+@media(max-width:620px){.f2{grid-template-columns:1fr}}
+hr.s{border:0;border-top:1px solid var(--line);margin:10px 0}
+
+.toolbar{position:sticky;top:0;z-index:50;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;
+ padding:8px 0 12px;background:linear-gradient(var(--bg) 70%,transparent)}
+.btn{display:inline-flex;align-items:center;gap:6px;background:var(--panel);color:var(--tx);
+ border:1px solid var(--line);border-radius:8px;padding:8px 13px;font-size:.82rem;cursor:pointer;font-family:inherit;transition:.15s}
+.btn:hover{border-color:var(--acc);background:#1f6feb18}
+.btn.p{background:#1f6feb;border-color:#1f6feb;color:#fff;font-weight:600}
+.btn.p:hover{background:#3b82f6}
+.btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+.tabs{display:grid;grid-template-columns:repeat(6,1fr);gap:7px;margin-bottom:14px}
+@media(max-width:900px){.tabs{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:560px){.tabs{grid-template-columns:repeat(2,1fr)}}
+.tab{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px 11px;cursor:pointer;transition:.15s}
+.tab:hover{border-color:#3d4855}
+.tab.on{border-color:var(--acc);background:#1f6feb18}
+.tab .t{font-size:.87rem;font-weight:600}
+.tab .d{font-size:.68rem;color:var(--tx2);margin-top:1px}
+
+.khbar{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);
+ border-radius:10px;padding:10px 14px;margin-bottom:16px;flex-wrap:wrap}
+.khbar.on{border-color:#c084fc66;background:#c084fc12}
+.sw{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:.85rem;font-weight:600}
+.sw input{width:38px;height:20px;appearance:none;background:var(--panel2);border:1px solid var(--line);
+ border-radius:99px;position:relative;cursor:pointer;transition:.2s;margin:0}
+.sw input:checked{background:#c084fc;border-color:#c084fc}
+.sw input::after{content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;
+ background:var(--tx2);transition:.2s}
+.sw input:checked::after{left:20px;background:#fff}
+.khbar .info{font-size:.75rem;color:var(--tx2);flex:1;min-width:220px}
+
+.hero{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px}
+@media(max-width:900px){.hero{grid-template-columns:repeat(2,1fr)}}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px 15px}
+.kpi .k{font-size:.71rem;color:var(--tx2);letter-spacing:.8px}
+.kpi .v{font-size:1.28rem;font-weight:700;font-variant-numeric:tabular-nums;margin-top:1px}
+.kpi .n{font-size:.69rem;color:var(--tx2)}
+.v.acc{color:var(--acc)}.v.good{color:var(--good)}.v.warn{color:var(--warn)}.v.bad{color:var(--bad)}
+
+table{width:100%;border-collapse:collapse;font-size:.82rem;font-variant-numeric:tabular-nums}
+th,td{padding:6px 7px;border-bottom:1px solid var(--line);text-align:right}
+th:first-child,td:first-child{text-align:left}
+thead th{color:var(--tx2);font-weight:500;font-size:.74rem;letter-spacing:.4px}
+tr.total td{font-weight:700;border-top:1px solid var(--line);border-bottom:2px solid var(--line)}
+tr.grand td{font-weight:700;background:#1f6feb14;border-top:2px solid var(--acc);border-bottom:2px solid var(--acc)}
+tr.ded td:first-child{padding-left:20px;color:var(--tx2)}
+tr.khrow td{color:var(--kh)}
+td.dim{color:var(--tx2);font-size:.77rem}
+td.hi{color:var(--good);font-weight:600}
+td.mid{color:var(--warn);font-weight:600}
+td.lo{color:var(--bad);font-weight:600}
+td.neg{color:var(--bad)}
+.pill{display:inline-block;padding:1px 7px;border-radius:99px;font-size:.69rem;
+ background:#1f6feb22;color:var(--acc);border:1px solid #1f6feb44}
+.pill.g{background:#3fb95022;color:var(--good);border-color:#3fb95044}
+.pill.r{background:#f8514922;color:var(--bad);border-color:#f8514944}
+.pill.y{background:#d2992222;color:var(--warn);border-color:#d2992244}
+.pill.k{background:#c084fc22;color:var(--kh);border-color:#c084fc44}
+.alert{border-radius:8px;padding:8px 11px;font-size:.77rem;margin-top:10px;line-height:1.6}
+.alert.g{background:#3fb95014;border:1px solid #3fb95040;color:var(--good)}
+.alert.y{background:#d2992214;border:1px solid #d2992240;color:var(--warn)}
+.alert.r{background:#f8514914;border:1px solid #f8514940;color:var(--bad)}
+.alert.k{background:#c084fc14;border:1px solid #c084fc40;color:var(--kh)}
+.note{font-size:.76rem;color:var(--tx2);margin-top:10px;line-height:1.7}
+.formula{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:.8rem;background:var(--panel2);
+ border:1px solid var(--line);border-radius:6px;padding:8px 11px;margin:8px 0;color:var(--acc);overflow-x:auto}
+.mt{margin-top:18px}
+.legend{font-size:.73rem;color:var(--tx2);margin-top:6px}
+.matrix td,.matrix th{text-align:center;padding:5px 4px;font-size:.78rem}
+.matrix th:first-child,.matrix td:first-child{text-align:left}
+.printhead,#report,.disc{display:none}
+
+/* 深色模式下，alert 文字與公式方塊改用原本柔和的淺色調（維持原深色主題的外觀不變） */
+:root[data-theme="dark"] .alert.g{color:#7ee787}
+:root[data-theme="dark"] .alert.y{color:#e3b341}
+:root[data-theme="dark"] .alert.r{color:#ff9492}
+:root[data-theme="dark"] .alert.k{color:#ddb4fe}
+:root[data-theme="dark"] .formula{color:#9dc4ff}
+
+
+
+@media print{
+  @page{size:A4 portrait;margin:11mm 9mm 13mm}
+  html,body{background:#fff!important;color:#111!important}
+  body{padding:0;font-size:9.3pt;line-height:1.45}
+  .wrap{max-width:none}
+  .toolbar,.tabs{display:none!important}
+  .khbar{border:1px solid #bbb!important;background:#fff!important;padding:5px 9px;font-size:8pt}
+  .khbar .sw input{display:none}
+  .printhead{display:block!important;border-bottom:2px solid #111;padding-bottom:6px;margin-bottom:10px}
+  .printhead .pt{font-size:13.5pt;font-weight:700}
+  .printhead .pc{font-size:8pt;color:#444}
+  .printhead .pm{font-size:8pt;color:#333;margin-top:4px}
+  .disc{display:block!important;margin-top:10px;font-size:7.4pt;color:#555;line-height:1.55;
+   border-top:1px solid #bbb;padding-top:6px}
+  h1,.sub{display:none}
+  .grid{display:block!important}
+  .grid>div:first-child{display:grid;grid-template-columns:1fr 1fr;gap:9px;align-items:start}
+  .card,.kpi{background:#fff!important;border:1px solid #bbb!important;border-radius:4px;
+   break-inside:avoid;page-break-inside:avoid;padding:9px 11px;margin-top:9px}
+  .card h2{color:#0b4a9e!important;font-size:9.3pt;margin-bottom:7px}
+  .hero{display:grid!important;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:0}
+  .kpi .k{color:#555!important;font-size:7pt}
+  .kpi .v{font-size:11.5pt;color:#111!important}
+  .kpi .n{color:#555!important;font-size:6.6pt}
+  .row{margin-bottom:2px}
+  .row label,.unit{color:#444!important;font-size:7.8pt}
+  .row input,.row select,.row .ro{border:none!important;background:transparent!important;color:#111!important;
+   font-weight:700;padding:0;width:auto;font-size:8.3pt;text-align:right;-webkit-appearance:none;appearance:none}
+  .row select,.row input.txt{text-align:left}
+  table{font-size:8pt}
+  th,td{padding:2.5px 4px;border-bottom:1px solid #ddd!important;color:#111!important}
+  thead th{color:#555!important;font-size:7.3pt}
+  tr.total td{border-top:1px solid #111!important;border-bottom:1.5px solid #111!important}
+  tr.grand td{background:#eef4ff!important;border-color:#0b4a9e!important;
+   -webkit-print-color-adjust:exact;print-color-adjust:exact}
+  tr.ded td:first-child{color:#555!important}
+  tr.khrow td{color:#6b21a8!important}
+  tr[style]{background:transparent!important}
+  td.dim,.note,.legend{color:#444!important}
+  td.hi{color:#0a7a2f!important} td.mid{color:#8a6100!important} td.lo,td.neg{color:#b3261e!important}
+  .note{font-size:7.6pt;line-height:1.55}
+  .formula{background:#f4f6f9!important;border-color:#ccc!important;color:#0b4a9e!important;font-size:7.8pt;
+   -webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .pill,.alert{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .pill{background:#eef4ff!important;color:#0b4a9e!important;border-color:#9dbcf0!important;font-size:6.8pt}
+  .pill.g{background:#e9f7ec!important;color:#0a7a2f!important;border-color:#8fcf9f!important}
+  .pill.r{background:#fdecea!important;color:#b3261e!important;border-color:#e8a29b!important}
+  .pill.y{background:#fdf3e0!important;color:#8a6100!important;border-color:#dcc48a!important}
+  .pill.k{background:#f6edfe!important;color:#6b21a8!important;border-color:#d3b0f5!important}
+  .alert{font-size:7.7pt;padding:5px 8px}
+  .alert.g{background:#e9f7ec!important;border-color:#8fcf9f!important;color:#0a5c25!important}
+  .alert.y{background:#fdf3e0!important;border-color:#dcc48a!important;color:#7a5500!important}
+  .alert.r{background:#fdecea!important;border-color:#e8a29b!important;color:#8f1d13!important}
+  .alert.k{background:#f6edfe!important;border-color:#d3b0f5!important;color:#6b21a8!important}
+  body.report-mode .grid,body.report-mode .hero,body.report-mode .khbar,
+  body.report-mode>.wrap>.card{display:none!important}
+  body.report-mode #report{display:block!important}
+  #report .rsec{break-inside:avoid;page-break-inside:avoid;border:1px solid #bbb;border-radius:4px;
+   padding:9px 11px;margin-bottom:9px}
+  #report h3{font-size:10pt;margin:0 0 6px;color:#0b4a9e}
+  #report .two{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+}`;
 function doPrint(mode,fname){
   printHeader(mode);buildDisc();
-  const old=document.title;document.title=fname;
-  document.body.classList.toggle('report-mode',mode==='report');
-  const done=()=>{document.title=old;document.body.classList.remove('report-mode');
-    window.removeEventListener('afterprint',done);};
-  window.addEventListener('afterprint',done);
-  setTimeout(()=>window.print(),60);setTimeout(done,3000);
+  // 使用者目前輸入的數值存在 DOM 的 .value 屬性中，不會自動反映到 HTML 的 value 屬性上；
+  // 這裡先同步一次，確保複製到新視窗的內容顯示的是目前畫面上的數字，而不是欄位的初始值
+  document.querySelectorAll('#newproj-embed input,#newproj-embed select').forEach(el=>{
+    if(el.type==='checkbox'){ el.checked?el.setAttribute('checked',''):el.removeAttribute('checked'); }
+    else if(el.tagName==='SELECT'){
+      Array.prototype.forEach.call(el.options,o=>{
+        if(o.value===el.value) o.setAttribute('selected',''); else o.removeAttribute('selected');
+      });
+    } else { el.setAttribute('value', el.value); }
+  });
+  const bodyHtml = document.getElementById('newproj-embed').innerHTML;
+  const html = '<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8">'
+    + '<meta name="viewport" content="width=device-width,initial-scale=1">'
+    + '<title>'+fname+'</title><style>'+NEWPROJ_PRINT_CSS+'</style></head>'
+    + '<body class="'+(mode==='report'?'report-mode':'')+'">'
+    + bodyHtml
+    + '<scr'+'ipt>window.onload=function(){setTimeout(function(){window.focus();window.print();},250);};<\/scr'+'ipt>'
+    + '</body></html>';
+  const w = window.open('','_blank','width=1000,height=1000');
+  if(!w){ alert('請允許瀏覽器的彈出視窗（pop-up），才能列印或另存 PDF。'); return; }
+  w.document.open(); w.document.write(html); w.document.close();
 }
 function buildReport(){
   const c=common(),kh=$('khOn').checked,pc=curP();
@@ -2576,9 +2617,10 @@ window.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key==='p'){e.
 
 document.querySelectorAll('input,select').forEach(el=>el.addEventListener('input',render));
 render();
+
+})();
 </script>
 
-</template>
 
 
 <!-- PAGE: 每日戰報 -->
@@ -2890,6 +2932,22 @@ render();
         <thead><tr><th>週期</th><th>值星人員</th></tr></thead>
         <tbody id="rd-officer-tbody"><tr><td class="empty-td" colspan="2">⏳ 載入中…</td></tr></tbody>
       </table>
+    </div>
+    <div style="background:var(--surf);border:1px solid var(--bdr);border-radius:12px;padding:16px 18px;margin-top:14px">
+      <div style="font-size:14px;font-weight:700;color:var(--acc);margin-bottom:10px">📋 值星官(週)執掌與輪值管理辦法</div>
+      <ol style="margin:0;padding-left:20px;font-size:13px;color:var(--tx2);line-height:2">
+        <li>每週輪值一次（星期一～星期六）</li>
+        <li>入職未滿一個月不輪值</li>
+        <li>值星官提前 08:45 到公司（開門）</li>
+        <li>早：開大門／冷氣／燈／電視（日勝一日看板）／音樂／燒熱水／白板／電腦／咖啡機小推車水量補滿</li>
+        <li>晚：全店電器設備、門窗關閉，最後關門離開</li>
+        <li>公司鑰匙保管</li>
+        <li>接聽電話：秘書 > 值星官</li>
+        <li>安排團看路線</li>
+        <li>交接下一位值星官，引導值星流程</li>
+        <li>值星官中午回店頭休息（由於店內人數不足，值星官中午暫不執勤）</li>
+        <li>監督、檢查各打掃崗位</li>
+      </ol>
     </div>
   </div>
 
@@ -4422,7 +4480,6 @@ function switchPage(p){
   else if(p==='rosterduty'){initRosterDutyPage();}
   else if(p==='staffdirectory'){initStaffDirectoryPage();}
   else if(p==='deedreceipt'){initDeedReceiptPage();}
-  else if(p==='newproj'){initNewProjPage();}
   if(p==='commission') _updateEndedBadge();
   else renderAll();
 }
@@ -13056,7 +13113,25 @@ td{border:1px solid #999;padding:6px 8px;vertical-align:middle;font-size:12px;te
 .td-label{font-weight:700;background:#f6f9fd;white-space:nowrap;text-align:left}
 .td-all{font-weight:700;color:#0f519b}
 .hint{font-size:10.5px;color:#777;margin-top:8px}
+.rules-title{font-size:12px;font-weight:800;color:#0f519b;margin-top:12px}
+.rules{font-size:11px;color:#333;line-height:1.9;margin:6px 0 4px;padding-left:18px}
 `;
+
+// 值星官執掌與輪值管理辦法（固定文字，列印／PDF 與畫面上的版本一致）
+const _RD_OFFICER_RULES_HTML = `<div class="rules-title">📋 值星官(週)執掌與輪值管理辦法</div>
+<ol class="rules">
+<li>每週輪值一次（星期一～星期六）</li>
+<li>入職未滿一個月不輪值</li>
+<li>值星官提前 08:45 到公司（開門）</li>
+<li>早：開大門／冷氣／燈／電視（日勝一日看板）／音樂／燒熱水／白板／電腦／咖啡機小推車水量補滿</li>
+<li>晚：全店電器設備、門窗關閉，最後關門離開</li>
+<li>公司鑰匙保管</li>
+<li>接聽電話：秘書 > 值星官</li>
+<li>安排團看路線</li>
+<li>交接下一位值星官，引導值星流程</li>
+<li>值星官中午回店頭休息（由於店內人數不足，值星官中午暫不執勤）</li>
+<li>監督、檢查各打掃崗位</li>
+</ol>`;
 
 // 產生「當月值星官」「清潔分工」兩張表格的純文字版 HTML（不含互動元素），供列印／PDF 共用
 function _rdPrintTablesHtml(){
@@ -13093,6 +13168,7 @@ ${_RD_PRINT_STYLE}
 <div class="hdr"><h1>🗓️ 輪值表</h1><span>${monthLabel}</span></div>
 <div class="sec-title">當月值星官</div>
 <table><thead><tr><th style="width:40%">週期</th><th>值星人員</th></tr></thead><tbody>${officerRows}</tbody></table>
+${_RD_OFFICER_RULES_HTML}
 <div class="sec-title">清潔分工</div>
 <table><thead><tr><th style="width:40%">項目</th><th>早上</th><th>下午</th></tr></thead><tbody>${cleaningRows}</tbody></table>
 <div class="hint">💡 每週一、四 16:30 有垃圾車（值星負責）</div>
@@ -13132,6 +13208,7 @@ body{padding:36px}
 <div class="hdr"><h1>🗓️ 輪值表</h1><span>${monthLabel}</span></div>
 <div class="sec-title">當月值星官</div>
 <table><thead><tr><th style="width:40%">週期</th><th>值星人員</th></tr></thead><tbody>${officerRows}</tbody></table>
+${_RD_OFFICER_RULES_HTML}
 <div class="sec-title">清潔分工</div>
 <table><thead><tr><th style="width:40%">項目</th><th>早上</th><th>下午</th></tr></thead><tbody>${cleaningRows}</tbody></table>
 <div class="hint">💡 每週一、四 16:30 有垃圾車（值星負責）</div>
@@ -14975,51 +15052,6 @@ td{border:1px solid #ccc;padding:2px 3px;vertical-align:middle;text-align:center
 
   closeWeekReportModal();
 }
-
-// ─── 新建案估價試算（工具選單）─────────────────────────────────────
-// 這支試算工具原本是獨立的 HTML 檔，樣式使用 .card/.row/.btn/.wrap 等通用類別，
-// 又直接設定 body/table/th/td 元素樣式，且 --acc/--bg/--tx 等變數與本系統同名，
-// 直接內嵌會把全站樣式弄壞，因此改放進 iframe 完全隔離（CSS 與 JS 都互不干擾）。
-// 原始碼存在頁面上的 <template> 內；<template> 的內容不會被瀏覽器解析執行，
-// 因此工具的 <script> 在寫入 iframe 之前不會運作，不會拖慢系統啟動。
-let _newProjLoaded = false;
-function initNewProjPage(){
-  if(_newProjLoaded) return;            // 已載入過就不重建，保留使用者已輸入的數值
-  const frame = document.getElementById('newproj-frame');
-  const tpl   = document.getElementById('newproj-tpl');
-  if(!frame || !tpl) return;
-  // 工具的 CSS 已改用 var(--acc)/var(--bg) 等變數並提供淺／深兩組色票，
-  // 這裡把系統目前的主題（data-theme）帶進 iframe 的 <html>，讓工具開啟時直接是正確主題
-  const theme = document.documentElement.dataset.theme || '';
-  frame.srcdoc =
-    `<!DOCTYPE html><html lang="zh-Hant" data-theme="${theme}"><head><meta charset="utf-8">` +
-    '<meta name="viewport" content="width=device-width,initial-scale=1">' +
-    '<title>新建案估價試算</title></head><body>' +
-    tpl.innerHTML +
-    '</body></html>';
-  _newProjLoaded = true;
-}
-// 重新整理按鈕用：清空並重建，等同回到預設值
-function resetNewProjPage(){
-  _newProjLoaded = false;
-  const frame = document.getElementById('newproj-frame');
-  if(frame) frame.removeAttribute('srcdoc');
-  initNewProjPage();
-}
-// 使用者在「新建案估價試算」頁面上切換系統主題時，即時同步 iframe 內的主題，
-// 不必整個重載 iframe（避免使用者已輸入的試算資料被清空）
-(function(){
-  const _origToggleTheme = window.toggleTheme;
-  if(typeof _origToggleTheme !== 'function') return;
-  window.toggleTheme = function(){
-    _origToggleTheme();
-    const frame = document.getElementById('newproj-frame');
-    const doc = frame && frame.contentDocument;
-    if(doc && doc.documentElement){
-      doc.documentElement.dataset.theme = document.documentElement.dataset.theme || '';
-    }
-  };
-})();
 
 // ─── 工具 ─────────────────────────────────────────────────────────
 function escHtml(s) {
