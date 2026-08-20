@@ -163,6 +163,11 @@
   window._firebaseCompanyListingsColl  = () => collection(db_fs, 'company_listings');
   window._firebaseCompanyListingRef    = (id) => doc(db_fs, 'company_listings', id);
   window._firebaseCompanyListingNewRef = () => doc(collection(db_fs, 'company_listings'));
+  // 「公司委託」標記成交後的紀錄：全公司共用集合（跟 company_listings 同一種讀寫權限），
+  // 每位指派業務各自的已結案／每日戰報，會從這裡篩選出自己有分配到比例的那幾筆
+  window._firebaseCompanyClosedColl    = () => collection(db_fs, 'company_closed_listings');
+  window._firebaseCompanyClosedRef     = (id) => doc(db_fs, 'company_closed_listings', id);
+  window._firebaseCompanyClosedNewRef  = () => doc(collection(db_fs, 'company_closed_listings'));
   // 實價登錄行情比對：market_comps/{縣市}_{行政區}，由後端排程 Cloud Function 寫入，前端僅讀取
   window._firebaseMarketRef = (docId) => doc(db_fs, 'market_comps', docId);
   window._firebaseGetDocs = getDocs;
@@ -1029,6 +1034,7 @@ function gm_authFailure() {
     <div style="font-size:13px;color:var(--tx2)">🏁 成交與結案紀錄</div>
   </div>
   <div class="stats" id="stats-closed"></div>
+  <div id="closed-company-list" style="margin:0 16px 12px"></div>
   <div class="search-bar" id="search-closed">
     <div class="search-quick">
       <input class="fc" id="sq-closed-name" placeholder="🔍 搜尋屋主姓氏 / 建案名稱..." oninput="renderClosed()">
@@ -3494,10 +3500,11 @@ render();
           </div></div>
       </div>
       <div class="fg" id="ec-agent-wrap" style="display:none;margin-top:10px">
-        <div class="fgp"><label class="lbl">負責業務（可新增多位）<span class="req">*</span></label>
+        <div class="fgp"><label class="lbl">負責業務（可新增多位，並指定業務分工角色）<span class="req">*</span></label>
           <div id="comm-agent-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px"></div>
           <select class="fc" id="comm-agent-select" onchange="if(this.value){agentPickerAdd('comm',this.value,this.options[this.selectedIndex].dataset.name);this.value='';}"><option value="">＋ 新增負責業務</option></select>
-          <div style="font-size:11px;color:var(--tx3);margin-top:4px">人員名單抓取「每月出勤排休表」的業務名冊（需已綁定 Google 帳號），公司庫存會依此歸類（多位負責業務時，各自的公司庫存都會顯示此筆）</div>
+          <div id="comm-agent-roleerr" style="font-size:11px;color:var(--red);margin-top:4px;font-weight:600"></div>
+          <div style="font-size:11px;color:var(--tx3);margin-top:4px">人員名單抓取「每月出勤排休表」的業務名冊（需已綁定 Google 帳號），公司庫存會依此歸類（多位負責業務時，各自的公司庫存都會顯示此筆）。進案數量與業績金額依角色比例分配：開發業務 100%；開發＋協助業務各 50%；開發＋角色輔助各 50%；開發＋協助＋角色輔助＝50%／40%／10%。</div>
         </div>
       </div>
       <div class="fg fg2" style="margin-top:10px">
@@ -3536,6 +3543,40 @@ render();
   <div class="mf">
     <button class="btn btn-g" onclick="closeOv('totrack')">取消</button>
     <button class="btn btn-p" onclick="confirmToTrack()">確認轉入</button>
+  </div>
+</div></div>
+
+<!-- 公司委託標記成交：填寫成交總價與服務費，系統依每位負責業務的分工角色比例，
+     自動算出各自的業績金額，並各自計入自己的「已結案」與「每日戰報」當月S -->
+<div class="ov" id="ov-companydeal">
+<div class="modal modal-md">
+  <div class="mh"><div class="mt">🏆 公司委託成交</div><button class="mc" onclick="closeOv('companydeal')">✕</button></div>
+  <div class="mb">
+    <div id="cd-info" style="margin-bottom:12px"></div>
+    <div class="fsec">
+      <div class="fsec-t">成交資訊</div>
+      <div class="fg fg2">
+        <div class="fgp"><label class="lbl">成交日期<span class="req">*</span></label>
+          <input class="fc" type="date" id="cd-date"></div>
+        <div class="fgp"><label class="lbl">成交總價（萬）<span class="req">*</span></label>
+          <input class="fc" type="number" id="cd-total" step="0.1" min="0" oninput="_renderCompanyDealSplit()"></div>
+      </div>
+      <div class="fg fg2" style="margin-top:10px">
+        <div class="fgp"><label class="lbl">服務費（%）<span class="req">*</span></label>
+          <input class="fc" type="number" id="cd-fee" step="0.1" min="0" max="100" oninput="_renderCompanyDealSplit()"></div>
+        <div class="fgp"><label class="lbl">總業績金額（萬）</label>
+          <div class="fc" id="cd-revenue" style="background:var(--bg2);display:flex;align-items:center;font-weight:700;color:var(--acc)">—</div></div>
+      </div>
+    </div>
+    <div class="fsec">
+      <div class="fsec-t">依業務分工角色比例分配</div>
+      <div id="cd-split" style="font-size:13px;line-height:2"></div>
+      <div style="font-size:11px;color:var(--tx3);margin-top:4px">每位負責業務會依此比例，各自計入自己的「已結案」本月／今年累積業績，以及「每日戰報」當月S／年度S。</div>
+    </div>
+  </div>
+  <div class="mf">
+    <button class="btn btn-g" onclick="closeOv('companydeal')">取消</button>
+    <button class="btn btn-p" onclick="confirmCompanyDeal()">確認成交</button>
   </div>
 </div></div>
 
@@ -3587,9 +3628,10 @@ render();
       </div>
     </div>
     <div class="fsec">
-      <div class="fsec-t">負責業務（可新增多位）</div>
+      <div class="fsec-t">負責業務（可新增多位，並指定業務分工角色）</div>
       <div id="tocomm-agent-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px"></div>
       <select class="fc" id="tocomm-agent-select" onchange="if(this.value){agentPickerAdd('tocomm',this.value,this.options[this.selectedIndex].dataset.name);this.value='';}"><option value="">＋ 新增負責業務</option></select>
+      <div id="tocomm-agent-roleerr" style="font-size:11px;color:var(--red);margin-top:4px;font-weight:600"></div>
     </div>
     <div class="fsec">
       <div class="fsec-t">服務費與委託期間</div>
@@ -4054,7 +4096,7 @@ function resolveRosterName(uid, fallback){
 
 const CITIES={"基隆市":["仁愛區","信義區","中正區","中山區","安樂區","暖暖區","七堵區"],"臺北市":["松山區","信義區","大安區","中山區","中正區","大同區","萬華區","文山區","南港區","內湖區","士林區","北投區"],"新北市":["板橋區","三重區","中和區","永和區","新莊區","新店區","樹林區","鶯歌區","三峽區","淡水區","汐止區","瑞芳區","土城區","蘆洲區","五股區","泰山區","林口區","深坑區","石碇區","坪林區","三芝區","石門區","八里區","平溪區","雙溪區","貢寮區","金山區","萬里區","烏來區"],"桃園市":["桃園區","中壢區","大溪區","楊梅區","蘆竹區","大園區","龜山區","八德區","龍潭區","平鎮區","新屋區","觀音區","復興區"],"新竹市":["東區","北區","香山區"],"新竹縣":["竹北市","湖口鄉","新豐鄉","新埔鎮","關西鎮","芎林鄉","寶山鄉","竹東鎮","五峰鄉","橫山鄉","尖石鄉","北埔鄉","峨眉鄉"],"苗栗縣":["竹南鎮","頭份市","三灣鄉","南庄鄉","獅潭鄉","後龍鎮","通霄鎮","苑裡鎮","苗栗市","造橋鄉","頭屋鄉","公館鄉","大湖鄉","泰安鄉","銅鑼鄉","三義鄉","西湖鄉","卓蘭鎮"],"臺中市":["中區","東區","南區","西區","北區","西屯區","南屯區","北屯區","豐原區","東勢區","大甲區","清水區","沙鹿區","梧棲區","后里區","神岡區","潭子區","大雅區","新社區","石岡區","外埔區","大安區","烏日區","大肚區","龍井區","霧峰區","太平區","大里區","和平區"],"彰化縣":["彰化市","芬園鄉","花壇鄉","秀水鄉","鹿港鎮","福興鄉","線西鄉","和美鎮","伸港鄉","員林市","社頭鄉","永靖鄉","埔心鄉","溪湖鎮","大村鄉","埔鹽鄉","田中鎮","北斗鎮","田尾鄉","埤頭鄉","溪州鄉","竹塘鄉","二林鎮","大城鄉","芳苑鄉","二水鄉"],"南投縣":["南投市","中寮鄉","草屯鎮","國姓鄉","埔里鎮","仁愛鄉","名間鄉","集集鎮","水里鄉","魚池鄉","信義鄉","竹山鎮","鹿谷鄉"],"雲林縣":["斗南鎮","大埤鄉","虎尾鎮","土庫鎮","褒忠鄉","東勢鄉","臺西鄉","崙背鄉","麥寮鄉","斗六市","林內鄉","古坑鄉","莿桐鄉","西螺鎮","二崙鄉","北港鎮","水林鄉","口湖鄉","四湖鄉","元長鄉"],"嘉義市":["東區","西區"],"嘉義縣":["番路鄉","梅山鄉","竹崎鄉","阿里山鄉","中埔鄉","大埔鄉","水上鄉","鹿草鄉","太保市","朴子市","東石鄉","六腳鄉","新港鄉","民雄鄉","大林鎮","溪口鄉","義竹鄉","布袋鎮"],"臺南市":["中西區","東區","南區","北區","安平區","安南區","永康區","歸仁區","新化區","左鎮區","玉井區","楠西區","南化區","仁德區","關廟區","龍崎區","官田區","麻豆區","佳里區","西港區","七股區","將軍區","學甲區","北門區","新營區","後壁區","白河區","東山區","六甲區","下營區","柳營區","鹽水區","善化區","大內區","山上區","新市區","安定區"],"高雄市":["楠梓區","左營區","鼓山區","三民區","鹽埕區","前金區","新興區","苓雅區","前鎮區","旗津區","小港區","鳳山區","林園區","大寮區","大樹區","大社區","仁武區","鳥松區","岡山區","橋頭區","燕巢區","田寮區","阿蓮區","路竹區","湖內區","茄萣區","永安區","彌陀區","梓官區","旗山區","美濃區","六龜區","甲仙區","杉林區","內門區","茂林區","桃源區","那瑪夏區"],"屏東縣":["屏東市","三地門鄉","霧台鄉","瑪家鄉","九如鄉","里港鄉","高樹鄉","鹽埔鄉","長治鄉","麟洛鄉","竹田鄉","內埔鄉","萬丹鄉","潮州鎮","泰武鄉","來義鄉","萬巒鄉","崁頂鄉","新埤鄉","南州鄉","林邊鄉","東港鎮","琉球鄉","佳冬鄉","新園鄉","枋寮鄉","枋山鄉","春日鄉","獅子鄉","車城鄉","牡丹鄉","恆春鎮","滿州鄉"],"宜蘭縣":["宜蘭市","頭城鎮","礁溪鄉","壯圍鄉","員山鄉","羅東鎮","三星鄉","大同鄉","五結鄉","冬山鄉","蘇澳鎮","南澳鄉"],"花蓮縣":["花蓮市","新城鄉","秀林鄉","吉安鄉","壽豐鄉","鳳林鎮","光復鄉","豐濱鄉","瑞穗鄉","萬榮鄉","玉里鎮","卓溪鄉","富里鄉"],"臺東縣":["臺東市","綠島鄉","蘭嶼鄉","延平鄉","卑南鄉","鹿野鄉","關山鎮","海端鄉","池上鄉","東河鄉","成功鎮","長濱鄉","太麻里鄉","金峰鄉","大武鄉","達仁鄉"],"澎湖縣":["馬公市","西嶼鄉","望安鄉","七美鄉","白沙鄉","湖西鄉"],"金門縣":["金城鎮","金湖鎮","金沙鎮","金寧鄉","烈嶼鄉","烏坵鄉"],"連江縣":["南竿鄉","北竿鄉","莒光鄉","東引鄉"]};
 
-let db={recruit:[],track:[],commission:[],buyers:[],inventory:[],endedCommission:[]};
+let db={recruit:[],track:[],commission:[],buyers:[],inventory:[],endedCommission:[],closed:[],companyClosed:[]};
 let editId=null,pendingId=null;
 let currentPage='recruit',currentSubTab='general';
 // 委託管理頁面：買賣／租賃 頂層分頁（篩選後再套用既有的一般／專任子分頁）
@@ -4208,10 +4250,14 @@ function _computeSelfWarStats(){
       return total * (fee / 100);
     };
     const closedList = db.closed || [];
+    const myUid = window._currentUser && window._currentUser.uid;
+    // 個人成交業績 ＋ 公司委託成交依角色比例分配到「我」的那份業績，兩者合計
     const yearProfit = closedList.filter(x => x.closedDate && x.closedDate.slice(0,4) === curYearStr)
-                                  .reduce((s,x) => s + revenueOf(x), 0);
+                                  .reduce((s,x) => s + revenueOf(x), 0)
+                       + _myCompanyClosedRevenue(myUid, curYearStr, null);
     const monthProfit = closedList.filter(x => x.closedDate && x.closedDate.slice(0,7) === curYM)
-                                   .reduce((s,x) => s + revenueOf(x), 0);
+                                   .reduce((s,x) => s + revenueOf(x), 0)
+                       + _myCompanyClosedRevenue(myUid, null, curYM);
     const commList = db.commission || [];
     const monthCommCnt = commList.filter(r => (r.commDate||'').slice(0,7) === curYM).length;
     const monthExclusiveCnt = commList.filter(r => (r.commDate||'').slice(0,7) === curYM && r.commType==='exclusive').length;
@@ -4474,7 +4520,7 @@ function switchPage(p){
   if(tb)tb.textContent=PAGE_TITLES[p]||'';
   if(p==='stats'){initStatsYears();renderDailyQuote();renderStats();checkBuyerBirthdays();calTodayPanelInit();initAnnounceBoard();_renderStaffBdayBar();}
   else if(p==='profile'){initStatsYears();renderStats();loadGoals();loadMonthGoal();renderProfileInfo();}
-  else if(p==='closed'){renderClosed();}
+  else if(p==='closed'){loadCompanyClosedFromFirestore().then(renderClosed).catch(()=>renderClosed());}
   else if(p==='trip'){tripInitHCitySelect();renderTripList();renderTripSelected();updateMapsBtn();_syncTripLocationBar();}
   else if(p==='admin'){loadAdminData();}
   else if(p==='buyer'){renderBuyer();checkBuyerBirthdays();}
@@ -4934,7 +4980,48 @@ function getExtraFeesFromForm(prefix){
 // 共用元件 2：多負責業務選擇器（可新增多位負責業務，各自可移除；用 chip 標籤呈現）
 // 用於：ec-extra-section 新增公司委託(prefix 'comm')、ov-tocomm 追蹤線轉委託(prefix 'tocomm')
 // ══════════════════════════════════════════════════════════════════
-let _agentPicker = { comm: [], tocomm: [] }; // {prefix: [{uid,name}, ...]}
+let _agentPicker = { comm: [], tocomm: [] }; // {prefix: [{uid,name,role}, ...]}　role: 'dev'開發業務／'assist'協助業務／'support'角色輔助
+
+// ─── 業務分工角色與比例 ──────────────────────────────────────────────
+// 進案數量與業績金額，都依「目前指定了哪些角色」按固定比例分配（不是依人數等分）：
+//   只有開發業務                    → 開發業務 100%
+//   開發業務＋協助業務              → 各 50%
+//   開發業務＋角色輔助              → 各 50%
+//   開發業務＋協助業務＋角色輔助    → 開發 50%／協助 40%／輔助 10%
+// 必須恰好一位「開發業務」；「協助業務」「角色輔助」各最多一位。
+const AGENT_ROLE_LABELS = { dev:'開發業務', assist:'協助業務', support:'角色輔助' };
+function computeAgentRoleRatios(agents){
+  const roles = new Set((agents||[]).map(a=>a.role));
+  const hasAssist = roles.has('assist'), hasSupport = roles.has('support');
+  const table = (hasAssist && hasSupport) ? {dev:0.5, assist:0.4, support:0.1}
+              : hasAssist  ? {dev:0.5, assist:0.5}
+              : hasSupport ? {dev:0.5, support:0.5}
+              : {dev:1};
+  const out = {};
+  (agents||[]).forEach(a=>{ out[a.uid] = table[a.role] || 0; });
+  return out;
+}
+// 檢查角色組合是否合法（恰好一位開發業務；協助業務／角色輔助各至多一位），不合法回傳錯誤訊息文字，合法回傳 null
+function validateAgentRoles(agents){
+  const devN = (agents||[]).filter(a=>a.role==='dev').length;
+  const asN  = (agents||[]).filter(a=>a.role==='assist').length;
+  const suN  = (agents||[]).filter(a=>a.role==='support').length;
+  if(devN !== 1) return '請指定「恰好一位」開發業務';
+  if(asN > 1) return '協助業務最多只能指定一位';
+  if(suN > 1) return '角色輔助最多只能指定一位';
+  return null;
+}
+// 從一筆委託資料（db.inventory 裡的項目）取得指定 uid 的分配比例；
+// 有存角色比例（新版經負責業務欄位建立）就用該比例，沒有的話（舊資料／其他來源）退回原本的等分邏輯，維持既有行為
+function _agentRatioForUid(r, uid){
+  const list = r.assignedAgents;
+  if(Array.isArray(list)){
+    const found = list.find(a=>a && a.uid===uid && typeof a.ratio==='number');
+    if(found) return found.ratio;
+  }
+  const n = Math.max(1, (r._agentUids && r._agentUids.length) || 1);
+  return 1/n;
+}
 let _agentPickerRosterCache = null; // 業務名冊快取（linkedUid 已綁定者），兩個選擇器共用同一份
 async function _loadAgentPickerRoster(){
   if(_agentPickerRosterCache) return _agentPickerRosterCache;
@@ -4960,16 +5047,48 @@ function renderAgentPickerChips(prefix){
   const box = document.getElementById(prefix+'-agent-chips');
   if(!box) return;
   const list = _agentPicker[prefix]||[];
-  box.innerHTML = list.length
-    ? list.map(a=>`<span style="background:var(--accl);color:var(--acc);display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:14px;font-size:12px;font-weight:600">${escH(a.name)}<span onclick="agentPickerRemove('${prefix}','${a.uid}')" style="cursor:pointer;font-weight:700">✕</span></span>`).join('')
-    : '<span style="font-size:12px;color:var(--tx3)">尚未選擇負責業務</span>';
+  if(!list.length){
+    box.innerHTML = '<span style="font-size:12px;color:var(--tx3)">尚未選擇負責業務</span>';
+    const err = document.getElementById(prefix+'-agent-roleerr');
+    if(err) err.textContent = '';
+    return;
+  }
+  const ratios = computeAgentRoleRatios(list);
+  box.innerHTML = list.map(a=>{
+    const pct = Math.round((ratios[a.uid]||0)*100);
+    const roleOpts = Object.entries(AGENT_ROLE_LABELS).map(([v,label])=>
+      `<option value="${v}"${a.role===v?' selected':''}>${label}</option>`).join('');
+    return `<span style="display:inline-flex;align-items:center;gap:5px;background:var(--accl);border-radius:10px;padding:3px 6px 3px 10px;font-size:12px">
+      <span style="font-weight:600;color:var(--acc)">${escH(a.name)}</span>
+      <select onchange="agentPickerSetRole('${prefix}','${escAttr(a.uid)}',this.value)" style="font-size:11px;padding:1px 3px;border-radius:5px;border:1px solid var(--bdr);background:#fff;color:var(--tx)">${roleOpts}</select>
+      <span style="font-weight:700;color:var(--acc);min-width:30px;text-align:right">${pct}%</span>
+      <span onclick="agentPickerRemove('${prefix}','${escAttr(a.uid)}')" style="cursor:pointer;font-weight:700;padding:0 2px">✕</span>
+    </span>`;
+  }).join('');
+  const err = document.getElementById(prefix+'-agent-roleerr');
+  if(err){
+    const msg = validateAgentRoles(list);
+    err.textContent = msg ? ('⚠️ ' + msg) : '';
+  }
 }
 function agentPickerAdd(prefix, uid, name){
   if(!uid) return;
   if(!_agentPicker[prefix]) _agentPicker[prefix]=[];
-  if(!_agentPicker[prefix].some(a=>a.uid===uid)) _agentPicker[prefix].push({uid,name:name||''});
+  if(!_agentPicker[prefix].some(a=>a.uid===uid)){
+    // 新加入的人預設角色：還沒有開發業務就先當開發業務，已有開發業務就當協助業務，都有了就當角色輔助
+    const hasDev = _agentPicker[prefix].some(a=>a.role==='dev');
+    const hasAssist = _agentPicker[prefix].some(a=>a.role==='assist');
+    const role = !hasDev ? 'dev' : (!hasAssist ? 'assist' : 'support');
+    _agentPicker[prefix].push({uid, name:name||'', role});
+  }
   renderAgentPickerChips(prefix);
   _populateAgentPickerSelect(prefix);
+}
+// 變更某位負責業務的分工角色（開發業務／協助業務／角色輔助），比例會依新的角色組合即時重算
+function agentPickerSetRole(prefix, uid, role){
+  const a = (_agentPicker[prefix]||[]).find(x=>x.uid===uid);
+  if(a) a.role = role;
+  renderAgentPickerChips(prefix);
 }
 function agentPickerRemove(prefix, uid){
   _agentPicker[prefix] = (_agentPicker[prefix]||[]).filter(a=>a.uid!==uid);
@@ -4978,7 +5097,7 @@ function agentPickerRemove(prefix, uid){
 }
 function getAgentPickerList(prefix){ return (_agentPicker[prefix]||[]).slice(); }
 async function setAgentPickerList(prefix, list){
-  _agentPicker[prefix] = (list||[]).map(a=>({uid:a.uid,name:a.name||''}));
+  _agentPicker[prefix] = (list||[]).map((a,i)=>({uid:a.uid, name:a.name||'', role:a.role || (i===0?'dev':(i===1?'assist':'support'))}));
   renderAgentPickerChips(prefix);
   await _populateAgentPickerSelect(prefix);
 }
@@ -5001,19 +5120,21 @@ async function openCompanyListingModal(editItem){
   openRecruitModal(null, 'commission');
   _companyListingMode = true;
   _companyListingEditId = editItem ? editItem.id : null;
-  _companyListingLockedAgents = (editItem && !isAdmin)
-    ? (editItem._agentUids||[]).map((uid,i)=>({uid, name:(editItem._agentNames||[])[i]||''}))
-    : null;
+  // 重建負責業務名單時，優先使用已存的 assignedAgents（含角色／比例），沒有的話（舊資料）才退回用 _agentUids/_agentNames 重建（角色會用預設值）
+  const editItemAgents = (editItem && editItem.assignedAgents && editItem.assignedAgents.length)
+    ? editItem.assignedAgents
+    : (editItem ? (editItem._agentUids||[]).map((uid,i)=>({uid, name:(editItem._agentNames||[])[i]||''})) : []);
+  _companyListingLockedAgents = (editItem && !isAdmin) ? editItemAgents : null;
   const titleEl = document.getElementById('recruit-modal-title');
   if(titleEl) titleEl.textContent = editItem ? '🏢 編輯公司委託' : '🏢 新增公司委託';
   const agentWrap = document.getElementById('ec-agent-wrap');
   if(_companyListingLockedAgents){
-    // 負責業務本人（非管理者）編輯自己也在其中的委託：隱藏負責業務欄位（不可改指派名單），儲存時固定用原名單
+    // 負責業務本人（非管理者）編輯自己也在其中的委託：隱藏負責業務欄位（不可改指派名單／角色），儲存時固定用原名單
     if(agentWrap) agentWrap.style.display = 'none';
   } else {
     if(agentWrap) agentWrap.style.display = '';
     if(editItem){
-      await setAgentPickerList('comm', (editItem._agentUids||[]).map((uid,i)=>({uid, name:(editItem._agentNames||[])[i]||''})));
+      await setAgentPickerList('comm', editItemAgents);
     } else {
       await setAgentPickerList('comm', []);
     }
@@ -5030,20 +5151,26 @@ async function _saveCompanyListing(data){
     agents = getAgentPickerList('comm');
   }
   if(!agents.length){ alert('請至少選擇一位負責業務'); return; }
+  const roleErr = validateAgentRoles(agents);
+  if(roleErr){ alert('⚠️ ' + roleErr); return; }
   if(!data.signDate || !data.commFee || !data.commStart || !data.commEnd){ alert('請填寫簽委託日、服務費、起始日、終止日'); return; }
   const isEdit = !!_companyListingEditId;
   try{
     const nowIso = new Date().toISOString();
     const ref = isEdit ? window._firebaseCompanyListingRef(_companyListingEditId) : window._firebaseCompanyListingNewRef();
     const agentNames = agents.map(a=>a.name).join('、');
+    // 依業務分工角色（開發業務／協助業務／角色輔助）計算每位的分配比例，一併存入每位負責業務物件裡，
+    // 供「每日戰報」計算進案數量（A/A+B/R）與後續業績金額分配使用
+    const ratioMap = computeAgentRoleRatios(agents);
+    const agentsWithRatio = agents.map(a=>({...a, ratio: ratioMap[a.uid]}));
     const payload = {
       ...data,
       commDate: nowDate(),
-      assignedAgents: agents,
+      assignedAgents: agentsWithRatio,
       assignedAgentUids: agents.map(a=>a.uid),
-      // 保留舊版單一負責業務欄位（取第一位）供尚未更新的頁面/查詢相容
-      assignedAgentUid: agents[0].uid,
-      assignedAgentName: agents[0].name,
+      // 保留舊版單一負責業務欄位（取開發業務，若無則取第一位）供尚未更新的頁面/查詢相容
+      assignedAgentUid: (agentsWithRatio.find(a=>a.role==='dev') || agentsWithRatio[0]).uid,
+      assignedAgentName: (agentsWithRatio.find(a=>a.role==='dev') || agentsWithRatio[0]).name,
       updatedAt: nowIso
     };
     if(!isEdit){
@@ -5079,6 +5206,93 @@ async function deleteCompanyListing(item){
     renderInventory();
   }catch(e){
     alert('⚠️ 刪除失敗：' + e.message);
+  }
+}
+
+// ─── 公司委託標記成交 ────────────────────────────────────────────────
+let _companyDealItem = null; // 目前正在標記成交的公司委託（來自 db.inventory，_src==='listing'）
+function openCompanyDealModal(item){
+  if(!item){ alert('⚠️ 找不到此筆委託資料'); return; }
+  const myUid = window._currentUser && window._currentUser.uid;
+  const isAdmin = canAddCompanyListing();
+  const isOwner = !!(myUid && (item._agentUids||[]).includes(myUid));
+  if(!isAdmin && !isOwner) return;
+  if(!item.id){ alert('⚠️ 找不到此筆委託的資料編號，無法標記成交'); return; }
+  if(!item.assignedAgents || !item.assignedAgents.length){ alert('⚠️ 此筆委託沒有負責業務資料，請先編輯補上再標記成交'); return; }
+  _companyDealItem = item;
+  const ownLabel = item.owners&&item.owners.length ? item.owners.map(o=>o.name).join('、') : (item.ownerName||'—');
+  const addr = fullAddr(item.propCity, item.propDist, item.propAddr);
+  document.getElementById('cd-info').innerHTML = `
+    <div style="font-weight:700;font-size:15px;margin-bottom:4px">${escH(item.caseName || ownLabel)}</div>
+    <div style="font-size:12px;color:var(--tx2)">📍 ${escH(addr)}</div>
+    <div style="font-size:12px;color:var(--tx2);margin-top:2px">👥 負責業務：${escH((item.assignedAgents||[]).map(a=>`${a.name}(${AGENT_ROLE_LABELS[a.role]||a.role})`).join('、'))}</div>`;
+  document.getElementById('cd-date').value = nowDate();
+  document.getElementById('cd-total').value = item.total || '';
+  document.getElementById('cd-fee').value = item.commFee || '';
+  _renderCompanyDealSplit();
+  openOv('companydeal');
+}
+// 依目前輸入的成交總價／服務費，即時算出總業績金額，以及依角色比例分配後每位負責業務各自的金額
+function _renderCompanyDealSplit(){
+  const item = _companyDealItem;
+  const revEl = document.getElementById('cd-revenue');
+  const splitEl = document.getElementById('cd-split');
+  if(!item){ return; }
+  const total = parseFloat(document.getElementById('cd-total').value) || 0;
+  const fee = parseFloat(document.getElementById('cd-fee').value) || 0;
+  const revenue = total * fee / 100;
+  if(revEl) revEl.textContent = revenue ? revenue.toFixed(2) + ' 萬' : '—';
+  if(splitEl){
+    splitEl.innerHTML = (item.assignedAgents||[]).map(a=>{
+      const pct = Math.round((a.ratio||0)*100);
+      const amt = (revenue * (a.ratio||0)).toFixed(2);
+      return `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--bdr)">
+        <span>${escH(a.name)}（${escH(AGENT_ROLE_LABELS[a.role]||a.role)}）</span>
+        <span><strong style="color:var(--acc)">${pct}%</strong>　${amt} 萬</span>
+      </div>`;
+    }).join('');
+  }
+}
+async function confirmCompanyDeal(){
+  const item = _companyDealItem;
+  if(!item){ return; }
+  const closedDate = document.getElementById('cd-date').value;
+  const total = parseFloat(document.getElementById('cd-total').value) || 0;
+  const fee = parseFloat(document.getElementById('cd-fee').value) || 0;
+  if(!closedDate){ alert('請填寫成交日期'); return; }
+  if(!total){ alert('請填寫成交總價'); return; }
+  if(!fee){ alert('請填寫服務費（%）'); return; }
+  const label = item.caseName || (item.owners&&item.owners[0]&&item.owners[0].name) || '此筆';
+  if(!confirm(`確定要將「${label}」標記為成交嗎？\n成交總價 ${total} 萬，服務費 ${fee}%，會依比例分別計入每位負責業務自己的已結案／每日戰報，此操作無法復原。`)) return;
+  try{
+    const payload = {
+      // 保留原委託的基本資訊供已結案頁面顯示（地址、屋主、負責業務與比例等）
+      caseName: item.caseName || '',
+      ownerName: item.ownerName || '',
+      owners: item.owners || [],
+      propCity: item.propCity || '', propDist: item.propDist || '', propAddr: item.propAddr || '',
+      propType: item.propType || '',
+      assignedAgents: item.assignedAgents,
+      assignedAgentUids: item.assignedAgentUids || (item.assignedAgents||[]).map(a=>a.uid),
+      originalListingId: item.id,
+      closedDate,
+      dealTotal: total,
+      dealFee: fee,
+      closedBy: (window._currentUser && window._currentUser.email) || '',
+      closedAt: new Date().toISOString()
+    };
+    const ref = window._firebaseCompanyClosedNewRef();
+    await window._firebaseSetDoc(ref, payload);
+    // 成交後從公司委託移除（不再是進行中的委託），避免公司庫存與已結案重複列出同一筆
+    await window._firebaseDeleteDoc(window._firebaseCompanyListingRef(item.id));
+    closeOv('companydeal');
+    _companyDealItem = null;
+    await Promise.all([loadInventoryFromFirestore(), loadCompanyClosedFromFirestore()]);
+    renderInventory();
+    if(currentPage==='closed') renderClosed();
+    alert(`🎉 已標記成交，並依比例計入各負責業務的已結案與每日戰報！`);
+  }catch(e){
+    alert('⚠️ 標記成交失敗：' + e.message);
   }
 }
 
@@ -5249,13 +5463,17 @@ function confirmToComm(){
   if(isRental && parseFloat(fee)>1.5){alert('租賃「服務費（月）」最高只能填 1.5');return;}
   const agents=getAgentPickerList('tocomm');
   if(!agents.length){alert('請至少選擇一位負責業務');return;}
+  const roleErr = validateAgentRoles(agents);
+  if(roleErr){ alert('⚠️ '+roleErr); return; }
+  const ratioMap = computeAgentRoleRatios(agents);
+  const agentsWithRatio = agents.map(a=>({...a, ratio:ratioMap[a.uid]}));
   const r=db.track.find(x=>x.id===pendingId);
   if(r){
     r.commDate=nowDate();r.signDate=signDate;r.commFee=fee;r.commStart=start;r.commEnd=end;r.commType=ctype;r.companyBonus=bonus;
     r.caseName=caseName;r.listingNo=listingNo;
     r.dealType=dealType;r.total=total;r.floorPrice=floorPrice;r.offerPrice=offerPrice;r.extraFees=extraFees;
     r.unit=isRental?'':(parseFloat(r.area)>0?(total/parseFloat(r.area)).toFixed(2):'');
-    r.assignedAgents=agents;r.assignedAgentUids=agents.map(a=>a.uid);
+    r.assignedAgents=agentsWithRatio;r.assignedAgentUids=agents.map(a=>a.uid);
     db.commission.push({...r});db.track=db.track.filter(x=>x.id!==pendingId);
   }
   save();renderAll();closeOv('tocomm');checkNotifs();
@@ -8268,6 +8486,7 @@ async function loadFromFirestore(uid){
       _updateAllBadges();
       if(currentPage==='commission') renderCommission();
     }).catch(()=>{});
+    loadCompanyClosedFromFirestore().catch(()=>{});
     _updateAllBadges(); // 立即更新已載入的資料徽章
     // 載入該使用者行事曆（非同步，不阻塞主流程）
     calLoadFromFirestore().then(()=>{ if(typeof calInit==='function') setTimeout(calInit,100); }).catch(()=>{});
@@ -8498,7 +8717,7 @@ async function handleSignOut(){
   if(!confirm('確定要登出嗎？')) return;
   clearTimeout(window._idleTimer);
   await window._firebaseSignOut();
-  db = {recruit:[], track:[], commission:[], closed:[]};
+  db = {recruit:[], track:[], commission:[], closed:[], companyClosed:[]};
   window._dismissedNotifs = new Set(); // 清除記憶體中的已刪除通知快取（持久化紀錄仍保留在 localStorage，下次同帳號登入會重新讀回）
   _clearLocalPII();
   location.reload();
@@ -8646,7 +8865,7 @@ function resetIdleTimer(){
   _idleTimer = setTimeout(async ()=>{
     alert('⏰ 您已閒置超過 15 分鐘，系統將自動登出。');
     await window._firebaseSignOut();
-    db = {recruit:[], track:[], commission:[], closed:[]};
+    db = {recruit:[], track:[], commission:[], closed:[], companyClosed:[]};
     _clearLocalPII();
     location.reload();
   }, IDLE_MS);
@@ -8928,11 +9147,15 @@ function renderClosed(){
       const fee = parseFloat(x.dealFee) || 0;
       return total * (fee / 100);
     };
+    const myUid = window._currentUser && window._currentUser.uid;
     // 今年累積業績 = 系統內實際計算出的當年度業績 + 年度業績起始數據（若有；供系統啟用前既有業績未列入紀錄的情況使用）
+    //              ＋ 公司委託成交依角色比例分配到「我」的那份業績
     const yearProfit = list.filter(x => x.closedDate && x.closedDate.slice(0,4) === curYearStr)
-                            .reduce((s,x) => s + revenueOf(x), 0) + (_myYearProfitBaseline || 0);
+                            .reduce((s,x) => s + revenueOf(x), 0) + (_myYearProfitBaseline || 0)
+                       + _myCompanyClosedRevenue(myUid, curYearStr, null);
     const monthProfit = list.filter(x => x.closedDate && x.closedDate.slice(0,4) === curYearStr && x.closedDate.slice(5,7) === curMonthStr)
-                             .reduce((s,x) => s + revenueOf(x), 0);
+                             .reduce((s,x) => s + revenueOf(x), 0)
+                       + _myCompanyClosedRevenue(myUid, null, curYearStr+'-'+curMonthStr);
     statsEl.innerHTML = `
       <div class="stat-card"><div class="sc-val">${fullCount}</div><div class="sc-lbl">買賣全泡</div></div>
       <div class="stat-card"><div class="sc-val">${sellerhalfCount}</div><div class="sc-lbl">賣方半泡</div></div>
@@ -8942,6 +9165,27 @@ function renderClosed(){
       <div class="stat-card"><div class="sc-val">${yearProfit.toFixed(3)}</div><div class="sc-lbl">今年累積業績（萬）</div></div>
       <div class="stat-card"><div class="sc-val">${monthProfit.toFixed(1)}</div><div class="sc-lbl">本月累積業績（萬）</div></div>
     `;
+  }
+
+  // 公司委託成交（依角色比例分配到「我」的那幾筆）：獨立於個人成交列表另外顯示，避免跟既有的五種成交方式列表混在一起
+  const companyListEl = document.getElementById('closed-company-list');
+  if(companyListEl){
+    const myRows = _myCompanyClosedRows(myUid).sort((a,b)=>(b.closedDate||'').localeCompare(a.closedDate||''));
+    companyListEl.innerHTML = myRows.length ? `
+      <div style="background:var(--surf);border:1px solid var(--bdr);border-radius:10px;padding:12px 14px">
+        <div style="font-weight:700;font-size:13px;color:var(--acc);margin-bottom:8px">🏢 公司委託成交（依業務分工比例分配）</div>
+        ${myRows.map(r=>{
+          const ownLabel = r.owners&&r.owners.length ? r.owners.map(o=>o.name).join('、') : (r.ownerName||'—');
+          const addr = fullAddr(r.propCity, r.propDist, r.propAddr);
+          return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-top:1px solid var(--bdr);font-size:12px">
+            <div>
+              <div style="font-weight:600">${escH(r.caseName || ownLabel)}</div>
+              <div style="color:var(--tx3)">📍 ${escH(addr)}　${escH(r.closedDate||'')}　${escH(AGENT_ROLE_LABELS[r._myRole]||r._myRole)} ${Math.round((r._myRatio||0)*100)}%</div>
+            </div>
+            <div style="font-weight:700;color:var(--acc);white-space:nowrap;margin-left:8px">${r._myRevenue.toFixed(2)} 萬</div>
+          </div>`;
+        }).join('')}
+      </div>` : '';
   }
 
   // badge 由 _updateAllBadges 統一管理
@@ -9676,6 +9920,49 @@ async function loadInventoryFromFirestore(){
     db.inventory = [];
   }
 }
+// 讀取「公司委託成交」紀錄（全公司共用集合，供已結案／每日戰報依角色比例分配到各指派業務）
+async function loadCompanyClosedFromFirestore(){
+  if(!window._firebaseCompanyClosedColl){ db.companyClosed = []; return; }
+  try{
+    const snap = await window._firebaseGetDocs(window._firebaseCompanyClosedColl());
+    const all = [];
+    snap.forEach(doc=>{ all.push({...doc.data(), id: doc.id}); });
+    db.companyClosed = all;
+  }catch(e){
+    console.warn('讀取公司委託成交紀錄失敗', e);
+    db.companyClosed = db.companyClosed || [];
+  }
+}
+// 從公司委託成交紀錄中，篩選出「我」有分配到比例的那幾筆，並算出屬於我的業績金額（萬）；
+// yearStr/monthStr 用來篩選結案日期範圍，不篩選則傳 null／undefined 代表不限
+function _myCompanyClosedRevenue(uid, yearStr, monthStr){
+  if(!uid) return 0;
+  return (db.companyClosed||[]).reduce((sum, x)=>{
+    const list = x.assignedAgents;
+    if(!Array.isArray(list)) return sum;
+    const mine = list.find(a=>a && a.uid===uid && typeof a.ratio==='number');
+    if(!mine) return sum;
+    const d = x.closedDate || '';
+    if(yearStr && d.slice(0,4) !== yearStr) return sum;
+    if(monthStr && d.slice(0,7) !== monthStr) return sum;
+    const total = parseFloat(x.dealTotal) || 0;
+    const fee = parseFloat(x.dealFee) || 0;
+    return sum + total * (fee/100) * mine.ratio;
+  }, 0);
+}
+// 取得「我」在公司委託成交紀錄中，屬於自己的那幾筆（已換算成自己比例的金額），供已結案頁面列表顯示
+function _myCompanyClosedRows(uid){
+  if(!uid) return [];
+  return (db.companyClosed||[]).map(x=>{
+    const list = x.assignedAgents;
+    if(!Array.isArray(list)) return null;
+    const mine = list.find(a=>a && a.uid===uid && typeof a.ratio==='number');
+    if(!mine) return null;
+    const total = parseFloat(x.dealTotal) || 0;
+    const fee = parseFloat(x.dealFee) || 0;
+    return { ...x, _myRole: mine.role, _myRatio: mine.ratio, _myRevenue: total * (fee/100) * mine.ratio };
+  }).filter(Boolean);
+}
 // 列印三表
 function printThreeTables(){
   const user = window._currentUser;
@@ -9954,7 +10241,8 @@ function renderInventory(){
       // 編輯／刪除：僅限「新增公司委託」（company_listings）來源的資料；幕僚／店秘書／系統管理員可管理所有人的，
       // 該筆負責業務本人只能管理自己的（個人自動同步進來的委託仍請回委託頁面編輯，此處不重複提供入口）
       const canManage = r._src==='listing' && (isInvAdmin || (myUid && (r._agentUids||[]).includes(myUid)));
-      const actionsHtml = canManage ? `<div style="display:flex;gap:6px;margin-top:8px">
+      const actionsHtml = canManage ? `<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+          <button class="btn btn-sm btn-comm" onclick="openCompanyDealModal(_invFindItem('${r.id}'))">🏆 標記成交</button>
           <button class="btn btn-sm btn-edit" onclick="openCompanyListingModal(_invFindItem('${r.id}'))">✏️ 編輯</button>
           <button class="btn btn-sm btn-del" onclick="deleteCompanyListing(_invFindItem('${r.id}'))">🗑 刪除</button>
         </div>` : '';
@@ -11005,6 +11293,7 @@ async function warLoadData(){
     // A（專任）／A+B（總委託）／R（租賃）／庫存 已改為依 db.inventory（公司庫存彙整資料）自動計算，
     // 每次進入每日戰報頁面都重新整理一次，確保數字反映最新的委託資料
     try{ await loadInventoryFromFirestore(); }catch(e3){ console.warn('每日戰報：讀取公司庫存資料失敗，A/A+B/R/庫存欄位可能不準確', e3); }
+    try{ await loadCompanyClosedFromFirestore(); }catch(e4){ console.warn('每日戰報：讀取公司委託成交資料失敗，S 欄位可能不含公司委託分潤', e4); }
     if(canEditWarReport()){
       try{
         const idxSnap = await window._firebaseGetDocs(window._firebaseIndexColl());
@@ -11047,19 +11336,20 @@ function _computeWarStatsForUid(uid, ym){
     stats.inventory += 1; // 庫存：與簽委託日的月份無關，恆以整數 1 計入
     const signYm = (r.signDate || r.commDate || r.date || '').slice(0,7);
     if(signYm !== targetYm) return; // A / A+B / R 只計算簽委託日在當月的委託
-    const n = Math.max(1, agentUids.length);
+    // 依業務分工角色比例分配（開發業務/協助業務/角色輔助）；沒有角色資料的舊委託則退回原本的等分（1/人數）
+    const ratio = _agentRatioForUid(r, uid);
     if(r.dealType === DEAL_KIND.RENTAL){
-      stats.rCount += 0.5 / n;
+      stats.rCount += 0.5 * ratio;
     } else {
       const total = parseFloat(r.total) || 0;
       const floor = parseFloat(r.floorPrice) || 0;
       const floorFilled = floor > 0; // 底價欄位為 0 或空白視為「使用者未填寫」，不列入判斷
       const score = (total >= 1000 && (!floorFilled || floor >= 1000)) ? 1 : 0.5;
-      stats.abCount += score / n;
-      if(r.commType === 'exclusive') stats.aCount += score / n;
+      stats.abCount += score * ratio;
+      if(r.commType === 'exclusive') stats.aCount += score * ratio;
     }
   });
-  const r2 = v => Math.round(v*100)/100; // 除以人數後可能產生浮點誤差，顯示前先四捨五入到小數點第二位
+  const r2 = v => Math.round(v*100)/100; // 依比例分配後可能產生浮點誤差，顯示前先四捨五入到小數點第二位
   stats.aCount = r2(stats.aCount);
   stats.abCount = r2(stats.abCount);
   stats.rCount = r2(stats.rCount);
