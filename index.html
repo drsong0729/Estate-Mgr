@@ -9120,6 +9120,7 @@ function clearClosedSearch(){
 
 function renderClosed(){
   if(!db.closed) db.closed = [];
+  const myUid = window._currentUser && window._currentUser.uid; // 供下方「本月累積業績」與「公司委託成交」區塊共用
   const nameKw = (document.getElementById('sq-closed-name')||{value:''}).value.trim().toLowerCase();
   const list = db.closed.filter(r => {
     const owners2 = r.owners&&r.owners.length ? r.owners : [{name:r.ownerName||''}];
@@ -9147,7 +9148,6 @@ function renderClosed(){
       const fee = parseFloat(x.dealFee) || 0;
       return total * (fee / 100);
     };
-    const myUid = window._currentUser && window._currentUser.uid;
     // 今年累積業績 = 系統內實際計算出的當年度業績 + 年度業績起始數據（若有；供系統啟用前既有業績未列入紀錄的情況使用）
     //              ＋ 公司委託成交依角色比例分配到「我」的那份業績
     const yearProfit = list.filter(x => x.closedDate && x.closedDate.slice(0,4) === curYearStr)
