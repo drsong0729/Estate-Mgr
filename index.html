@@ -4816,6 +4816,10 @@ function openRecruitModal(id,pool){
   _companyListingMode = false;
   _companyListingEditId = null;
   _companyListingLockedAgents = null;
+  // 每次開啟一般的新增／編輯視窗時，也一併重置「幕僚/系統管理員編輯其他業務同步委託」模式，
+  // 避免上一次開啟該模式後殘留的狀態，誤把這次的一般存檔導去寫入別人的個人資料
+  _adminEditSyncTargetUid = null;
+  _adminEditSyncItem = null;
   const agentWrap = document.getElementById('ec-agent-wrap');
   if(agentWrap) agentWrap.style.display = 'none';
   const channelsWrap = document.getElementById('ec-channels-wrap');
@@ -5119,7 +5123,6 @@ async function setAgentPickerList(prefix, list){
 const LISTING_CHANNELS = [
   {key:'fb',      label:'日勝臉書'},
   {key:'website', label:'日勝官網'},
-  {key:'backend', label:'日勝後台'},
   {key:'591',     label:'591'},
   {key:'leju',    label:'樂居'},
   {key:'aihouse', label:'愛屋網'},
@@ -5313,6 +5316,55 @@ async function deleteCompanyListing(item){
   }
 }
 
+// ─── 幕僚／店秘書／系統管理員編輯「其他業務」自動同步進公司庫存的委託 ──────────────────
+// 這類委託不是透過「新增公司委託」建立的，而是業務自己在「委託」頁面建立、自動同步進公司庫存共用檢視；
+// 正本存在該業務本人的個人資料文件裡（users/{uid}/data/main 的 commission 欄位）。
+// Firestore 規則已另外開放 isWarEditor()（幕僚／店秘書／系統管理員）寫入任何人的這一份文件，
+// 因此這裡採「讀取該業務目前完整的 commission 陣列 → 找到這一筆 → 覆蓋 → 整個陣列寫回」的方式，
+// 避免覆蓋掉業務自己這段時間內對其他筆委託的異動。
+let _adminEditSyncTargetUid = null; // 目前正在編輯的委託所屬業務 uid；非此模式時為 null
+let _adminEditSyncItem = null;      // 目前正在編輯的委託原始資料（來自 db.inventory，_src==='sync'）
+function openAdminEditSyncModal(item){
+  if(!canManageAnyCompanyListing()) return; // 僅幕僚／店秘書／系統管理員可用
+  if(!item || item._src !== 'sync') return;
+  const targetUid = item._agentUid;
+  if(!targetUid){ alert('⚠️ 找不到這筆委託的所屬業務'); return; }
+  openRecruitModal(null, 'commission'); // 沿用共用彈窗（內部會重置 _companyListingMode／_adminEditSyncTargetUid 等狀態，須在此之後才設定本次的值）
+  _adminEditSyncTargetUid = targetUid;
+  _adminEditSyncItem = item;
+  const channelsWrap = document.getElementById('ec-channels-wrap');
+  if(channelsWrap) channelsWrap.style.display = 'none';
+  const agentWrap = document.getElementById('ec-agent-wrap');
+  if(agentWrap) agentWrap.style.display = 'none';
+  const titleEl = document.getElementById('recruit-modal-title');
+  if(titleEl) titleEl.textContent = `✏️ 編輯「${item._agentName||'該業務'}」的委託`;
+  _populateRecruitFormFrom(item, true);
+}
+async function _saveAdminEditSync(data){
+  const targetUid = _adminEditSyncTargetUid;
+  const originalItem = _adminEditSyncItem;
+  if(!targetUid || !originalItem) return;
+  try{
+    const ref = window._firebaseDocRef(targetUid);
+    const snap = await window._firebaseGetDoc(ref);
+    if(!snap.exists()){ alert('⚠️ 找不到該業務的個人資料文件，可能尚未使用過本系統'); return; }
+    const remote = snap.data();
+    const commissionArr = (remote.commission || []).slice();
+    const idx = commissionArr.findIndex(x=>x.id === originalItem.id);
+    if(idx === -1){ alert('⚠️ 找不到這筆委託，可能已被本人刪除或大幅修改，請重新整理公司庫存後再試'); return; }
+    commissionArr[idx] = { ...commissionArr[idx], ...data };
+    await window._firebaseSetDoc(ref, { commission: commissionArr, updatedAt: new Date().toISOString() }, {merge:true});
+    _adminEditSyncTargetUid = null;
+    _adminEditSyncItem = null;
+    closeOv('recruit');
+    alert(`✅ 已更新「${originalItem._agentName||'該業務'}」的委託資料`);
+    await loadInventoryFromFirestore();
+    if(currentPage==='inventory') renderInventory();
+  }catch(e){
+    alert('⚠️ 更新失敗：' + e.message + '\n（請確認 Firestore 安全規則已開放幕僚／店秘書／系統管理員寫入 users/{uid}/data/main）');
+  }
+}
+
 // ─── 公司委託標記成交 ────────────────────────────────────────────────
 let _companyDealItem = null; // 目前正在標記成交的公司委託（來自 db.inventory，_src==='listing'）
 function openCompanyDealModal(item){
@@ -5473,6 +5525,12 @@ function saveRecruit(){
   // 新增公司委託模式：不寫入自己的委託清單，改寫入獨立的 company_listings 集合，並指定負責業務
   if(_companyListingMode){
     _saveCompanyListing(data);
+    return;
+  }
+  // 幕僚／店秘書／系統管理員編輯「其他業務」自動同步進公司庫存的委託（非透過新增公司委託建立）：
+  // 不寫進目前登入者自己的委託清單，而是寫回該業務本人的個人資料文件
+  if(_adminEditSyncTargetUid){
+    _saveAdminEditSync(data);
     return;
   }
   const list = isComm ? db.commission : (editPool==='track'?db.track:db.recruit);
@@ -10342,14 +10400,23 @@ function renderInventory(){
         : (r.commType==='exclusive'
           ? '<span style="background:var(--gldl);color:var(--gld);padding:1px 7px;border-radius:4px;font-size:11px;font-weight:700">專任</span>'
           : '<span style="background:var(--accl);color:var(--acc);padding:1px 7px;border-radius:4px;font-size:11px;font-weight:700">一般</span>');
-      // 編輯／刪除：僅限「新增公司委託」（company_listings）來源的資料；幕僚／店秘書／系統管理員可管理所有人的，
-      // 該筆負責業務本人只能管理自己的（個人自動同步進來的委託仍請回委託頁面編輯，此處不重複提供入口）
-      const canManage = r._src==='listing' && (isInvAdmin || (myUid && (r._agentUids||[]).includes(myUid)));
-      const actionsHtml = canManage ? `<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+      // 編輯／刪除／標記成交：「新增公司委託」（company_listings）來源的資料，幕僚／店秘書／系統管理員可管理所有人的，
+      // 該筆負責業務本人只能管理自己的；業務自己在「委託」頁面建立、自動同步進來的資料，本人仍請回委託頁面管理
+      // （含刪除、標記成交），但另外開放幕僚／店秘書／系統管理員可在這裡直接編輯（Firestore 規則已同步開放此權限）
+      const canManageListing = r._src==='listing' && (isInvAdmin || (myUid && (r._agentUids||[]).includes(myUid)));
+      const canManageSync = r._src==='sync' && isInvAdmin;
+      let actionsHtml = '';
+      if(canManageListing){
+        actionsHtml = `<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
           <button class="btn btn-sm btn-comm" onclick="openCompanyDealModal(_invFindItem('${r.id}'))">🏆 標記成交</button>
           <button class="btn btn-sm btn-edit" onclick="openCompanyListingModal(_invFindItem('${r.id}'))">✏️ 編輯</button>
           <button class="btn btn-sm btn-del" onclick="deleteCompanyListing(_invFindItem('${r.id}'))">🗑 刪除</button>
-        </div>` : '';
+        </div>`;
+      } else if(canManageSync){
+        actionsHtml = `<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+          <button class="btn btn-sm btn-edit" onclick="openAdminEditSyncModal(_invFindItem('${r.id}'))">✏️ 編輯</button>
+        </div>`;
+      }
       return `<div style="background:var(--surf);border:1px solid var(--bdr);border-radius:10px;padding:12px 14px;margin-bottom:8px">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:${r.caseName?'2':'4'}px">
           ${exTag}
@@ -10418,13 +10485,13 @@ tr{page-break-inside:avoid}
 .td-addr{text-align:left;padding-left:5px!important;white-space:normal}
 .grp-row td{background:#0f519b;color:#fff;font-weight:800;text-align:left;padding-left:6px!important;font-size:11px}
 `;
-const _INV_PRINT_COLGROUP = `<col style="width:6%"><col style="width:4%"><col style="width:6%"><col style="width:7%"><col style="width:6%"><col style="width:5%"><col style="width:9%"><col style="width:4%"><col style="width:4%"><col style="width:3%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%">`;
-const _INV_PRINT_THEAD = `<tr><th>業務</th><th>類別</th><th>委託編號</th><th>案名</th><th>建案名稱</th><th>屋主</th><th>地址</th><th>總價(萬)</th><th>單價(萬/坪)</th><th>坪數</th><th>委託到期</th><th>日勝臉書</th><th>日勝官網</th><th>日勝後台</th><th>591</th><th>樂居</th><th>愛屋網</th><th>住商官網</th><th>雲端</th></tr>`;
+const _INV_PRINT_COLGROUP = `<col style="width:6%"><col style="width:4%"><col style="width:6%"><col style="width:7%"><col style="width:6%"><col style="width:5%"><col style="width:9%"><col style="width:4%"><col style="width:4%"><col style="width:3%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%">`;
+const _INV_PRINT_THEAD = `<tr><th>業務</th><th>類別</th><th>委託編號</th><th>案名</th><th>建案名稱</th><th>屋主</th><th>地址</th><th>總價(萬)</th><th>單價(萬/坪)</th><th>坪數</th><th>委託到期</th><th>日勝臉書</th><th>日勝官網</th><th>591</th><th>樂居</th><th>愛屋網</th><th>住商官網</th><th>雲端</th></tr>`;
 
 function _invPrintRowsHtml(groups){
   return Object.entries(groups).map(([agentUid,g])=>{
     const displayName = resolveRosterName(agentUid, g.agentName);
-    const grpRow = `<tr class="grp-row"><td colspan="19">👤 ${escH(displayName)}（${g.items.length} 筆委託）</td></tr>`;
+    const grpRow = `<tr class="grp-row"><td colspan="18">👤 ${escH(displayName)}（${g.items.length} 筆委託）</td></tr>`;
     const itemRows = g.items.map(r=>{
       const addr = fullAddr(r.propCity,r.propDist,r.propAddr);
       const ownLabel = r.owners&&r.owners.length ? r.owners.map(o=>o.name).join('、') : (r.ownerName||'—');
