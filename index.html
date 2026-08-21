@@ -5128,14 +5128,16 @@ const LISTING_CHANNELS = [
 ];
 let _listingChannelsState = {}; // 編輯視窗目前的上架管道狀態：{ [key]: {listed:boolean, reason:string} }
 
+// 新增全新委託時的預設：全部未上架（需使用者自行確認並勾選已上架的管道）
 function _defaultListingChannelsState(){
   const out = {};
-  LISTING_CHANNELS.forEach(c=>{ out[c.key] = {listed:true, reason:''}; }); // 新增時預設視為已上架，使用者可自行取消勾選
+  LISTING_CHANNELS.forEach(c=>{ out[c.key] = {listed:false, reason:''}; });
   return out;
 }
-// 開啟編輯視窗時呼叫：data 為既有委託存的 listingChannels（可能是 undefined／不完整的舊資料），會補齊成完整的 8 個管道
+// 開啟編輯視窗時呼叫：data 由呼叫端決定好完整的基準物件——新增委託或編輯舊委託（沒有 listingChannels 資料，
+// 此功能上線前建立）皆傳 null，會用全未上架的預設，需使用者自行編輯更新；若已有實際存過的資料，則傳入該資料本身
 function setListingChannelsState(data){
-  const merged = { ..._defaultListingChannelsState() };
+  const merged = { ..._defaultListingChannelsState() }; // 保底骨架（全未上架），data 沒提供的欄位維持這個預設
   LISTING_CHANNELS.forEach(c=>{
     const v = data && data[c.key];
     if(v) merged[c.key] = { listed: typeof v.listed==='boolean' ? v.listed : true, reason: v.reason || '' };
@@ -5149,7 +5151,7 @@ function getListingChannelsState(){
   LISTING_CHANNELS.forEach(c=>{
     const chk = document.getElementById('ch-'+c.key+'-listed');
     const reasonEl = document.getElementById('ch-'+c.key+'-reason');
-    const listed = chk ? chk.checked : true;
+    const listed = chk ? chk.checked : false;
     out[c.key] = { listed, reason: listed ? '' : ((reasonEl && reasonEl.value) || '').trim() };
   });
   return out;
@@ -5159,7 +5161,7 @@ function onChannelListedChange(key){
   const chk = document.getElementById('ch-'+key+'-listed');
   const reasonWrap = document.getElementById('ch-'+key+'-reason-wrap');
   const statusEl = document.getElementById('ch-'+key+'-status');
-  const listed = chk ? chk.checked : true;
+  const listed = chk ? chk.checked : false;
   if(reasonWrap) reasonWrap.style.display = listed ? 'none' : '';
   if(statusEl){
     statusEl.textContent = listed ? '已上架' : '未上架';
@@ -5170,7 +5172,7 @@ function renderListingChannelsUI(){
   const box = document.getElementById('ec-channels-list');
   if(!box) return;
   box.innerHTML = LISTING_CHANNELS.map(c=>{
-    const st = _listingChannelsState[c.key] || {listed:true, reason:''};
+    const st = _listingChannelsState[c.key] || {listed:false, reason:''};
     return `<div style="padding:8px 0;border-bottom:1px solid var(--bdr)">
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
         <input type="checkbox" id="ch-${c.key}-listed" ${st.listed?'checked':''} onchange="onChannelListedChange('${c.key}')">
@@ -5183,19 +5185,17 @@ function renderListingChannelsUI(){
     </div>`;
   }).join('');
 }
-// 公司庫存卡片上的「上架管道」顯示：只有已存過 listingChannels 資料的委託才顯示（避免舊資料憑空生出假資料），
+// 公司庫存卡片上的「上架管道」顯示：此功能上線後建立／編輯過的委託，依實際存的狀態顯示；
+// 舊委託（沒有 listingChannels 資料）一樣顯示這個區塊，並視為皆未上架（紅色），直到使用者編輯更新為止。
 // 依固定順序列出，已上架＝綠色、未上架＝紅色；未上架若有填寫原因，滑鼠移過去（title）可看到
 function _channelsDisplayHtml(r){
-  const data = r.listingChannels;
-  if(!data) return '';
+  const data = r.listingChannels || _defaultListingChannelsState();
   const parts = LISTING_CHANNELS.map(c=>{
-    const st = data[c.key];
-    if(!st) return '';
+    const st = data[c.key] || {listed:true, reason:''};
     const color = st.listed ? 'var(--grn)' : 'var(--red)';
     const titleAttr = (!st.listed && st.reason) ? ` title="${escAttr(st.reason)}"` : '';
     return `<span${titleAttr} style="color:${color};font-weight:600">${escH(c.label)}</span>`;
-  }).filter(Boolean);
-  if(!parts.length) return '';
+  });
   return `<div style="font-size:11px;margin-bottom:4px;display:flex;flex-wrap:wrap;gap:2px 8px">${parts.join('')}</div>`;
 }
 
@@ -5227,6 +5227,8 @@ async function openCompanyListingModal(editItem){
   if(titleEl) titleEl.textContent = editItem ? '🏢 編輯公司委託' : '🏢 新增公司委託';
   const channelsWrap = document.getElementById('ec-channels-wrap');
   if(channelsWrap) channelsWrap.style.display = '';
+  // 新增委託，或編輯舊委託（沒有 listingChannels 資料，此功能上線前建立）：皆顯示全部未上架的預設，
+  // 需使用者自行編輯更新；編輯已有實際存過資料的委託：用該資料本身
   setListingChannelsState(editItem ? editItem.listingChannels : null);
   const agentWrap = document.getElementById('ec-agent-wrap');
   if(_companyListingLockedAgents){
