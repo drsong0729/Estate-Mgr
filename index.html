@@ -2949,7 +2949,7 @@ render();
         <li>每週輪值一次（星期一～星期六）</li>
         <li>入職未滿一個月不輪值</li>
         <li>值星官提前 08:45 到公司（開門）</li>
-        <li>早：開大門／冷氣／燈／電視（日勝一日看板）／音樂／燒熱水／白板／電腦／咖啡機小推車水量補滿</li>
+        <li>早：開大門／冷氣／燈／電視（日勝一日看板）／音樂／燒熱水／白板／電腦／小推車上飲用水補滿</li>
         <li>晚：全店電器設備、門窗關閉，最後關門離開</li>
         <li>公司鑰匙保管</li>
         <li>接聽電話：秘書 > 值星官</li>
@@ -3074,14 +3074,7 @@ render();
   <div class="admin-table-wrap" style="margin:0 16px 24px">
     <table id="deed-table">
       <thead>
-        <tr>
-          <th>流水編號</th>
-          <th>領用日期</th>
-          <th>領用人</th>
-          <th>物件名稱</th>
-          <th>物件狀態</th>
-          <th id="deed-th-actions">操作</th>
-        </tr>
+        <tr id="deed-thead-row"></tr>
       </thead>
       <tbody id="deed-tbody"><tr><td class="empty-td" colspan="6">⏳ 載入中…</td></tr></tbody>
     </table>
@@ -3116,7 +3109,11 @@ render();
     </div>
     <div class="fgp">
       <label class="lbl">領用人</label>
-      <select class="fc" id="dd-recipient"><option value="">請選擇</option></select>
+      <select class="fc" id="dd-recipient" onchange="onDeedRecipientChange()"><option value="">請選擇</option></select>
+    </div>
+    <div class="fgp" id="dd-recipient-other-wrap" style="display:none">
+      <label class="lbl">其他領用人姓名<span class="req">*</span></label>
+      <input class="fc" id="dd-recipient-other" placeholder="請輸入姓名">
     </div>
     <div class="fgp">
       <label class="lbl">物件狀態</label>
@@ -3505,6 +3502,11 @@ render();
           <select class="fc" id="comm-agent-select" onchange="if(this.value){agentPickerAdd('comm',this.value,this.options[this.selectedIndex].dataset.name);this.value='';}"><option value="">＋ 新增負責業務</option></select>
           <div id="comm-agent-roleerr" style="font-size:11px;color:var(--red);margin-top:4px;font-weight:600"></div>
           <div style="font-size:11px;color:var(--tx3);margin-top:4px">人員名單抓取「每月出勤排休表」的業務名冊（需已綁定 Google 帳號），公司庫存會依此歸類（多位負責業務時，各自的公司庫存都會顯示此筆）。進案數量與業績金額依角色比例分配：開發業務 100%；開發＋協助業務各 50%；開發＋角色輔助各 50%；開發＋協助＋角色輔助＝50%／40%／10%。</div>
+        </div>
+      </div>
+      <div class="fg" id="ec-channels-wrap" style="display:none;margin-top:10px">
+        <div class="fgp"><label class="lbl">上架管道</label>
+          <div id="ec-channels-list"></div>
         </div>
       </div>
       <div class="fg fg2" style="margin-top:10px">
@@ -4043,9 +4045,16 @@ window._myRole = ROLES.STAFF;
 function canEditWarReport(){
   return window._myRole === ROLES.ADVISOR || window._myRole === ROLES.SECRETARY || window._myRole === ROLES.SYSADMIN;
 }
-// 可新增「公司委託」（代其他業務登記、歸入該業務公司庫存）者：幕僚或系統管理員，與每日戰報編輯權限一致
-function canAddCompanyListing(){
+// 管理「任何一筆」公司委託（編輯他人名下的委託、改派負責業務名單、刪除他人的委託、幫他人標記成交）：
+// 僅幕僚／店秘書／系統管理員，與每日戰報編輯權限一致（維持原本的既有行為，範圍不因下面新增的權限而擴大）
+function canManageAnyCompanyListing(){
   return canEditWarReport();
+}
+// 可「新增」一筆全新的公司委託者：幕僚／店秘書／系統管理員，或一般員工（staff，預設身份組）皆可新增。
+// 注意：這只放寬「新增」，員工新增後仍只能編輯／刪除／標記成交「自己也在其中」的委託（見 isOwner 判斷），
+// 不能管理其他人名下的委託——那項權限仍由 canManageAnyCompanyListing() 單獨把關，不受此處影響。
+function canAddCompanyListing(){
+  return canManageAnyCompanyListing() || window._myRole === ROLES.STAFF || !window._myRole;
 }
 // 首頁公布欄可發布公告者：系統管理員、老闆、主管、幕僚、店秘書（權限比照幕僚）
 function canPostAnnouncement(){
@@ -4809,6 +4818,8 @@ function openRecruitModal(id,pool){
   _companyListingLockedAgents = null;
   const agentWrap = document.getElementById('ec-agent-wrap');
   if(agentWrap) agentWrap.style.display = 'none';
+  const channelsWrap = document.getElementById('ec-channels-wrap');
+  if(channelsWrap) channelsWrap.style.display = 'none';
   // 顯示/隱藏委託專屬欄位區塊
   const ecExtra = document.getElementById('ec-extra-section');
   if(ecExtra) ecExtra.style.display = isComm ? 'block' : 'none';
@@ -5102,6 +5113,92 @@ async function setAgentPickerList(prefix, list){
   await _populateAgentPickerSelect(prefix);
 }
 
+// ─── 上架管道 ─────────────────────────────────────────────────────
+// 固定 8 個管道，順序固定（列表顯示與編輯視窗都依此順序）；每個管道各自標記已上架／未上架，
+// 未上架時可填寫原因。狀態存在委託文件的 listingChannels 欄位：{ [key]: {listed, reason} }
+const LISTING_CHANNELS = [
+  {key:'fb',      label:'日勝臉書'},
+  {key:'website', label:'日勝官網'},
+  {key:'backend', label:'日勝後台'},
+  {key:'591',     label:'591'},
+  {key:'leju',    label:'樂居'},
+  {key:'aihouse', label:'愛屋網'},
+  {key:'living',  label:'住商官網'},
+  {key:'cloud',   label:'雲端'}
+];
+let _listingChannelsState = {}; // 編輯視窗目前的上架管道狀態：{ [key]: {listed:boolean, reason:string} }
+
+function _defaultListingChannelsState(){
+  const out = {};
+  LISTING_CHANNELS.forEach(c=>{ out[c.key] = {listed:true, reason:''}; }); // 新增時預設視為已上架，使用者可自行取消勾選
+  return out;
+}
+// 開啟編輯視窗時呼叫：data 為既有委託存的 listingChannels（可能是 undefined／不完整的舊資料），會補齊成完整的 8 個管道
+function setListingChannelsState(data){
+  const merged = { ..._defaultListingChannelsState() };
+  LISTING_CHANNELS.forEach(c=>{
+    const v = data && data[c.key];
+    if(v) merged[c.key] = { listed: typeof v.listed==='boolean' ? v.listed : true, reason: v.reason || '' };
+  });
+  _listingChannelsState = merged;
+  renderListingChannelsUI();
+}
+// 儲存時呼叫：從畫面上目前的勾選狀態讀出乾淨物件
+function getListingChannelsState(){
+  const out = {};
+  LISTING_CHANNELS.forEach(c=>{
+    const chk = document.getElementById('ch-'+c.key+'-listed');
+    const reasonEl = document.getElementById('ch-'+c.key+'-reason');
+    const listed = chk ? chk.checked : true;
+    out[c.key] = { listed, reason: listed ? '' : ((reasonEl && reasonEl.value) || '').trim() };
+  });
+  return out;
+}
+// 勾選／取消某管道的已上架狀態時：切換原因欄位顯示，並即時更新狀態文字（已上架＝綠／未上架＝紅）
+function onChannelListedChange(key){
+  const chk = document.getElementById('ch-'+key+'-listed');
+  const reasonWrap = document.getElementById('ch-'+key+'-reason-wrap');
+  const statusEl = document.getElementById('ch-'+key+'-status');
+  const listed = chk ? chk.checked : true;
+  if(reasonWrap) reasonWrap.style.display = listed ? 'none' : '';
+  if(statusEl){
+    statusEl.textContent = listed ? '已上架' : '未上架';
+    statusEl.style.color = listed ? 'var(--grn)' : 'var(--red)';
+  }
+}
+function renderListingChannelsUI(){
+  const box = document.getElementById('ec-channels-list');
+  if(!box) return;
+  box.innerHTML = LISTING_CHANNELS.map(c=>{
+    const st = _listingChannelsState[c.key] || {listed:true, reason:''};
+    return `<div style="padding:8px 0;border-bottom:1px solid var(--bdr)">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+        <input type="checkbox" id="ch-${c.key}-listed" ${st.listed?'checked':''} onchange="onChannelListedChange('${c.key}')">
+        <span style="font-weight:600">${c.label}</span>
+        <span id="ch-${c.key}-status" style="font-size:11px;font-weight:700;margin-left:auto;color:${st.listed?'var(--grn)':'var(--red)'}">${st.listed?'已上架':'未上架'}</span>
+      </label>
+      <div id="ch-${c.key}-reason-wrap" style="display:${st.listed?'none':''};margin-top:6px">
+        <input class="fc" id="ch-${c.key}-reason" placeholder="請輸入未上架原因" value="${escAttr(st.reason||'')}">
+      </div>
+    </div>`;
+  }).join('');
+}
+// 公司庫存卡片上的「上架管道」顯示：只有已存過 listingChannels 資料的委託才顯示（避免舊資料憑空生出假資料），
+// 依固定順序列出，已上架＝綠色、未上架＝紅色；未上架若有填寫原因，滑鼠移過去（title）可看到
+function _channelsDisplayHtml(r){
+  const data = r.listingChannels;
+  if(!data) return '';
+  const parts = LISTING_CHANNELS.map(c=>{
+    const st = data[c.key];
+    if(!st) return '';
+    const color = st.listed ? 'var(--grn)' : 'var(--red)';
+    const titleAttr = (!st.listed && st.reason) ? ` title="${escAttr(st.reason)}"` : '';
+    return `<span${titleAttr} style="color:${color};font-weight:600">${escH(c.label)}</span>`;
+  }).filter(Boolean);
+  if(!parts.length) return '';
+  return `<div style="font-size:11px;margin-bottom:4px;display:flex;flex-wrap:wrap;gap:2px 8px">${parts.join('')}</div>`;
+}
+
 // 是否為「新增／編輯公司委託」模式：true 時儲存不會寫進目前登入者自己的委託清單，
 // 而是寫入（或更新）獨立的 company_listings 集合，並依所選「負責業務」歸類進公司庫存
 let _companyListingMode = false;
@@ -5113,9 +5210,10 @@ let _companyListingLockedAgents = null; // [{uid,name},...]：非管理者（負
 // editItem：不傳＝新增模式；傳入公司庫存頁面該筆物件（含 id、_agentUids、_agentNames）＝編輯模式
 async function openCompanyListingModal(editItem){
   const myUid = window._currentUser && window._currentUser.uid;
-  const isAdmin = canAddCompanyListing();
+  const isAdmin = canManageAnyCompanyListing(); // 管理「任何一筆」（含改派負責業務名單）：僅幕僚／店秘書／系統管理員
+  const canCreateNew = canAddCompanyListing();  // 新增全新一筆：幕僚／店秘書／系統管理員，或一般員工
   const isOwner = !!(editItem && myUid && (editItem._agentUids||[]).includes(myUid));
-  if(!editItem && !isAdmin) return;
+  if(!editItem && !canCreateNew) return;
   if(editItem && !isAdmin && !isOwner) return;
   openRecruitModal(null, 'commission');
   _companyListingMode = true;
@@ -5127,6 +5225,9 @@ async function openCompanyListingModal(editItem){
   _companyListingLockedAgents = (editItem && !isAdmin) ? editItemAgents : null;
   const titleEl = document.getElementById('recruit-modal-title');
   if(titleEl) titleEl.textContent = editItem ? '🏢 編輯公司委託' : '🏢 新增公司委託';
+  const channelsWrap = document.getElementById('ec-channels-wrap');
+  if(channelsWrap) channelsWrap.style.display = '';
+  setListingChannelsState(editItem ? editItem.listingChannels : null);
   const agentWrap = document.getElementById('ec-agent-wrap');
   if(_companyListingLockedAgents){
     // 負責業務本人（非管理者）編輯自己也在其中的委託：隱藏負責業務欄位（不可改指派名單／角色），儲存時固定用原名單
@@ -5171,6 +5272,7 @@ async function _saveCompanyListing(data){
       // 保留舊版單一負責業務欄位（取開發業務，若無則取第一位）供尚未更新的頁面/查詢相容
       assignedAgentUid: (agentsWithRatio.find(a=>a.role==='dev') || agentsWithRatio[0]).uid,
       assignedAgentName: (agentsWithRatio.find(a=>a.role==='dev') || agentsWithRatio[0]).name,
+      listingChannels: getListingChannelsState(),
       updatedAt: nowIso
     };
     if(!isEdit){
@@ -5194,7 +5296,7 @@ function _invFindItem(id){
 async function deleteCompanyListing(item){
   if(!item){ alert('⚠️ 找不到此筆委託資料'); return; }
   const myUid = window._currentUser && window._currentUser.uid;
-  const isAdmin = canAddCompanyListing();
+  const isAdmin = canManageAnyCompanyListing();
   const isOwner = !!(myUid && (item._agentUids||[]).includes(myUid));
   if(!isAdmin && !isOwner) return;
   if(!item.id){ alert('⚠️ 找不到此筆委託的資料編號，無法刪除'); return; }
@@ -5214,7 +5316,7 @@ let _companyDealItem = null; // 目前正在標記成交的公司委託（來自
 function openCompanyDealModal(item){
   if(!item){ alert('⚠️ 找不到此筆委託資料'); return; }
   const myUid = window._currentUser && window._currentUser.uid;
-  const isAdmin = canAddCompanyListing();
+  const isAdmin = canManageAnyCompanyListing();
   const isOwner = !!(myUid && (item._agentUids||[]).includes(myUid));
   if(!isAdmin && !isOwner) return;
   if(!item.id){ alert('⚠️ 找不到此筆委託的資料編號，無法標記成交'); return; }
@@ -10223,7 +10325,7 @@ function renderInventory(){
   }
 
   const myUid = window._currentUser && window._currentUser.uid;
-  const isInvAdmin = canAddCompanyListing();
+  const isInvAdmin = canManageAnyCompanyListing();
   listEl.innerHTML = Object.entries(groups).map(([agentUid,g])=>{
     const displayName = resolveRosterName(agentUid, g.agentName);
     const updAt = g.updatedAt ? new Date(g.updatedAt).toLocaleString('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
@@ -10254,6 +10356,7 @@ function renderInventory(){
         </div>
         ${r.bldg?`<div style="margin-bottom:2px"><span class="card-bldg">🏢 ${escH(r.bldg)}</span></div>`:''}
         ${r.listingNo?`<div style="font-size:11px;color:var(--tx3);margin-bottom:2px">🔖 委託編號：${escH(r.listingNo)}</div>`:''}
+        ${_channelsDisplayHtml(r)}
         ${r.caseName?`<div style="font-size:12px;color:var(--tx2);margin-bottom:4px">👤 ${escH(ownLabel)}</div>`:''}
         <div style="font-size:12px;color:var(--tx3);margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📍 ${escH(addr)}</div>
         <div style="display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:var(--tx2)">
@@ -13417,7 +13520,7 @@ const _RD_OFFICER_RULES_HTML = `<div class="rules-title">📋 值星官(週)執�
 <li>每週輪值一次（星期一～星期六）</li>
 <li>入職未滿一個月不輪值</li>
 <li>值星官提前 08:45 到公司（開門）</li>
-<li>早：開大門／冷氣／燈／電視（日勝一日看板）／音樂／燒熱水／白板／電腦／咖啡機小推車水量補滿</li>
+<li>早：開大門／冷氣／燈／電視（日勝一日看板）／音樂／燒熱水／白板／電腦／小推車上飲用水補滿</li>
 <li>晚：全店電器設備、門窗關閉，最後關門離開</li>
 <li>公司鑰匙保管</li>
 <li>接聽電話：秘書 > 值星官</li>
@@ -13783,17 +13886,52 @@ function switchDeedTab(type){
   renderDeedReceipts();
 }
 
+// 契據領用清單排序狀態：預設以「流水編號」由小到大排序；點欄位標題可切換排序欄位／方向
+let _deedSortKey = 'serialNo';
+let _deedSortDir = 'asc'; // 'asc' 由小到大／'desc' 由大到小
+const _DEED_SORT_COLS = [
+  { key:'serialNo',      label:'流水編號' },
+  { key:'receiveDate',   label:'領用日期' },
+  { key:'recipientName', label:'領用人'   },
+  { key:'propName',      label:'物件名稱' },
+  { key:'statusLabel',   label:'物件狀態' }
+];
+function setDeedSort(key){
+  if(_deedSortKey === key){ _deedSortDir = (_deedSortDir==='asc') ? 'desc' : 'asc'; }
+  else { _deedSortKey = key; _deedSortDir = 'asc'; }
+  renderDeedReceipts();
+}
+function _deedSortValue(x, key){
+  if(key==='statusLabel') return x.status==='other' ? (x.statusOther||'其他') : (DEED_STATUS_LABELS[x.status]||'');
+  return x[key] || '';
+}
+function _deedTheadHtml(canEdit){
+  const cols = _DEED_SORT_COLS.map(c=>{
+    const active = _deedSortKey === c.key;
+    const arrow = active ? (_deedSortDir==='asc' ? ' ▲' : ' ▼') : '';
+    return `<th onclick="setDeedSort('${c.key}')" style="cursor:pointer;user-select:none;white-space:nowrap">${c.label}${arrow}</th>`;
+  }).join('');
+  return cols + (canEdit ? '<th>操作</th>' : '');
+}
 function renderDeedReceipts(){
   const tbody = document.getElementById('deed-tbody');
+  const theadRow = document.getElementById('deed-thead-row');
   if(!tbody) return;
   const canEdit = canViewDeedReceipts();
+  if(theadRow) theadRow.innerHTML = _deedTheadHtml(canEdit);
 
   if(_deedLoadError){
     tbody.innerHTML = `<tr><td class="empty-td" colspan="6">⚠️ 載入失敗：${escH(_deedLoadError)}<br><span style="font-size:11px">請確認 Firestore 安全規則已開放讀取 deed_receipts 集合</span></td></tr>`;
     return;
   }
+  const dir = (_deedSortDir==='asc') ? 1 : -1;
   const list = _deedList.filter(x=>x.type===currentDeedType)
-    .sort((a,b)=>String(b.receiveDate||'').localeCompare(String(a.receiveDate||'')));
+    .sort((a,b)=>{
+      const av = _deedSortValue(a, _deedSortKey), bv = _deedSortValue(b, _deedSortKey);
+      const cmp = String(av).localeCompare(String(bv), 'zh-TW', {numeric:true, sensitivity:'base'});
+      // 排序欄位值相同時，一律再依流水編號由小到大排列，順序才穩定不會每次重繪就跳動
+      return (cmp !== 0 ? cmp*dir : String(a.serialNo||'').localeCompare(String(b.serialNo||''), 'zh-TW', {numeric:true}));
+    });
   if(!list.length){
     tbody.innerHTML = `<tr><td class="empty-td" colspan="6">📭 尚無「${escH(DEED_TYPES[currentDeedType]||'')}」的領用紀錄${canEdit?'，點右上方「＋ 新增契據」開始建立':''}</td></tr>`;
     return;
@@ -13828,6 +13966,12 @@ function onDeedStatusChange(){
   const wrap = document.getElementById('dd-status-other-wrap');
   if(wrap) wrap.style.display = (sel && sel.value==='other') ? '' : 'none';
 }
+// 領用人選單改成「其他」時，顯示自由輸入姓名欄位（供清單內未列出的業務使用）
+function onDeedRecipientChange(){
+  const sel = document.getElementById('dd-recipient');
+  const wrap = document.getElementById('dd-recipient-other-wrap');
+  if(wrap) wrap.style.display = (sel && sel.value==='__other__') ? '' : 'none';
+}
 
 // id 為 null 時＝新增契據；有值時＝編輯現有該筆（開啟時預設帶入目前所在的分頁類型）
 function openDeedModal(id){
@@ -13844,16 +13988,20 @@ function openDeedModal(id){
   document.getElementById('dd-serial').value = x?.serialNo || '';
   document.getElementById('dd-date').value = x?.receiveDate || '';
 
-  // 領用人下拉：沿用員工總表名冊
+  // 領用人下拉：沿用員工總表名冊，並固定加一個「其他」選項供輸入清單以外的姓名
   const recSel = document.getElementById('dd-recipient');
   if(recSel){
     const roster = [..._sdRoster].sort((a,b)=>(a.name||'').localeCompare(b.name||'','zh-TW'));
+    const isOther = !!(x && x.recipientId === '__other__');
     recSel.innerHTML = '<option value="">請選擇</option>' +
-      roster.map(p=>`<option value="${escH(p.id)}"${x&&x.recipientId===p.id?' selected':''}>${escH(p.name||'（未命名）')}</option>`).join('');
+      roster.map(p=>`<option value="${escH(p.id)}"${x&&x.recipientId===p.id?' selected':''}>${escH(p.name||'（未命名）')}</option>`).join('') +
+      `<option value="__other__"${isOther?' selected':''}>其他</option>`;
     // 若這筆是舊紀錄，領用人已不在目前員工總表名冊中（例如已離職），仍保留原顯示名稱以免遺失資料
-    if(x && x.recipientId && !roster.some(p=>p.id===x.recipientId)){
+    if(x && x.recipientId && x.recipientId!=='__other__' && !roster.some(p=>p.id===x.recipientId)){
       recSel.innerHTML += `<option value="${escH(x.recipientId)}" selected>${escH(x.recipientName||'（已不在員工名冊）')}</option>`;
     }
+    document.getElementById('dd-recipient-other').value = isOther ? (x.recipientName||'') : '';
+    onDeedRecipientChange();
   }
 
   document.getElementById('dd-status').value = x?.status || '';
@@ -13872,8 +14020,12 @@ async function saveDeedReceipt(){
   const serialNo = (document.getElementById('dd-serial').value||'').trim();
   const receiveDate = document.getElementById('dd-date').value||'';
   const recSel = document.getElementById('dd-recipient');
-  const recipientId = recSel ? recSel.value : '';
-  const recipientName = (recSel && recipientId) ? (recSel.options[recSel.selectedIndex].textContent||'') : '';
+  let recipientId = recSel ? recSel.value : '';
+  let recipientName = (recSel && recipientId && recipientId!=='__other__') ? (recSel.options[recSel.selectedIndex].textContent||'') : '';
+  if(recipientId === '__other__'){
+    recipientName = (document.getElementById('dd-recipient-other').value||'').trim();
+    if(!recipientName){ alert('請輸入其他領用人姓名'); return; }
+  }
   const status = document.getElementById('dd-status').value;
   const statusOther = (document.getElementById('dd-status-other').value||'').trim();
   const propName = (document.getElementById('dd-propname').value||'').trim();
