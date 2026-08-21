@@ -10418,16 +10418,19 @@ tr{page-break-inside:avoid}
 .td-addr{text-align:left;padding-left:5px!important;white-space:normal}
 .grp-row td{background:#0f519b;color:#fff;font-weight:800;text-align:left;padding-left:6px!important;font-size:11px}
 `;
-const _INV_PRINT_COLGROUP = `<col style="width:8%"><col style="width:6%"><col style="width:9%"><col style="width:13%"><col style="width:10%"><col style="width:10%"><col style="width:15%"><col style="width:7%"><col style="width:7%"><col style="width:6%"><col style="width:7%">`;
-const _INV_PRINT_THEAD = `<tr><th>業務</th><th>類別</th><th>委託編號</th><th>案名</th><th>建案名稱</th><th>屋主</th><th>地址</th><th>總價(萬)</th><th>單價(萬/坪)</th><th>坪數</th><th>委託到期</th></tr>`;
+const _INV_PRINT_COLGROUP = `<col style="width:6%"><col style="width:4%"><col style="width:6%"><col style="width:7%"><col style="width:6%"><col style="width:5%"><col style="width:9%"><col style="width:4%"><col style="width:4%"><col style="width:3%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%">`;
+const _INV_PRINT_THEAD = `<tr><th>業務</th><th>類別</th><th>委託編號</th><th>案名</th><th>建案名稱</th><th>屋主</th><th>地址</th><th>總價(萬)</th><th>單價(萬/坪)</th><th>坪數</th><th>委託到期</th><th>日勝臉書</th><th>日勝官網</th><th>日勝後台</th><th>591</th><th>樂居</th><th>愛屋網</th><th>住商官網</th><th>雲端</th></tr>`;
 
 function _invPrintRowsHtml(groups){
   return Object.entries(groups).map(([agentUid,g])=>{
     const displayName = resolveRosterName(agentUid, g.agentName);
-    const grpRow = `<tr class="grp-row"><td colspan="11">👤 ${escH(displayName)}（${g.items.length} 筆委託）</td></tr>`;
+    const grpRow = `<tr class="grp-row"><td colspan="19">👤 ${escH(displayName)}（${g.items.length} 筆委託）</td></tr>`;
     const itemRows = g.items.map(r=>{
       const addr = fullAddr(r.propCity,r.propDist,r.propAddr);
       const ownLabel = r.owners&&r.owners.length ? r.owners.map(o=>o.name).join('、') : (r.ownerName||'—');
+      // 上架管道：沒存過資料的舊委託視為皆未上架（跟畫面上卡片顯示的預設一致），列印時仍完整列出全部 8 欄
+      const chData = r.listingChannels || _defaultListingChannelsState();
+      const channelCells = LISTING_CHANNELS.map(c => `<td>${(chData[c.key]&&chData[c.key].listed) ? '有' : '無'}</td>`).join('');
       return `<tr>
         <td class="td-name">${escH(displayName)}</td>
         <td>${escH(r.propType||'')}</td>
@@ -10440,13 +10443,14 @@ function _invPrintRowsHtml(groups){
         <td>${r.unit||''}</td>
         <td>${r.area||''}</td>
         <td>${r.commEnd||''}</td>
+        ${channelCells}
       </tr>`;
     }).join('');
     return grpRow + itemRows;
   }).join('');
 }
 
-// ── 列印（開新視窗列印，直向 A4，資料多時瀏覽器自動分頁，表頭於每頁重複）──
+// ── 列印（開新視窗列印，橫式 A4，資料多時瀏覽器自動分頁，表頭於每頁重複）──
 function printInventory(){
   const { filtered, groups } = _invGetFilteredGroups();
   if(!filtered.length){ alert('尚無資料可列印'); return; }
@@ -10456,7 +10460,7 @@ function printInventory(){
   const html = `<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8"><title>公司庫存清單</title>
 <style>
 ${_INV_PRINT_STYLE}
-@page{size:A4 portrait;margin:10mm}
+@page{size:A4 landscape;margin:10mm}
 </style>
 </head><body>
 <div class="hdr"><h1>🏢 公司庫存清單</h1><span>列印日期：${today}　共 ${filtered.length} 筆</span></div>
@@ -10496,7 +10500,7 @@ function exportInventoryPdf(){
   const innerHtml = `<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8"><title>${fileName}</title>
 <style>
 ${_INV_PRINT_STYLE}
-html,body{width:794px}
+html,body{width:1123px}
 body{padding:16px}
 </style></head><body>
 <div class="hdr"><h1>🏢 公司庫存清單</h1><span>列印日期：${today}　共 ${filtered.length} 筆</span></div>
@@ -10513,7 +10517,7 @@ body{padding:16px}
       await _loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js','sha512-qZvrmS2ekKPF2mSznTQsxqPgnpkI4DNTlrdUmTzrDgektczlKNRRhy5X5AAOnx5S09ydFYWWNSfcEqDTTHgtNA==');
 
       const iframe = document.createElement('iframe');
-      iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;border:none;z-index:-1;';
+      iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:1123px;border:none;z-index:-1;';
       iframe.srcdoc = innerHtml;
       document.body.appendChild(iframe);
 
@@ -10528,17 +10532,17 @@ body{padding:16px}
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
-        width: 794,
+        width: 1123,
         height: fullHeight,
-        windowWidth: 794,
+        windowWidth: 1123,
         windowHeight: fullHeight,
       });
 
       document.body.removeChild(iframe);
 
       const { jsPDF } = window.jspdf;
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const pageWidthMm = 210, pageHeightMm = 297;
+      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      const pageWidthMm = 297, pageHeightMm = 210;
       const pxPerMm = canvas.width / pageWidthMm;
       const sliceHeightPx = Math.floor(pageHeightMm * pxPerMm);
 
