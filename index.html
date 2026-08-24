@@ -248,20 +248,10 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" integrity="sha512-CQBWl4fJHWbryGE+Pc7UAxWMUMNMWzWxF4SQo9CgkJIN1kx6djDQZjh3Y8SZ1d+6I+1zze6Z7kHXO7q3UyZAWw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha512-r22gChDnGvBylk90+2e/ycr3RVrDi8DIOkIGNhJlKfuyQM4tIRAI062MaV8sfjQKYVGjOBaZBOA87z+IhZE9DA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script>
-// Google Maps JS API 載入完成後的 callback
-let gmapsGeocoder = null;
+// 行程規劃地圖用的狀態（原本存放 Google Maps 的地圖/標記實例，現改存 Leaflet 的地圖/圖層實例）
 let tripMapInstance = null;
-let tripMapMarkers = [];
-function initGoogleMaps() {
-  gmapsGeocoder = new google.maps.Geocoder();
-}
-// Google 在金鑰/帳單授權失敗時會呼叫此全域函式 → 立即標記，避免逐筆苦等逾時
-function gm_authFailure() {
-  try { geocoderFailed = true; } catch(_) { window.geocoderFailed = true; }
-  console.warn('Google Maps 金鑰授權失敗（gm_authFailure）');
-}
+let tripMapMarkersLayer = null;
 </script>
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBDX0LHYeD0bHQvzLezIir-ZYjOJUVHI3k&callback=initGoogleMaps&loading=async" async defer></script>
 </head>
 <body>
 <div id="login-screen" class="lp-show">
@@ -7606,7 +7596,7 @@ try { geoAddrCache = JSON.parse(localStorage.getItem(GEO_LS_KEY)) || {}; } catch
 let geoInFlight = new Set();    // 正在處理的 id，避免重複 geocode
 let geoQueue = [];              // 待 geocode 的 id 列表
 let geoRunning = false;
-let geocoderFailed = false;     // Google 地圖服務是否異常（金鑰/額度/載入問題）
+let geocoderFailed = false;     // 地址定位服務是否異常（金鑰/額度/連線問題）
 let _geoSaveTimer = null;
 function _saveGeoAddrCache() {
   clearTimeout(_geoSaveTimer);
@@ -7747,46 +7737,56 @@ function _syncTripLocationBar() {
   }
 }
 
+// ── 地址定位（原本使用 Google Geocoder，改用 LocationIQ 免費方案）─────────────────────
+// 部署前請先到 https://locationiq.com 免費註冊，取得你自己的 API 金鑰，貼到下面這行：
+const LOCATIONIQ_API_KEY = 'pk.6817d9e0a8bed4345af9c0102678c4e1';
+// LocationIQ 免費方案限制每秒最多 2 次查詢；這裡做一個簡單節流佇列，確保呼叫間隔留有餘裕不會被拒絕
+let _locationIqLastCallAt = 0;
+const LOCATIONIQ_MIN_INTERVAL_MS = 550;
+async function _locationIqThrottle(){
+  const now = Date.now();
+  const wait = Math.max(0, _locationIqLastCallAt + LOCATIONIQ_MIN_INTERVAL_MS - now);
+  if(wait > 0) await new Promise(r => setTimeout(r, wait));
+  _locationIqLastCallAt = Date.now();
+}
 function geocodeAddr(addr) {
   const key = _normAddr(addr);
   // 命中跨 session 快取 → 立即回傳，免打 API
   if (geoAddrCache[key]) return Promise.resolve(geoAddrCache[key]);
-  return new Promise((resolve) => {
-    let done = false;
-    const finish = (val) => {
-      if (done) return;
-      done = true;
-      if (val && typeof val === 'object') { geoAddrCache[key] = val; _saveGeoAddrCache(); }
-      resolve(val);
-    };
-    // 整體逾時（等待 geocoder 初始化 + API 回應），最多 12 秒，避免單筆卡死整列
-    const to = setTimeout(() => { geocoderFailed = true; finish(null); }, 12000);
-    let waited = 0;
-    const tryGeo = () => {
-      if (done) return;
-      if (!gmapsGeocoder) {
-        if (waited >= 12000) { geocoderFailed = true; clearTimeout(to); finish(null); return; }
-        waited += 200;
-        setTimeout(tryGeo, 200);
-        return;
+  return (async () => {
+    if(!LOCATIONIQ_API_KEY || LOCATIONIQ_API_KEY === 'YOUR_LOCATIONIQ_API_KEY_HERE'){
+      geocoderFailed = true;
+      console.warn('尚未設定 LocationIQ API 金鑰，請至 https://locationiq.com 免費申請後填入 LOCATIONIQ_API_KEY');
+      return null;
+    }
+    try{
+      await _locationIqThrottle();
+      const url = `https://us1.locationiq.com/v1/search?key=${encodeURIComponent(LOCATIONIQ_API_KEY)}&q=${encodeURIComponent(addr)}&format=json&countrycodes=tw&limit=1`;
+      const ctrl = new AbortController();
+      const to = setTimeout(() => ctrl.abort(), 12000); // 整體逾時，避免單筆卡死整列
+      const res = await fetch(url, { signal: ctrl.signal });
+      clearTimeout(to);
+      if(!res.ok){
+        // 401/403＝金鑰無效或未授權，429＝超過額度：代表服務本身有問題，不只是這筆地址查不到
+        if(res.status === 401 || res.status === 403 || res.status === 429) geocoderFailed = true;
+        return null;
       }
-      gmapsGeocoder.geocode(
-        { address: addr, region: 'TW', language: 'zh-TW' },
-        (results, status) => {
-          clearTimeout(to);
-          if (status === 'OK' && results && results.length > 0) {
-            const loc = results[0].geometry.location;
-            finish({ lat: loc.lat(), lng: loc.lng() });
-          } else {
-            // REQUEST_DENIED / OVER_QUERY_LIMIT 代表服務本身有問題
-            if (status === 'REQUEST_DENIED' || status === 'OVER_QUERY_LIMIT') geocoderFailed = true;
-            finish(null);
-          }
+      const data = await res.json();
+      if(Array.isArray(data) && data.length > 0){
+        const lat = parseFloat(data[0].lat), lng = parseFloat(data[0].lon);
+        if(!isNaN(lat) && !isNaN(lng)){
+          const val = { lat, lng };
+          geoAddrCache[key] = val;
+          _saveGeoAddrCache();
+          return val;
         }
-      );
-    };
-    tryGeo();
-  });
+      }
+      return null; // 查無結果：地址本身可能不完整，不代表服務故障，不設 geocoderFailed
+    }catch(e){
+      if(e.name !== 'AbortError') geocoderFailed = true;
+      return null;
+    }
+  })();
 }
 
 async function processGeoQueue() {
@@ -8318,12 +8318,12 @@ function renderTripPreview(ids) {
 function clearTripMap() {
   const wrap = document.getElementById('trip-map-wrap');
   if (wrap) wrap.style.display = 'none';
-  tripMapMarkers.forEach(m => m.setMap(null));
-  tripMapMarkers = [];
+  if (tripMapMarkersLayer) tripMapMarkersLayer.clearLayers();
   tripMapInstance = null;
+  tripMapMarkersLayer = null;
 }
 
-function renderTripMap(ids) {
+async function renderTripMap(ids) {
   const wrap = document.getElementById('trip-map-wrap');
   const hint = document.getElementById('trip-map-hint');
   const container = document.getElementById('trip-map-container');
@@ -8349,49 +8349,42 @@ function renderTripMap(ids) {
   wrap.style.display = 'block';
   if (hint) hint.style.display = 'none';
 
-  // 等 Google Maps API 就緒
-  if (!window.google || !window.google.maps) return;
+  // 等地圖套件（Leaflet）就緒
+  try{ await _ensureLeafletLoaded(); }catch(e){ if(hint){ hint.textContent = '⚠️ 地圖套件載入失敗，請檢查網路連線'; hint.style.display = 'block'; } return; }
+  if(!window.L) return;
 
   // GPS 模式下以使用者位置為地圖中心
   const mapCenter = (myLocationActive && myLocationCoords) ? myLocationCoords : points[0].coords;
 
   // 初始化或沿用地圖實例
   if (!tripMapInstance) {
-    tripMapInstance = new google.maps.Map(container, {
-      zoom: 12,
-      center: mapCenter,
-      mapTypeControl: false,
-      streetViewControl: false,
-      fullscreenControl: true,
-    });
+    tripMapInstance = L.map(container).setView([mapCenter.lat, mapCenter.lng], 12);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://carto.com/attributions">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      subdomains: 'abcd',
+      maxZoom: 20
+    }).addTo(tripMapInstance);
+    tripMapMarkersLayer = L.layerGroup().addTo(tripMapInstance);
+  } else {
+    setTimeout(() => tripMapInstance.invalidateSize(), 50);
   }
 
   // 清掉舊 markers
-  tripMapMarkers.forEach(m => m.setMap(null));
-  tripMapMarkers = [];
+  tripMapMarkersLayer.clearLayers();
 
-  const bounds = new google.maps.LatLngBounds();
+  const bounds = [];
 
-  // GPS 模式：在地圖上加入「我的位置」標記
+  // GPS 模式：在地圖上加入「我的位置」標記（藍色圓點，跟行程編號標記區分）
   if (myLocationActive && myLocationCoords) {
-    const myMarker = new google.maps.Marker({
-      position: myLocationCoords,
-      map: tripMapInstance,
-      title: '📍 我的目前位置',
-      icon: {
-        path: google.maps.SymbolPath.CIRCLE,
-        scale: 10,
-        fillColor: '#4285F4',
-        fillOpacity: 1,
-        strokeColor: '#ffffff',
-        strokeWeight: 3,
-      },
-      zIndex: 200,
+    const myIcon = L.divIcon({
+      className: '',
+      html: '<div style="width:20px;height:20px;border-radius:50%;background:#4285F4;border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>',
+      iconSize: [20, 20], iconAnchor: [10, 10]
     });
-    const myIW = new google.maps.InfoWindow({ content: '<div style="font-family:sans-serif;font-size:13px;font-weight:700;color:#4285F4">📍 我的目前位置</div>' });
-    myMarker.addListener('click', () => myIW.open(tripMapInstance, myMarker));
-    tripMapMarkers.push(myMarker);
-    bounds.extend(myLocationCoords);
+    L.marker([myLocationCoords.lat, myLocationCoords.lng], { icon: myIcon, zIndexOffset: 200 })
+      .bindPopup('<div style="font-family:sans-serif;font-size:13px;font-weight:700;color:#4285F4">📍 我的目前位置</div>')
+      .addTo(tripMapMarkersLayer);
+    bounds.push([myLocationCoords.lat, myLocationCoords.lng]);
   }
 
   points.forEach(({ id, idx, coords, r, isAnchor }) => {
@@ -8400,25 +8393,15 @@ function renderTripMap(ids) {
     const propAddr = fullAddr(r.propCity, r.propDist, r.propAddr);
     const pool = getTripPool(id);
 
-    const marker = new google.maps.Marker({
-      position: coords,
-      map: tripMapInstance,
-      label: {
-        text: label,
-        color: isAnchor ? '#1a2332' : '#ffffff',
-        fontWeight: 'bold',
-        fontSize: '12px',
-      },
-      icon: {
-        path: google.maps.SymbolPath.CIRCLE,
-        scale: 16,
-        fillColor: isAnchor ? '#fece26' : '#0f519b',
-        fillOpacity: 1,
-        strokeColor: isAnchor ? '#f5c400' : '#0d4589',
-        strokeWeight: 2,
-      },
-      title: `行程${idx+1}：${ownersLabel(r)}`,
-      zIndex: isAnchor ? 100 : idx,
+    const fillColor = isAnchor ? '#fece26' : '#0f519b';
+    const strokeColor = isAnchor ? '#f5c400' : '#0d4589';
+    const textColor = isAnchor ? '#1a2332' : '#ffffff';
+    const numberIcon = L.divIcon({
+      className: '',
+      html: `<div style="width:32px;height:32px;border-radius:50%;background:${fillColor};border:2px solid ${strokeColor};
+        display:flex;align-items:center;justify-content:center;color:${textColor};font-weight:700;font-size:13px;
+        box-shadow:0 1px 4px rgba(0,0,0,.35)">${escH(label)}</div>`,
+      iconSize: [32, 32], iconAnchor: [16, 16]
     });
 
     const infoContent = `
@@ -8433,22 +8416,17 @@ function renderTripMap(ids) {
         </div>
       </div>`;
 
-    const infoWindow = new google.maps.InfoWindow({ content: infoContent });
-    marker.addListener('click', () => {
-      tripMapMarkers.forEach(m => m._iw && m._iw.close());
-      infoWindow.open(tripMapInstance, marker);
-    });
-    marker._iw = infoWindow;
-    tripMapMarkers.push(marker);
-    bounds.extend(coords);
+    L.marker([coords.lat, coords.lng], { icon: numberIcon, zIndexOffset: isAnchor ? 100 : idx })
+      .bindPopup(infoContent)
+      .addTo(tripMapMarkersLayer);
+    bounds.push([coords.lat, coords.lng]);
   });
 
   // 自動調整視野
-  if (points.length === 1) {
-    tripMapInstance.setCenter(points[0].coords);
-    tripMapInstance.setZoom(15);
-  } else {
-    tripMapInstance.fitBounds(bounds, { top: 40, bottom: 40, left: 40, right: 40 });
+  if (points.length === 1 && bounds.length === 1) {
+    tripMapInstance.setView(bounds[0], 15);
+  } else if (bounds.length) {
+    try{ tripMapInstance.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 }); }catch(e){}
   }
 }
 
@@ -10656,12 +10634,21 @@ let _invMapMarkersLayer = null;
 let _invMapLibsLoaded = false;
 
 function _loadScriptOnce(src, integrity){
-  if(document.querySelector(`script[src="${src}"]`)) return Promise.resolve();
+  const existing = document.querySelector(`script[src="${src}"]`);
+  if(existing){
+    // 已有這個 script 標籤：若已執行完成直接算成功；若還在載入中，掛上事件監聽等它完成（不能假設已成功，
+    // 否則短時間內重複觸發載入時，第二次呼叫會在第一次還沒真的載完時就誤判成功）
+    if(existing.dataset.loaded === '1') return Promise.resolve();
+    return new Promise((resolve, reject)=>{
+      existing.addEventListener('load', () => resolve(), {once:true});
+      existing.addEventListener('error', () => reject(new Error('script load failed: ' + src)), {once:true});
+    });
+  }
   return new Promise((resolve, reject)=>{
     const s = document.createElement('script');
     s.src = src;
     if(integrity){ s.integrity = integrity; s.crossOrigin = 'anonymous'; s.referrerPolicy = 'no-referrer'; }
-    s.onload = () => resolve();
+    s.onload = () => { s.dataset.loaded = '1'; resolve(); };
     s.onerror = () => reject(new Error('script load failed: ' + src));
     document.head.appendChild(s);
   });
@@ -10670,8 +10657,8 @@ function _ensureLeafletCss(){
   if(document.querySelector('link[data-leaflet]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
-  link.integrity = 'sha512-sA+zWATbFveLLNimlH+K+K2h2S/gLc4TfNIsGVoUwvevF9uPUC5CJnwCZjb7uJoJC0ppcgTGx8O0EqUxOZbBQg==';
+  link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+  link.integrity = 'sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=';
   link.crossOrigin = 'anonymous';
   link.referrerPolicy = 'no-referrer';
   link.setAttribute('data-leaflet', '1');
@@ -10681,8 +10668,8 @@ async function _ensureLeafletLoaded(){
   if(_invMapLibsLoaded && window.L) return;
   _ensureLeafletCss();
   await _loadScriptOnce(
-    'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js',
-    'sha512-BwHfrr4c9kmRkLw6iXFdzcdWV/PGkVgiIyIWLLlTSXzWQzxuSg4DiQUCpauz/EWjgk5TYQqX/kvn9pG1NpYfqg=='
+    'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
+    'sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo='
   );
   _invMapLibsLoaded = true;
 }
