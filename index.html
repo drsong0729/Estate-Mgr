@@ -3519,6 +3519,14 @@ render();
           <div style="font-size:11px;color:var(--tx3);margin-top:6px">照片存放於 Cloudinary（免費方案，第三方服務），列表與相簿顯示縮圖，點開才載入原始畫質。</div>
         </div>
       </div>
+      <div class="fg" id="ec-features-wrap" style="display:none;margin-top:10px">
+        <div class="fgp">
+          <label class="lbl">物件特色</label>
+          <div id="ec-features-list"></div>
+          <button type="button" class="btn-addowner" onclick="addListingFeatureField()">＋ 新增特色</button>
+          <div style="font-size:11px;color:var(--tx3);margin-top:6px">會依填寫順序自動編號，顯示在「生成廣告」的廣告頁裡。</div>
+        </div>
+      </div>
       <div class="fg fg2" style="margin-top:10px">
         <div class="fgp"><label class="lbl" id="ec2-fee-label">服務費（%）</label>
           <input class="fc" type="number" id="ec2-fee" step="0.1" min="0" max="100"></div>
@@ -4884,6 +4892,9 @@ function openRecruitModal(id,pool){
   const photosWrap = document.getElementById('ec-photos-wrap');
   if(photosWrap) photosWrap.style.display = 'none';
   setListingPhotos([]);
+  const featuresWrap = document.getElementById('ec-features-wrap');
+  if(featuresWrap) featuresWrap.style.display = 'none';
+  setListingFeatures(null);
   // 顯示/隱藏委託專屬欄位區塊
   const ecExtra = document.getElementById('ec-extra-section');
   if(ecExtra) ecExtra.style.display = isComm ? 'block' : 'none';
@@ -5262,6 +5273,40 @@ function _channelsDisplayHtml(r){
   return `<div style="font-size:11px;margin-bottom:4px;display:flex;flex-wrap:wrap;gap:2px 8px">${parts.join('')}</div>`;
 }
 
+// ─── 物件特色（依填寫順序自動編號，顯示在生成廣告的廣告頁）───────────────────────
+let _listingFeatures = [];
+function _defaultListingFeatures(){ return ['']; } // 新增委託時預設顯示 1 個空白欄位
+// 開啟編輯視窗時呼叫：features 為既有委託存的物件特色陣列，沒有資料（新增，或此功能上線前建立的舊委託）就用預設的 1 個空欄位
+function setListingFeatures(features){
+  _listingFeatures = (Array.isArray(features) && features.length) ? features.slice() : _defaultListingFeatures();
+  renderListingFeaturesUI();
+}
+// 儲存時呼叫：從畫面上目前的輸入讀出，過濾掉空白欄位（使用者按了新增特色但沒填內容的欄位不會存進去）
+function getListingFeatures(){
+  return Array.from(document.querySelectorAll('#ec-features-list input')).map(inp => inp.value.trim()).filter(Boolean);
+}
+function renderListingFeaturesUI(){
+  const box = document.getElementById('ec-features-list');
+  if(!box) return;
+  box.innerHTML = _listingFeatures.map((f, i) => `
+    <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
+      <input class="fc" value="${escAttr(f)}" placeholder="例如：近捷運站、採光通風佳、格局方正" style="flex:1">
+      <span onclick="removeListingFeatureField(${i})" title="移除這項特色" style="cursor:pointer;color:var(--red);font-weight:700;padding:4px 8px">✕</span>
+    </div>`).join('');
+}
+// 新增一個空白特色欄位：先把畫面上目前已輸入的內容同步回陣列，避免重繪時蓋掉使用者剛打的字
+function addListingFeatureField(){
+  _listingFeatures = Array.from(document.querySelectorAll('#ec-features-list input')).map(inp => inp.value);
+  _listingFeatures.push('');
+  renderListingFeaturesUI();
+}
+function removeListingFeatureField(index){
+  _listingFeatures = Array.from(document.querySelectorAll('#ec-features-list input')).map(inp => inp.value);
+  _listingFeatures.splice(index, 1);
+  if(!_listingFeatures.length) _listingFeatures = ['']; // 至少保留 1 個欄位，不會整個清空
+  renderListingFeaturesUI();
+}
+
 // 是否為「新增／編輯公司委託」模式：true 時儲存不會寫進目前登入者自己的委託清單，
 // 而是寫入（或更新）獨立的 company_listings 集合，並依所選「負責業務」歸類進公司庫存
 let _companyListingMode = false;
@@ -5296,6 +5341,9 @@ async function openCompanyListingModal(editItem){
   const photosWrap = document.getElementById('ec-photos-wrap');
   if(photosWrap) photosWrap.style.display = '';
   setListingPhotos(editItem ? editItem.photos : []);
+  const featuresWrap = document.getElementById('ec-features-wrap');
+  if(featuresWrap) featuresWrap.style.display = '';
+  setListingFeatures(editItem ? editItem.features : null);
   const agentWrap = document.getElementById('ec-agent-wrap');
   if(_companyListingLockedAgents){
     // 負責業務本人（非管理者）編輯自己也在其中的委託：隱藏負責業務欄位（不可改指派名單／角色），儲存時固定用原名單
@@ -5447,6 +5495,7 @@ async function _saveCompanyListing(data){
       assignedAgentName: (agentsWithRatio.find(a=>a.role==='dev') || agentsWithRatio[0]).name,
       listingChannels: getListingChannelsState(),
       photos: getListingPhotos(),
+      features: getListingFeatures(),
       updatedAt: nowIso
     };
     if(!isEdit){
@@ -5505,6 +5554,8 @@ function openAdminEditSyncModal(item){
   if(channelsWrap) channelsWrap.style.display = 'none';
   const photosWrap = document.getElementById('ec-photos-wrap');
   if(photosWrap) photosWrap.style.display = 'none';
+  const featuresWrap = document.getElementById('ec-features-wrap');
+  if(featuresWrap) featuresWrap.style.display = 'none';
   const agentWrap = document.getElementById('ec-agent-wrap');
   if(agentWrap) agentWrap.style.display = 'none';
   const titleEl = document.getElementById('recruit-modal-title');
@@ -5629,6 +5680,46 @@ function _buildAdFlyerHtml(r, agentInfo){
       ${morePhotos.map(p => `<div style="flex:1;height:90px;border-radius:8px;overflow:hidden"><img src="${escAttr(p.thumbUrl)}" style="width:100%;height:100%;object-fit:cover;display:block"></div>`).join('')}
     </div>` : '';
 
+  // 車位資訊：車位樓層、進入方式、車位形式、位置、備註都要顯示，只有「車位編號」不顯示
+  // （車位編號是內部管理用，公開廣告不適合曝光確切車位號碼，其餘描述性資訊都可以公開）
+  const _fmtCarParkLine = p => {
+    const parts = [];
+    if(p.floor) parts.push(p.floor);
+    if(p.access) parts.push(p.access);
+    if(p.type) parts.push(p.type + '車位' + ((p.type==='機械' && p.position) ? `（${p.position}）` : ''));
+    let line = parts.join('・');
+    if(p.notes) line += (line ? '　' : '') + '📝' + p.notes;
+    return line;
+  };
+  const _fmtMotoParkLine = p => p.notes ? '📝' + p.notes : '';
+  const carParkList = Array.isArray(r.carParking) ? r.carParking : [];
+  const motoParkList = Array.isArray(r.motoParking) ? r.motoParking : [];
+  const carLines = carParkList.map(_fmtCarParkLine);
+  const motoLines = motoParkList.map(_fmtMotoParkLine);
+  const parkingHtml = (carParkList.length || motoParkList.length) ? `
+    <div style="margin-top:14px">
+      ${carParkList.length ? `
+        <div style="font-size:14px;font-weight:700;color:#0f519b;margin-bottom:3px">🚗 汽車位（共 ${carParkList.length} 個）</div>
+        ${carLines.map(l => `<div style="font-size:13px;color:#3d526b;margin-bottom:2px;padding-left:22px">・${l ? escH(l) : '（未填寫詳細資訊）'}</div>`).join('')}
+      ` : ''}
+      ${motoParkList.length ? `
+        <div style="font-size:14px;font-weight:700;color:#0f519b;margin-top:${carParkList.length?'6px':'0'};margin-bottom:3px">🛵 機車位（共 ${motoParkList.length} 個）</div>
+        ${motoLines.map(l => `<div style="font-size:13px;color:#3d526b;margin-bottom:2px;padding-left:22px">・${l ? escH(l) : '（未填寫備註）'}</div>`).join('')}
+      ` : ''}
+    </div>` : '';
+
+  // 物件特色：依填寫順序自動編號
+  const features = (Array.isArray(r.features) ? r.features : []).filter(f => f && f.trim());
+  const featuresHtml = features.length ? `
+    <div style="margin-top:16px">
+      <div style="font-size:15px;font-weight:700;color:#0f519b;margin-bottom:6px">✨ 物件特色</div>
+      ${features.map((f, i) => `
+        <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:5px">
+          <span style="flex:0 0 auto;width:20px;height:20px;border-radius:50%;background:#0f519b;color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center">${i+1}</span>
+          <span style="font-size:14px;color:#1a2332;line-height:1.5">${escH(f)}</span>
+        </div>`).join('')}
+    </div>` : '';
+
   return `
   <div style="width:794px;height:1123px;background:#fff;font-family:'Noto Sans TC',sans-serif;display:flex;flex-direction:column;box-sizing:border-box;overflow:hidden">
     <div style="flex:0 0 10px;background:linear-gradient(90deg,#0f519b,#fece26)"></div>
@@ -5650,6 +5741,8 @@ function _buildAdFlyerHtml(r, agentInfo){
         ${(!isRental && r.unit) ? statItem('💰','單價', r.unit+' 萬/坪') : ''}
       </div>
       <div style="font-size:15px;color:#3d526b;line-height:1.6">📍 ${escH(addr)}</div>
+      ${parkingHtml}
+      ${featuresHtml}
       ${galleryHtml}
     </div>
     <div style="flex:0 0 auto;background:#0f519b;color:#fff;padding:18px 40px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
