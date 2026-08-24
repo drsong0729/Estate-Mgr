@@ -7760,10 +7760,26 @@ function _locationIqThrottle(){
 function _looksLikeLandParcel(addr){
   return /段\s*\d+(?:-\d+)?\s*地號/.test(addr);
 }
+// 把地址裡「門牌號碼之後」的樓層／之幾號資訊去掉，只留到門牌號碼為止。
+// 例如「高雄市三民區建國三路407號7樓之3」→「高雄市三民區建國三路407號」。
+// 樓層、室內分號本來就不是地址定位服務查得到的層級（它們定位的是建築物，不是樓層），
+// 留著反而可能讓查詢字串比對不到資料，乾脆先去掉再查。
+function _stripFloorSuffix(addr){
+  return addr.replace(/^(.*?\d+號).*$/, '$1');
+}
+// 把地址裡「巷弄門牌」整段去掉，只留到街道名稱（含「段」）。用於前面完整地址查無結果時的退而求其次，
+// 至少能定位到大略街廓範圍。例如「高雄市鼓山區美術北五街59巷1號」→「高雄市鼓山區美術北五街」。
+function _stripLaneLevel(addr){
+  const m = addr.match(/^(.*?(?:路|街)(?:[一二三四五六七八九十百0-9]+段)?)\d+巷/);
+  return m ? m[1] : null;
+}
 // addr：完整地址字串（用來送出查詢）；expectedCity：期望的縣市（例如「屏東縣」），有提供的話，
 // 會優先挑選查詢結果中「地址描述裡確實包含這個縣市」的那一筆，避免同名路段配對到別的縣市去
 // （例如「復興路」「明華路」「博愛路」這類路名，全台灣好幾個縣市都有同名的路）
 function geocodeAddr(addr, expectedCity) {
+  // 樓層／之幾號等門牌號碼之後的細節，地址定位服務本來就查不到（它們定位的是建築物本身），
+  // 先去掉再查，同時也讓同一棟樓不同樓層的地址能共用同一筆快取結果
+  addr = _stripFloorSuffix(addr);
   const key = _normAddr(addr) + (expectedCity ? '|' + _normAddr(expectedCity) : '');
   // 命中跨 session 快取 → 立即回傳，免打 API（快取鍵含 expectedCity，此次修正前查到的錯誤結果不會被沿用）
   if (geoAddrCache[key]) return Promise.resolve(geoAddrCache[key]);
@@ -7812,6 +7828,19 @@ function geocodeAddr(addr, expectedCity) {
       return null;
     }
   })();
+}
+// 完整地址（含巷弄門牌）查無結果時的退而求其次：去掉巷弄門牌只留到街道名稱重查一次，
+// 至少能定位到大略街廓範圍（例如巷弄層級的門牌資料在地圖資料庫裡本來就不完整時）。
+// 回傳 {coords, approx}：approx=true 代表這是退而求其次的大略位置，不是精確門牌。
+async function geocodeAddrProgressive(addr, expectedCity){
+  const full = await geocodeAddr(addr, expectedCity);
+  if(full) return { coords: full, approx: false };
+  const simplified = _stripLaneLevel(_stripFloorSuffix(addr));
+  if(simplified && simplified !== addr){
+    const approx = await geocodeAddr(simplified, expectedCity);
+    if(approx) return { coords: approx, approx: true };
+  }
+  return { coords: null, approx: false };
 }
 
 async function processGeoQueue() {
@@ -10762,9 +10791,13 @@ async function renderInventoryMap(){
     const addr = hasAddr ? fullAddr(r.propCity, r.propDist, r.propAddr) : '';
     const isLandParcel = hasAddr && _looksLikeLandParcel(addr);
     if(isLandParcel) landParcelCount++;
-    let coords = null;
+    let coords = null, isApprox = false;
     if(hasAddr && !isLandParcel && addr.trim()){
-      try{ coords = await geocodeAddr(addr, r.propCity); }catch(e){ coords = null; }
+      try{
+        const result = await geocodeAddrProgressive(addr, r.propCity);
+        coords = result.coords;
+        isApprox = result.approx;
+      }catch(e){ coords = null; }
     }
     done++;
     if(coords && typeof coords.lat === 'number' && typeof coords.lng === 'number'){
@@ -10778,6 +10811,7 @@ async function renderInventoryMap(){
         <div style="color:#666">📍 ${escH(addr)}</div>
         ${r.listingNo?`<div style="color:#666">🔖 ${escH(r.listingNo)}</div>`:''}
         ${r.total?`<div style="margin-top:4px">總價 <strong>${escH(String(r.total))}</strong> 萬</div>`:''}
+        ${isApprox?`<div style="color:#c05621;font-size:11px;margin-top:4px">⚠️ 巷弄門牌查無資料，僅定位到街道大略位置</div>`:''}
       </div>`;
       L.marker([coords.lat, coords.lng]).bindPopup(popupHtml).addTo(_invMapMarkersLayer);
     }
