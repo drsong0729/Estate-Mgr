@@ -1726,6 +1726,7 @@ function gm_authFailure() {
       <option value="農地">農地</option>
     </select>
     <button class="btn btn-p" id="inv-add-listing-btn" style="display:none" onclick="openCompanyListingModal()">🏢 新增公司委託</button>
+    <button class="btn btn-g" id="inv-map-toggle-btn" style="font-size:12px;padding:6px 10px" onclick="toggleInventoryMapView()">🗺️ 地圖檢視</button>
     <button class="btn btn-g" style="font-size:12px;padding:6px 10px" onclick="printInventory()">🖨️ 列印</button>
     <button class="btn btn-g" style="font-size:12px;padding:6px 10px" onclick="exportInventoryPdf()">⬇️ 匯出 PDF</button>
   </div>
@@ -1735,6 +1736,12 @@ function gm_authFailure() {
   </div>
   <!-- 統計 -->
   <div id="inv-stats" style="display:flex;gap:10px;flex-wrap:wrap;padding:0 16px 12px"></div>
+  <!-- 地圖檢視（預設隱藏，點「🗺️ 地圖檢視」才載入 Leaflet + CARTO 底圖並開始定位） -->
+  <div id="inv-map-container" style="display:none;padding:0 16px 16px">
+    <div id="inv-map-status" style="font-size:12px;color:var(--tx3);margin-bottom:8px"></div>
+    <div id="inv-map" style="height:600px;border-radius:12px;border:1px solid var(--bdr);background:var(--bg2)"></div>
+    <div style="font-size:11px;color:var(--tx3);margin-top:6px">📍 地圖定位僅供參考，依地址自動轉換座標，可能與實際門牌位置有些許誤差。底圖 © CARTO, © OpenStreetMap contributors</div>
+  </div>
   <!-- 列表 -->
   <div id="inv-list" style="padding:0 16px 24px"></div>
 </div>
@@ -10637,6 +10644,143 @@ body{padding:16px}
       alert('PDF 產生失敗，請確認網路連線後再試。\n' + e.message);
     }
   })();
+}
+
+// ── 地圖檢視（CARTO 免費底圖 + Leaflet.js 繪製標記）───────────────────────────
+// 座標透過既有的 Google 地址轉座標功能取得（geocodeAddr），與「行程規劃」共用同一份
+// 跨 session 地址座標快取（geoAddrCache，存在 localStorage），同一地址不會重複呼叫定位服務。
+// 底圖使用 CARTO 的公開免費底圖（Voyager 樣式），不需要申請帳號或金鑰。
+let _invMapMode = false;
+let _invMapInstance = null;
+let _invMapMarkersLayer = null;
+let _invMapLibsLoaded = false;
+
+function _loadScriptOnce(src, integrity){
+  if(document.querySelector(`script[src="${src}"]`)) return Promise.resolve();
+  return new Promise((resolve, reject)=>{
+    const s = document.createElement('script');
+    s.src = src;
+    if(integrity){ s.integrity = integrity; s.crossOrigin = 'anonymous'; s.referrerPolicy = 'no-referrer'; }
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('script load failed: ' + src));
+    document.head.appendChild(s);
+  });
+}
+function _ensureLeafletCss(){
+  if(document.querySelector('link[data-leaflet]')) return;
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
+  link.integrity = 'sha512-sA+zWATbFveLLNimlH+K+K2h2S/gLc4TfNIsGVoUwvevF9uPUC5CJnwCZjb7uJoJC0ppcgTGx8O0EqUxOZbBQg==';
+  link.crossOrigin = 'anonymous';
+  link.referrerPolicy = 'no-referrer';
+  link.setAttribute('data-leaflet', '1');
+  document.head.appendChild(link);
+}
+async function _ensureLeafletLoaded(){
+  if(_invMapLibsLoaded && window.L) return;
+  _ensureLeafletCss();
+  await _loadScriptOnce(
+    'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js',
+    'sha512-BwHfrr4c9kmRkLw6iXFdzcdWV/PGkVgiIyIWLLlTSXzWQzxuSg4DiQUCpauz/EWjgk5TYQqX/kvn9pG1NpYfqg=='
+  );
+  _invMapLibsLoaded = true;
+}
+function toggleInventoryMapView(){
+  _invMapMode = !_invMapMode;
+  const mapContainer = document.getElementById('inv-map-container');
+  const listContainer = document.getElementById('inv-list');
+  const statsContainer = document.getElementById('inv-stats');
+  const btn = document.getElementById('inv-map-toggle-btn');
+  if(_invMapMode){
+    if(mapContainer) mapContainer.style.display = '';
+    if(listContainer) listContainer.style.display = 'none';
+    if(statsContainer) statsContainer.style.display = 'none';
+    if(btn) btn.textContent = '📋 列表檢視';
+    renderInventoryMap();
+  } else {
+    if(mapContainer) mapContainer.style.display = 'none';
+    if(listContainer) listContainer.style.display = '';
+    if(statsContainer) statsContainer.style.display = '';
+    if(btn) btn.textContent = '🗺️ 地圖檢視';
+  }
+}
+// 依目前的搜尋／篩選條件（跟列表共用同一套 _invGetFilteredGroups()）取出要顯示在地圖上的物件，
+// 逐筆定位並分批平行處理（避免瞬間打爆定位服務），完成後自動縮放地圖範圍到涵蓋所有標記
+async function renderInventoryMap(){
+  const statusEl = document.getElementById('inv-map-status');
+  const mapEl = document.getElementById('inv-map');
+  if(!mapEl) return;
+  if(statusEl) statusEl.textContent = '⏳ 載入地圖套件中…';
+  try{
+    await _ensureLeafletLoaded();
+  }catch(e){
+    if(statusEl) statusEl.textContent = '⚠️ 地圖套件載入失敗，請檢查網路連線後重新整理再試';
+    return;
+  }
+  if(!window.L){ if(statusEl) statusEl.textContent = '⚠️ 地圖套件載入異常'; return; }
+
+  if(!_invMapInstance){
+    _invMapInstance = L.map('inv-map').setView([22.6845, 120.2946], 13); // 預設置中：高雄市左營區
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://carto.com/attributions">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      subdomains: 'abcd',
+      maxZoom: 20
+    }).addTo(_invMapInstance);
+    _invMapMarkersLayer = L.layerGroup().addTo(_invMapInstance);
+  } else {
+    // 地圖容器曾經 display:none 期間，Leaflet 量不到尺寸；重新顯示後需通知它重新計算大小
+    setTimeout(() => _invMapInstance.invalidateSize(), 50);
+  }
+  _invMapMarkersLayer.clearLayers();
+
+  const { filtered } = _invGetFilteredGroups();
+  if(!filtered.length){
+    if(statusEl) statusEl.textContent = '📭 目前條件下沒有可顯示的物件';
+    return;
+  }
+
+  if(statusEl) statusEl.textContent = `⏳ 定位中… 0 / ${filtered.length}`;
+  let done = 0, located = 0;
+  const bounds = [];
+  const CONCURRENCY = 6;
+  let idx = 0;
+  const worker = async () => {
+    while(idx < filtered.length){
+      const r = filtered[idx++];
+      const addr = fullAddr(r.propCity, r.propDist, r.propAddr);
+      let coords = null;
+      if(addr && addr.trim()){
+        try{ coords = await geocodeAddr(addr); }catch(e){ coords = null; }
+      }
+      done++;
+      if(coords && typeof coords.lat === 'number' && typeof coords.lng === 'number'){
+        located++;
+        bounds.push([coords.lat, coords.lng]);
+        const ownLabel = r.owners && r.owners.length ? r.owners.map(o=>o.name).join('、') : (r.ownerName||'—');
+        const title = r.caseName || r.bldg || ownLabel || '（未命名物件）';
+        const popupHtml = `<div style="font-size:13px;min-width:180px">
+          <div style="font-weight:700;margin-bottom:4px">${escH(title)}</div>
+          ${r.bldg?`<div style="color:#666">🏢 ${escH(r.bldg)}</div>`:''}
+          <div style="color:#666">📍 ${escH(addr)}</div>
+          ${r.listingNo?`<div style="color:#666">🔖 ${escH(r.listingNo)}</div>`:''}
+          ${r.total?`<div style="margin-top:4px">總價 <strong>${escH(String(r.total))}</strong> 萬</div>`:''}
+        </div>`;
+        L.marker([coords.lat, coords.lng]).bindPopup(popupHtml).addTo(_invMapMarkersLayer);
+      }
+      if(statusEl) statusEl.textContent = `⏳ 定位中… ${done} / ${filtered.length}（已定位 ${located} 筆）`;
+    }
+  };
+  await Promise.all(Array.from({length: Math.min(CONCURRENCY, filtered.length)}, worker));
+
+  if(statusEl){
+    statusEl.textContent = located < filtered.length
+      ? `📍 共 ${filtered.length} 筆，已定位 ${located} 筆（${filtered.length-located} 筆地址無法定位，可能是地址不完整）`
+      : `📍 共 ${filtered.length} 筆，全部已定位`;
+  }
+  if(bounds.length){
+    try{ _invMapInstance.fitBounds(bounds, {padding:[30,30], maxZoom:16}); }catch(e){}
+  }
 }
 
 // 從匹配視窗跳到該物件所在頁面並展開細項
