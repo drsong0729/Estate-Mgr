@@ -7740,19 +7740,34 @@ function _syncTripLocationBar() {
 // ── 地址定位（原本使用 Google Geocoder，改用 LocationIQ 免費方案）─────────────────────
 // 部署前請先到 https://locationiq.com 免費註冊，取得你自己的 API 金鑰，貼到下面這行：
 const LOCATIONIQ_API_KEY = 'pk.6817d9e0a8bed4345af9c0102678c4e1';
-// LocationIQ 免費方案限制每秒最多 2 次查詢；這裡做一個簡單節流佇列，確保呼叫間隔留有餘裕不會被拒絕
+// LocationIQ 免費方案限制每秒最多 2 次查詢。這裡用「串接同一條 Promise 佇列」的方式節流，
+// 確保「所有」呼叫（包含同時有好幾個並行任務在查詢時）都真的依序間隔，不會因為好幾個呼叫
+// 同時檢查「該不該等」而一起卡在同一瞬間搶著送出、一次超量觸發 429 被拒絕
 let _locationIqLastCallAt = 0;
 const LOCATIONIQ_MIN_INTERVAL_MS = 550;
-async function _locationIqThrottle(){
-  const now = Date.now();
-  const wait = Math.max(0, _locationIqLastCallAt + LOCATIONIQ_MIN_INTERVAL_MS - now);
-  if(wait > 0) await new Promise(r => setTimeout(r, wait));
-  _locationIqLastCallAt = Date.now();
+let _locationIqQueueTail = Promise.resolve();
+function _locationIqThrottle(){
+  const p = _locationIqQueueTail.then(() => new Promise(resolve => {
+    const wait = Math.max(0, _locationIqLastCallAt + LOCATIONIQ_MIN_INTERVAL_MS - Date.now());
+    setTimeout(() => { _locationIqLastCallAt = Date.now(); resolve(); }, wait);
+  }));
+  _locationIqQueueTail = p; // 就算上一筆查詢後續處理失敗，佇列本身（排隊等待）不會中斷
+  return p;
 }
-function geocodeAddr(addr) {
-  const key = _normAddr(addr);
-  // 命中跨 session 快取 → 立即回傳，免打 API
+// 地址是否看起來是「地號」而非一般門牌地址（例如：橫山段1112地號）。地號屬於地籍資料，
+// 一般地址定位服務（LocationIQ、Nominatim、甚至 Google）都查不到，需改用地政地籍圖查詢，
+// 這裡偵測到這種格式就直接跳過不查，避免顯示「查到別處去」的錯誤位置
+function _looksLikeLandParcel(addr){
+  return /段\s*\d+(?:-\d+)?\s*地號/.test(addr);
+}
+// addr：完整地址字串（用來送出查詢）；expectedCity：期望的縣市（例如「屏東縣」），有提供的話，
+// 會優先挑選查詢結果中「地址描述裡確實包含這個縣市」的那一筆，避免同名路段配對到別的縣市去
+// （例如「復興路」「明華路」「博愛路」這類路名，全台灣好幾個縣市都有同名的路）
+function geocodeAddr(addr, expectedCity) {
+  const key = _normAddr(addr) + (expectedCity ? '|' + _normAddr(expectedCity) : '');
+  // 命中跨 session 快取 → 立即回傳，免打 API（快取鍵含 expectedCity，此次修正前查到的錯誤結果不會被沿用）
   if (geoAddrCache[key]) return Promise.resolve(geoAddrCache[key]);
+  if (_looksLikeLandParcel(addr)) return Promise.resolve(null);
   return (async () => {
     if(!LOCATIONIQ_API_KEY || LOCATIONIQ_API_KEY === 'YOUR_LOCATIONIQ_API_KEY_HERE'){
       geocoderFailed = true;
@@ -7761,7 +7776,8 @@ function geocodeAddr(addr) {
     }
     try{
       await _locationIqThrottle();
-      const url = `https://us1.locationiq.com/v1/search?key=${encodeURIComponent(LOCATIONIQ_API_KEY)}&q=${encodeURIComponent(addr)}&format=json&countrycodes=tw&limit=1`;
+      // limit=3：多要幾筆候選結果，才有得挑「地址描述裡真的包含期望縣市」的那一筆
+      const url = `https://us1.locationiq.com/v1/search?key=${encodeURIComponent(LOCATIONIQ_API_KEY)}&q=${encodeURIComponent(addr)}&format=json&countrycodes=tw&limit=3`;
       const ctrl = new AbortController();
       const to = setTimeout(() => ctrl.abort(), 12000); // 整體逾時，避免單筆卡死整列
       const res = await fetch(url, { signal: ctrl.signal });
@@ -7773,7 +7789,16 @@ function geocodeAddr(addr) {
       }
       const data = await res.json();
       if(Array.isArray(data) && data.length > 0){
-        const lat = parseFloat(data[0].lat), lng = parseFloat(data[0].lon);
+        const norm = s => (s||'').replace(/臺/g,'台');
+        let pick = data[0];
+        if(expectedCity){
+          const found = data.find(d => norm(d.display_name).includes(norm(expectedCity)));
+          // 期望縣市有指定、但沒有任何候選結果的地址描述裡包含這個縣市：
+          // 寧可判定「查無結果」，也不要顯示可能配對到別的縣市去的錯誤位置
+          if(!found) return null;
+          pick = found;
+        }
+        const lat = parseFloat(pick.lat), lng = parseFloat(pick.lon);
         if(!isNaN(lat) && !isNaN(lng)){
           const val = { lat, lng };
           geoAddrCache[key] = val;
@@ -10728,42 +10753,43 @@ async function renderInventoryMap(){
   }
 
   if(statusEl) statusEl.textContent = `⏳ 定位中… 0 / ${filtered.length}`;
-  let done = 0, located = 0;
+  let done = 0, located = 0, landParcelCount = 0;
   const bounds = [];
-  const CONCURRENCY = 6;
-  let idx = 0;
-  const worker = async () => {
-    while(idx < filtered.length){
-      const r = filtered[idx++];
-      const addr = fullAddr(r.propCity, r.propDist, r.propAddr);
-      let coords = null;
-      if(addr && addr.trim()){
-        try{ coords = await geocodeAddr(addr); }catch(e){ coords = null; }
-      }
-      done++;
-      if(coords && typeof coords.lat === 'number' && typeof coords.lng === 'number'){
-        located++;
-        bounds.push([coords.lat, coords.lng]);
-        const ownLabel = r.owners && r.owners.length ? r.owners.map(o=>o.name).join('、') : (r.ownerName||'—');
-        const title = r.caseName || r.bldg || ownLabel || '（未命名物件）';
-        const popupHtml = `<div style="font-size:13px;min-width:180px">
-          <div style="font-weight:700;margin-bottom:4px">${escH(title)}</div>
-          ${r.bldg?`<div style="color:#666">🏢 ${escH(r.bldg)}</div>`:''}
-          <div style="color:#666">📍 ${escH(addr)}</div>
-          ${r.listingNo?`<div style="color:#666">🔖 ${escH(r.listingNo)}</div>`:''}
-          ${r.total?`<div style="margin-top:4px">總價 <strong>${escH(String(r.total))}</strong> 萬</div>`:''}
-        </div>`;
-        L.marker([coords.lat, coords.lng]).bindPopup(popupHtml).addTo(_invMapMarkersLayer);
-      }
-      if(statusEl) statusEl.textContent = `⏳ 定位中… ${done} / ${filtered.length}（已定位 ${located} 筆）`;
+  // 節流已經在 geocodeAddr 內部用單一佇列序列化，這裡改成單純依序處理，不再需要並行 worker
+  // （並行送出也只會全部卡在同一條節流佇列後面排隊，不會比較快，反而增加誤觸發限流的風險）
+  for(const r of filtered){
+    const hasAddr = !!(r.propCity || r.propDist || r.propAddr); // 三個欄位都空的話不送出查詢，省下無意義的 API 呼叫
+    const addr = hasAddr ? fullAddr(r.propCity, r.propDist, r.propAddr) : '';
+    const isLandParcel = hasAddr && _looksLikeLandParcel(addr);
+    if(isLandParcel) landParcelCount++;
+    let coords = null;
+    if(hasAddr && !isLandParcel && addr.trim()){
+      try{ coords = await geocodeAddr(addr, r.propCity); }catch(e){ coords = null; }
     }
-  };
-  await Promise.all(Array.from({length: Math.min(CONCURRENCY, filtered.length)}, worker));
+    done++;
+    if(coords && typeof coords.lat === 'number' && typeof coords.lng === 'number'){
+      located++;
+      bounds.push([coords.lat, coords.lng]);
+      const ownLabel = r.owners && r.owners.length ? r.owners.map(o=>o.name).join('、') : (r.ownerName||'—');
+      const title = r.caseName || r.bldg || ownLabel || '（未命名物件）';
+      const popupHtml = `<div style="font-size:13px;min-width:180px">
+        <div style="font-weight:700;margin-bottom:4px">${escH(title)}</div>
+        ${r.bldg?`<div style="color:#666">🏢 ${escH(r.bldg)}</div>`:''}
+        <div style="color:#666">📍 ${escH(addr)}</div>
+        ${r.listingNo?`<div style="color:#666">🔖 ${escH(r.listingNo)}</div>`:''}
+        ${r.total?`<div style="margin-top:4px">總價 <strong>${escH(String(r.total))}</strong> 萬</div>`:''}
+      </div>`;
+      L.marker([coords.lat, coords.lng]).bindPopup(popupHtml).addTo(_invMapMarkersLayer);
+    }
+    if(statusEl) statusEl.textContent = `⏳ 定位中… ${done} / ${filtered.length}（已定位 ${located} 筆）`;
+  }
 
   if(statusEl){
-    statusEl.textContent = located < filtered.length
-      ? `📍 共 ${filtered.length} 筆，已定位 ${located} 筆（${filtered.length-located} 筆地址無法定位，可能是地址不完整）`
-      : `📍 共 ${filtered.length} 筆，全部已定位`;
+    const unlocatedNonParcel = filtered.length - located - landParcelCount;
+    const parts = [`📍 共 ${filtered.length} 筆，已定位 ${located} 筆`];
+    if(unlocatedNonParcel > 0) parts.push(`${unlocatedNonParcel} 筆地址查無結果或不完整`);
+    if(landParcelCount > 0) parts.push(`${landParcelCount} 筆為地號（非門牌地址，無法用一般地址定位服務查詢，請改查地籍圖）`);
+    statusEl.textContent = parts.join('，');
   }
   if(bounds.length){
     try{ _invMapInstance.fitBounds(bounds, {padding:[30,30], maxZoom:16}); }catch(e){}
