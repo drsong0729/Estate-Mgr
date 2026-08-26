@@ -5600,9 +5600,25 @@ async function deleteCompanyListing(item){
   if(!isAdmin && !isOwner) return;
   if(!item.id){ alert('⚠️ 找不到此筆委託的資料編號，無法刪除'); return; }
   const label = item.caseName || item.ownerName || (item.owners&&item.owners[0]&&item.owners[0].name) || '此筆';
-  if(!confirm(`確定要刪除「${label}」這筆公司委託嗎？此操作無法復原。`)) return;
+  const isSync = item._src === 'sync';
+  const confirmMsg = isSync
+    ? `確定要刪除「${item._agentName||'該業務'}」名下的「${label}」這筆委託嗎？此操作無法復原。`
+    : `確定要刪除「${label}」這筆公司委託嗎？此操作無法復原。`;
+  if(!confirm(confirmMsg)) return;
   try{
-    await window._firebaseDeleteDoc(window._firebaseCompanyListingRef(item.id));
+    if(isSync){
+      // 業務自己在委託頁面建立、自動同步進來的委託：從該業務本人的個人委託清單移除這一筆
+      const targetUid = item._agentUid;
+      if(!targetUid){ alert('⚠️ 找不到這筆委託的所屬業務'); return; }
+      const ref = window._firebaseDocRef(targetUid);
+      const snap = await window._firebaseGetDoc(ref);
+      if(!snap.exists()){ alert('⚠️ 找不到該業務的個人資料文件'); return; }
+      const remote = snap.data();
+      const commissionArr = (remote.commission || []).filter(x=>x.id !== item.id);
+      await window._firebaseSetDoc(ref, { commission: commissionArr, updatedAt: new Date().toISOString() }, {merge:true});
+    } else {
+      await window._firebaseDeleteDoc(window._firebaseCompanyListingRef(item.id));
+    }
     await loadInventoryFromFirestore();
     renderInventory();
   }catch(e){
@@ -6071,14 +6087,19 @@ function openCompanyDealModal(item){
   const isOwner = !!(myUid && (item._agentUids||[]).includes(myUid));
   if(!isAdmin && !isOwner) return;
   if(!item.id){ alert('⚠️ 找不到此筆委託的資料編號，無法標記成交'); return; }
-  if(!item.assignedAgents || !item.assignedAgents.length){ alert('⚠️ 此筆委託沒有負責業務資料，請先編輯補上再標記成交'); return; }
-  _companyDealItem = item;
+  // 業務自己在委託頁面建立、沒有經過負責業務分工設定的委託（大多數個人委託屬於此類），
+  // 沒有 assignedAgents 資料時，視為「只有開發業務」單人 100%，不擋下標記成交
+  const assignedAgents = (item.assignedAgents && item.assignedAgents.length)
+    ? item.assignedAgents
+    : [{ uid: item._agentUid, name: item._agentName || '', role: 'dev', ratio: 1 }];
+  if(!assignedAgents[0] || !assignedAgents[0].uid){ alert('⚠️ 找不到這筆委託的負責業務資料，無法標記成交'); return; }
+  _companyDealItem = { ...item, assignedAgents };
   const ownLabel = item.owners&&item.owners.length ? item.owners.map(o=>o.name).join('、') : (item.ownerName||'—');
   const addr = fullAddr(item.propCity, item.propDist, item.propAddr);
   document.getElementById('cd-info').innerHTML = `
     <div style="font-weight:700;font-size:15px;margin-bottom:4px">${escH(item.caseName || ownLabel)}</div>
     <div style="font-size:12px;color:var(--tx2)">📍 ${escH(addr)}</div>
-    <div style="font-size:12px;color:var(--tx2);margin-top:2px">👥 負責業務：${escH((item.assignedAgents||[]).map(a=>`${a.name}(${AGENT_ROLE_LABELS[a.role]||a.role})`).join('、'))}</div>`;
+    <div style="font-size:12px;color:var(--tx2);margin-top:2px">👥 負責業務：${escH(assignedAgents.map(a=>`${a.name}(${AGENT_ROLE_LABELS[a.role]||a.role})`).join('、'))}</div>`;
   document.getElementById('cd-date').value = nowDate();
   document.getElementById('cd-total').value = item.total || '';
   document.getElementById('cd-fee').value = item.commFee || '';
@@ -6136,8 +6157,23 @@ async function confirmCompanyDeal(){
     };
     const ref = window._firebaseCompanyClosedNewRef();
     await window._firebaseSetDoc(ref, payload);
-    // 成交後從公司委託移除（不再是進行中的委託），避免公司庫存與已結案重複列出同一筆
-    await window._firebaseDeleteDoc(window._firebaseCompanyListingRef(item.id));
+    // 成交後把原本「進行中」的委託移除，避免公司庫存與已結案重複列出同一筆：
+    // 「新增公司委託」建立的（_src==='listing'）直接刪掉 company_listings 文件；
+    // 業務自己在委託頁面建立、自動同步進來的（_src==='sync'）則是從該業務本人的個人委託清單移除這一筆
+    if(item._src === 'sync'){
+      const targetUid = item._agentUid;
+      if(targetUid){
+        const ref2 = window._firebaseDocRef(targetUid);
+        const snap = await window._firebaseGetDoc(ref2);
+        if(snap.exists()){
+          const remote = snap.data();
+          const commissionArr = (remote.commission || []).filter(x=>x.id !== item.id);
+          await window._firebaseSetDoc(ref2, { commission: commissionArr, updatedAt: new Date().toISOString() }, {merge:true});
+        }
+      }
+    } else {
+      await window._firebaseDeleteDoc(window._firebaseCompanyListingRef(item.id));
+    }
     closeOv('companydeal');
     _companyDealItem = null;
     await Promise.all([loadInventoryFromFirestore(), loadCompanyClosedFromFirestore()]);
@@ -11233,8 +11269,10 @@ function renderInventory(){
         </div>`;
       } else if(canManageSync){
         actionsHtml = `<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+          <button class="btn btn-sm btn-comm" onclick="openCompanyDealModal(_invFindItem('${r.id}'))">🏆 標記成交</button>
           <button class="btn btn-sm btn-edit" onclick="openAdminEditSyncModal(_invFindItem('${r.id}'))">✏️ 編輯</button>
           <button class="btn btn-sm btn-g" onclick="openAdFlyerModal('${r.id}')">🖼️ 生成廣告</button>
+          <button class="btn btn-sm btn-del" onclick="deleteCompanyListing(_invFindItem('${r.id}'))">🗑 刪除</button>
         </div>`;
       }
       return `<div style="background:var(--surf);border:1px solid var(--bdr);border-radius:10px;padding:12px 14px;margin-bottom:8px">
