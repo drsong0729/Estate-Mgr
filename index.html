@@ -424,6 +424,9 @@ let tripMapMarkersLayer = null;
     <button class="drawer-nav active" id="dnav-stats" onclick="switchPage('stats');toggleDrawer()">
       <span>🏠</span> 首頁
     </button>
+    <button class="drawer-nav" id="dnav-admin" onclick="switchPage('admin');toggleDrawer()" style="display:none;margin-top:6px">
+      <span id="dnav-admin-icon">🛡</span> <span id="dnav-admin-label">主管後台</span>
+    </button>
   </div>
   <!-- 屋主／買方／工具：可收合區塊 + 主題切換／登出（常駐不受收合影響），共用同一個可捲動容器 -->
   <div style="padding:4px 10px;flex:1;overflow-y:auto;display:flex;flex-direction:column">
@@ -480,10 +483,7 @@ let tripMapMarkersLayer = null;
       <button class="drawer-nav" id="dnav-deedreceipt" onclick="switchPage('deedreceipt');toggleDrawer()" style="display:none">
         <span>🗂️</span> 契據領用
       </button>
-      <button class="drawer-nav" id="dnav-admin" onclick="switchPage('admin');toggleDrawer()" style="display:none">
-        <span id="dnav-admin-icon">🛡</span> <span id="dnav-admin-label">主管後台</span>
-      </button>
-    </div>
+      </div>
     <!-- 主題切換／登出：常駐顯示，不隨上方區塊收合 -->
     <button class="drawer-nav" id="drawer-theme-btn" onclick="toggleTheme();updateDrawerThemeBtn()"><span>🌙</span> 切換主題</button>
     <div style="height:1px;background:rgba(255,255,255,.12);margin:8px 0"></div>
@@ -3545,6 +3545,12 @@ render();
         <div class="fgp"><label class="lbl">終止日</label>
           <input class="fc" type="date" id="ec2-end"></div>
       </div>
+      <div class="fg" id="commext-wrap" style="display:none;margin-top:10px">
+        <div class="fgp">
+          <button type="button" class="btn btn-g" onclick="openCommExtModal()">🔄 委託展期</button>
+          <div id="commext-history" style="margin-top:8px"></div>
+        </div>
+      </div>
     </div>
   </div>
   <div class="mf">
@@ -3614,6 +3620,36 @@ render();
         <button class="btn btn-g" onclick="galleryNext()">下一張 ›</button>
       </div>
     </div>
+  </div>
+</div></div>
+
+<!-- 委託展期：顯示契變流水編號輸入欄與新終止日選擇，確認後更新委託終止日並記錄展延歷史 -->
+<div class="ov" id="ov-commext">
+<div class="modal modal-sm">
+  <div class="mh"><div class="mt">🔄 委託展期</div><button class="mc" onclick="closeOv('commext')">✕</button></div>
+  <div class="mb">
+    <div class="fgp"><label class="lbl">契變流水編號<span class="req">*</span></label>
+      <input class="fc" id="commext-no" placeholder="請輸入契變流水編號"></div>
+    <div class="fgp" style="margin-top:10px"><label class="lbl">展期日期（新終止日）<span class="req">*</span></label>
+      <input class="fc" type="date" id="commext-newend"></div>
+  </div>
+  <div class="mf">
+    <button class="btn btn-g" onclick="closeOv('commext')">取消</button>
+    <button class="btn btn-p" onclick="confirmCommExt()">確認展期</button>
+  </div>
+</div></div>
+
+<!-- 591展期：只需選新的到期日，確認後更新 591 到期日並記錄展延歷史 -->
+<div class="ov" id="ov-591ext">
+<div class="modal modal-sm">
+  <div class="mh"><div class="mt">🔄 591展期</div><button class="mc" onclick="closeOv('591ext')">✕</button></div>
+  <div class="mb">
+    <div class="fgp"><label class="lbl">展期日期（新到期日）<span class="req">*</span></label>
+      <input class="fc" type="date" id="ext591-newdate"></div>
+  </div>
+  <div class="mf">
+    <button class="btn btn-g" onclick="closeOv('591ext')">取消</button>
+    <button class="btn btn-p" onclick="confirm591Ext()">確認展期</button>
   </div>
 </div></div>
 
@@ -4082,6 +4118,7 @@ const ROLES = {
 const FIXED_ROLES = {
   'drsong0729@gmail.com':    ROLES.SYSADMIN,
   'a0931177561@gmail.com':   ROLES.SYSADMIN,
+  '33484871ruby@gmail.com':  ROLES.SYSADMIN,
   'simon912251@gmail.com':   ROLES.OWNER
 };
 // 可進入主管後台的身份組
@@ -4895,6 +4932,9 @@ function openRecruitModal(id,pool){
   const featuresWrap = document.getElementById('ec-features-wrap');
   if(featuresWrap) featuresWrap.style.display = 'none';
   setListingFeatures(null);
+  const commextWrap = document.getElementById('commext-wrap');
+  if(commextWrap) commextWrap.style.display = 'none';
+  renderCommExtHistory([]);
   // 顯示/隱藏委託專屬欄位區塊
   const ecExtra = document.getElementById('ec-extra-section');
   if(ecExtra) ecExtra.style.display = isComm ? 'block' : 'none';
@@ -4932,6 +4972,11 @@ function openRecruitModal(id,pool){
   document.getElementById('moto-parking-body').style.display='none';
   if(f){
     _populateRecruitFormFrom(f, isComm);
+    if(isComm){
+      const commextWrap = document.getElementById('commext-wrap');
+      if(commextWrap) commextWrap.style.display = '';
+      renderCommExtHistory(f.commExtensions || []);
+    }
   } else {
     addOwnerRow();
     // 新增募集線（僅限 pool==='recruit' 且非編輯模式，不影響追蹤線／委託的新增或任何編輯情境）：縣市預設高雄市
@@ -5264,6 +5309,10 @@ function renderListingChannelsUI(){
       <div id="ch-591-expiry-wrap" style="display:${st.listed?'':'none'};margin-top:6px">
         <label style="font-size:11px;color:var(--tx3);display:block;margin-bottom:2px">到期日</label>
         <input type="date" class="fc" id="ch-591-expiry" value="${escAttr(st.expiry||'')}">
+        <div id="ext591-wrap" style="display:${_companyListingEditId?'':'none'};margin-top:8px">
+          <button type="button" class="btn btn-g" style="font-size:12px;padding:5px 10px" onclick="open591ExtModal()">🔄 591展期</button>
+          <div id="ext591-history" style="margin-top:6px"></div>
+        </div>
       </div>` : '';
     return `<div style="padding:8px 0;border-bottom:1px solid var(--bdr)">
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
@@ -5363,6 +5412,14 @@ async function openCompanyListingModal(editItem){
   const featuresWrap = document.getElementById('ec-features-wrap');
   if(featuresWrap) featuresWrap.style.display = '';
   setListingFeatures(editItem ? editItem.features : null);
+  const commextWrap = document.getElementById('commext-wrap');
+  if(editItem){
+    if(commextWrap) commextWrap.style.display = '';
+    renderCommExtHistory(editItem.commExtensions || []);
+  } else {
+    if(commextWrap) commextWrap.style.display = 'none';
+    renderCommExtHistory([]);
+  }
   const agentWrap = document.getElementById('ec-agent-wrap');
   if(_companyListingLockedAgents){
     // 負責業務本人（非管理者）編輯自己也在其中的委託：隱藏負責業務欄位（不可改指派名單／角色），儲存時固定用原名單
@@ -5575,6 +5632,9 @@ function openAdminEditSyncModal(item){
   if(photosWrap) photosWrap.style.display = 'none';
   const featuresWrap = document.getElementById('ec-features-wrap');
   if(featuresWrap) featuresWrap.style.display = 'none';
+  const commextWrap = document.getElementById('commext-wrap');
+  if(commextWrap) commextWrap.style.display = '';
+  renderCommExtHistory(item.commExtensions || []);
   const agentWrap = document.getElementById('ec-agent-wrap');
   if(agentWrap) agentWrap.style.display = 'none';
   const titleEl = document.getElementById('recruit-modal-title');
@@ -5604,6 +5664,124 @@ async function _saveAdminEditSync(data){
   }catch(e){
     alert('⚠️ 更新失敗：' + e.message + '\n（請確認 Firestore 安全規則已開放幕僚／店秘書／系統管理員寫入 users/{uid}/data/main）');
   }
+}
+
+// ─── 委託展期 ───────────────────────────────────────────────────────
+// 「起始日／終止日」下方的展期按鈕，適用所有委託類型的編輯情境（一般委託／公司委託／
+// 幕僚代編輯其他業務同步的委託），依目前是哪一種編輯模式決定要寫回哪裡：
+//   一般委託：直接改 db.commission 裡的那筆並 save()
+//   公司委託：直接寫回該筆 company_listings 文件（merge）
+//   代編輯他人同步的委託：讀該業務完整 commission 陣列、改這一筆、整個陣列寫回（同 _saveAdminEditSync 的作法）
+function openCommExtModal(){
+  document.getElementById('commext-no').value = '';
+  document.getElementById('commext-newend').value = '';
+  openOv('commext');
+}
+async function confirmCommExt(){
+  const changeNo = (document.getElementById('commext-no').value || '').trim();
+  const newEndDate = document.getElementById('commext-newend').value;
+  if(!changeNo){ alert('請輸入契變流水編號'); return; }
+  if(!newEndDate){ alert('請選擇展期日期（新終止日）'); return; }
+  const extendedAt = nowDate() + ' ' + nowTime();
+  const entry = { changeNo, newEndDate, extendedAt };
+  try{
+    if(_companyListingEditId){
+      const ref = window._firebaseCompanyListingRef(_companyListingEditId);
+      const snap = await window._firebaseGetDoc(ref);
+      const cur = snap.exists() ? snap.data() : {};
+      const extensions = (cur.commExtensions || []).concat([entry]);
+      await window._firebaseSetDoc(ref, { commEnd: newEndDate, commExtensions: extensions }, {merge:true});
+      document.getElementById('ec2-end').value = newEndDate;
+      renderCommExtHistory(extensions);
+    } else if(_adminEditSyncTargetUid && _adminEditSyncItem){
+      const ref = window._firebaseDocRef(_adminEditSyncTargetUid);
+      const snap = await window._firebaseGetDoc(ref);
+      if(!snap.exists()){ alert('⚠️ 找不到該業務的個人資料文件'); return; }
+      const remote = snap.data();
+      const commissionArr = (remote.commission || []).slice();
+      const idx = commissionArr.findIndex(x=>x.id === _adminEditSyncItem.id);
+      if(idx === -1){ alert('⚠️ 找不到這筆委託，可能已被本人刪除或大幅修改，請重新整理公司庫存後再試'); return; }
+      const extensions = (commissionArr[idx].commExtensions || []).concat([entry]);
+      commissionArr[idx] = { ...commissionArr[idx], commEnd: newEndDate, commExtensions: extensions };
+      await window._firebaseSetDoc(ref, { commission: commissionArr, updatedAt: new Date().toISOString() }, {merge:true});
+      _adminEditSyncItem = { ..._adminEditSyncItem, commEnd: newEndDate, commExtensions: extensions };
+      document.getElementById('ec2-end').value = newEndDate;
+      renderCommExtHistory(extensions);
+    } else if(editId && editPool === 'commission'){
+      const r = db.commission.find(x=>x.id===editId);
+      if(!r){ alert('⚠️ 找不到這筆委託資料'); return; }
+      if(!r.commExtensions) r.commExtensions = [];
+      r.commExtensions.push(entry);
+      r.commEnd = newEndDate;
+      save();
+      document.getElementById('ec2-end').value = newEndDate;
+      renderCommExtHistory(r.commExtensions);
+    } else {
+      alert('⚠️ 目前不是編輯既有委託的狀態，無法展期'); return;
+    }
+    closeOv('commext');
+  }catch(e){
+    alert('⚠️ 展期失敗：' + e.message);
+  }
+}
+function renderCommExtHistory(extensions){
+  const box = document.getElementById('commext-history');
+  if(!box) return;
+  const list = Array.isArray(extensions) ? extensions : [];
+  if(!list.length){ box.innerHTML = ''; return; }
+  // 一律依「新增順序」反轉顯示（最後展期的排最上面），不依時間字串排序：
+  // extendedAt 只到分鐘精度，同一分鐘內連續展期兩次時，字串排序無法區分先後，反轉陣列才穩定正確
+  const reversed = [...list].reverse();
+  box.innerHTML = `<div style="font-size:11px;color:var(--tx3);margin-bottom:4px">展延紀錄</div>` +
+    reversed.map(e => `<div style="font-size:12px;color:var(--tx2);padding:4px 0;border-top:1px solid var(--bdr)">
+      ${escH(e.extendedAt||'')}　新終止日：${escH(e.newEndDate||'')}${e.changeNo?`　契變流水編號：${escH(e.changeNo)}`:''}
+    </div>`).join('');
+}
+
+// ─── 591展期 ───────────────────────────────────────────────────────
+// 只適用公司委託（591 到期日僅存在於 company_listings 的 listingChannels 欄位裡），
+// 直接寫回該筆 company_listings 文件；「開啟時是否顯示這個按鈕」已在 renderListingChannelsUI()
+// 裡依 _companyListingEditId 是否有值決定（新增委託尚未存檔，沒有既有到期日可展期）
+function open591ExtModal(){
+  document.getElementById('ext591-newdate').value = '';
+  openOv('591ext');
+}
+async function confirm591Ext(){
+  const newExpiry = document.getElementById('ext591-newdate').value;
+  if(!newExpiry){ alert('請選擇展期日期（新到期日）'); return; }
+  if(!_companyListingEditId){ alert('⚠️ 目前不是編輯既有公司委託的狀態，無法展期'); return; }
+  const extendedAt = nowDate() + ' ' + nowTime();
+  try{
+    const ref = window._firebaseCompanyListingRef(_companyListingEditId);
+    const snap = await window._firebaseGetDoc(ref);
+    const cur = snap.exists() ? snap.data() : {};
+    const curChannels = cur.listingChannels || {};
+    const cur591 = curChannels['591'] || { listed:true, reason:'' };
+    const extensions = (cur591.extensions || []).concat([{ newExpiry, extendedAt }]);
+    const new591 = { ...cur591, listed:true, expiry: newExpiry, extensions };
+    const newChannels = { ...curChannels, '591': new591 };
+    await window._firebaseSetDoc(ref, { listingChannels: newChannels }, {merge:true});
+    // 同步更新畫面上目前的上架管道狀態，不用關掉視窗重開才看得到最新結果
+    _listingChannelsState['591'] = new591;
+    const expiryInput = document.getElementById('ch-591-expiry');
+    if(expiryInput) expiryInput.value = newExpiry;
+    render591ExtHistory(extensions);
+    closeOv('591ext');
+  }catch(e){
+    alert('⚠️ 展期失敗：' + e.message);
+  }
+}
+function render591ExtHistory(extensions){
+  const box = document.getElementById('ext591-history');
+  if(!box) return;
+  const list = Array.isArray(extensions) ? extensions : [];
+  if(!list.length){ box.innerHTML = ''; return; }
+  // 理由同 renderCommExtHistory：反轉陣列顯示，不依時間字串排序（避免同一分鐘內排序不穩定）
+  const reversed = [...list].reverse();
+  box.innerHTML = `<div style="font-size:11px;color:var(--tx3);margin-bottom:4px">展延紀錄</div>` +
+    reversed.map(e => `<div style="font-size:12px;color:var(--tx2);padding:4px 0;border-top:1px solid var(--bdr)">
+      ${escH(e.extendedAt||'')}　新到期日：${escH(e.newExpiry||'')}
+    </div>`).join('');
 }
 
 // ─── 生成廣告（A4 售屋廣告單，可預覽並下載 PDF／JPG）────────────────────────
@@ -6952,6 +7130,35 @@ function _getAllNotifs(){
     }
   });
 
+  // 1.5 591 上架即將到期（7天內）：只有該筆負責業務本人，或店秘書／幕僚身份組看得到
+  // （591到期日存在公司委託 db.inventory 的 listingChannels['591'].expiry，跟委託到期不同來源，
+  //  但通知呈現方式與規則刻意做成一致：同樣的紅色通知列＋鈴鐺通知中心）
+  {
+    const myUid = window._currentUser && window._currentUser.uid;
+    const isStaffOrAdvisor = window._myRole === ROLES.SECRETARY || window._myRole === ROLES.ADVISOR;
+    (db.inventory || []).forEach(r=>{
+      if(r._src !== 'listing') return; // 591 到期日只有透過「新增公司委託」建立的委託才有這個欄位
+      const st591 = r.listingChannels && r.listingChannels['591'];
+      if(!st591 || !st591.listed || !st591.expiry) return;
+      const d = daysUntil(st591.expiry);
+      if(d < 0 || d > 7) return;
+      const isAssigned = myUid && (r._agentUids||[]).includes(myUid);
+      if(!isAssigned && !isStaffOrAdvisor) return;
+      const label = r.caseName || r.bldg || (r.owners&&r.owners[0]&&r.owners[0].name) || '—';
+      notifs.push({
+        type:'591_expiring', priority: d <= 3 ? 0 : 1,
+        key: `591_expiring:${r.id}`,
+        icon: '📢',
+        title: `${escH(label)}`,
+        sub: `591 刊登即將到期：${st591.expiry}（剩 ${d} 天）`,
+        badge: d <= 3 ? `緊急` : `${d}天`,
+        badgeColor: d <= 3 ? 'var(--red)' : 'var(--gld)',
+        badgeBg: d <= 3 ? 'var(--redl)' : 'var(--gldl)',
+        action: ()=>{ closeNotifCenter(); switchPage('inventory'); }
+      });
+    });
+  }
+
   // 2. 委託已逾期（未處理）
   db.commission.forEach(r=>{
     if(!r.commEnd) return;
@@ -7054,16 +7261,34 @@ function checkNotifs(){
   // 與通知中心面板（_renderNotifCenter()）的過濾邏輯保持一致
   const notifs = _getAllNotifs().filter(n => !window._dismissedNotifs.has(_notifKey(n)));
 
-  // 舊版紅色通知列（只顯示到期，且未被刪除過的）
+  // 舊版紅色通知列：委託到期 ＋ 591即將到期（兩者顯示方式與規則刻意一致），皆排除已刪除過的
   const expiring = db.commission.filter(r=>r.commEnd && daysUntil(r.commEnd)>=0 && daysUntil(r.commEnd)<=30
     && !window._dismissedNotifs.has(`expiring:${r.id}`));
+  const myUid = window._currentUser && window._currentUser.uid;
+  const isStaffOrAdvisor = window._myRole === ROLES.SECRETARY || window._myRole === ROLES.ADVISOR;
+  const expiring591 = (db.inventory || []).filter(r=>{
+    if(r._src !== 'listing') return false;
+    const st = r.listingChannels && r.listingChannels['591'];
+    if(!st || !st.listed || !st.expiry) return false;
+    const d = daysUntil(st.expiry);
+    if(d < 0 || d > 7) return false;
+    const isAssigned = myUid && (r._agentUids||[]).includes(myUid);
+    if(!isAssigned && !isStaffOrAdvisor) return false;
+    return !window._dismissedNotifs.has(`591_expiring:${r.id}`);
+  });
   const bar = document.getElementById('notifBar');
-  if(expiring.length){
+  if(expiring.length || expiring591.length){
     bar.classList.add('show');
-    document.getElementById('notifItems').innerHTML = expiring.map(r=>{
+    const commTags = expiring.map(r=>{
       const label = r.caseName || ownersLabel(r);
       return `<span class="ntag" style="cursor:pointer" onclick="goToCommissionDetail('${r.id}')">${escH(label)} ${escH(r.propCity)}${escH(r.propDist)}（剩${daysUntil(r.commEnd)}天）</span>`;
-    }).join('');
+    });
+    const tag591 = expiring591.map(r=>{
+      const label = r.caseName || r.bldg || '—';
+      const st = r.listingChannels['591'];
+      return `<span class="ntag" style="cursor:pointer" onclick="switchPage('inventory')">📢 ${escH(label)} 591即將到期（剩${daysUntil(st.expiry)}天）</span>`;
+    });
+    document.getElementById('notifItems').innerHTML = commTags.concat(tag591).join('');
   } else bar.classList.remove('show');
 
   // 鈴鐺徽章數量
@@ -9576,6 +9801,8 @@ window.onFirebaseLogin = async function(user){
 
   // 閒置自動登出
   startAutoLogout();
+  // 每天下午 5 點提醒打戰報數字
+  startDaily5pmReminder();
 
   // 登入成功、主畫面顯示完成後，若有尚未看過的版本更新內容則跳出通知
   showUpdateNoticeIfNeeded();
@@ -9598,6 +9825,27 @@ function startAutoLogout(){
     document.addEventListener(evt, resetIdleTimer, {passive:true});
   });
   resetIdleTimer();
+}
+// 每天下午 5 點（抓使用者電腦本機時間）跳出提醒視窗，跟閒置自動登出用同一種呈現方式（原生 alert）。
+// 用 localStorage 記錄「今天已經提醒過」，避免同一天重複跳出；每分鐘檢查一次是否已過下午5點，
+// 也涵蓋「使用者剛好在5點過後才開啟/重新整理頁面」的情況（一開啟就會立即補跳一次提醒）。
+const DAILY_5PM_REMINDER_KEY = 'daily_5pm_reminder_shown_date';
+function _check5pmReminder(){
+  const now = new Date();
+  const todayStr = nowDate();
+  let lastShown = null;
+  try{ lastShown = localStorage.getItem(DAILY_5PM_REMINDER_KEY); }catch(e){}
+  if(lastShown === todayStr) return; // 今天已經提醒過
+  if(now.getHours() >= 17){
+    try{ localStorage.setItem(DAILY_5PM_REMINDER_KEY, todayStr); }catch(e){}
+    alert('五點了！記得打今日戰報的數字！！');
+  }
+}
+let _daily5pmTimer = null;
+function startDaily5pmReminder(){
+  _check5pmReminder(); // 立即檢查一次
+  clearInterval(_daily5pmTimer);
+  _daily5pmTimer = setInterval(_check5pmReminder, 60*1000);
 }
 
 let _dealId = null;
