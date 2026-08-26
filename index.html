@@ -5589,7 +5589,7 @@ async function _saveCompanyListing(data){
 }
 // 從 db.inventory 依 id 找回公司委託（company_listings 來源）的完整資料，供編輯／刪除按鈕使用
 function _invFindItem(id){
-  return (db.inventory||[]).find(x=>x.id===id && x._src==='listing');
+  return (db.inventory||[]).find(x=>x.id===id && (x._src==='listing' || x._src==='sync'));
 }
 // 刪除「公司委託」（company_listings 文件）：僅幕僚／店秘書／系統管理員，或該筆負責業務之一可刪除
 async function deleteCompanyListing(item){
