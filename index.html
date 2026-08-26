@@ -11157,6 +11157,15 @@ function _invGetFilteredGroups(){
       groups[key].items.push(r);
     });
   });
+  // 每位負責業務名下的物件，依簽委託日由舊到新排序（由上到下）；沒有簽委託日的資料排到最後，不影響其餘排序
+  Object.values(groups).forEach(g=>{
+    g.items.sort((a,b)=>{
+      if(!a.signDate && !b.signDate) return 0;
+      if(!a.signDate) return 1;
+      if(!b.signDate) return -1;
+      return a.signDate.localeCompare(b.signDate);
+    });
+  });
   return { items, q, typeF, filtered, groups };
 }
 
@@ -11928,12 +11937,18 @@ async function removeFromWhitelist(uid){
   try{
     await window._firebaseDeleteDoc(window._firebaseAllowedRef(uid));
     // 白名單移除後，下方「身份組清單」（users_index）也一併移除該員工，避免已離職／停權帳號仍殘留在身份組清單中
+    let indexSyncFailed = false;
     try{
       await window._firebaseDeleteDoc(window._firebaseIndexRef(uid));
     }catch(e2){
+      indexSyncFailed = true;
       console.warn('移除白名單：同步移除身份組清單（users_index）失敗，可能需要手動於身份組清單中處理', e2);
     }
-    alert('已移除白名單：' + (x.email || uid) + '\n該帳號下次將無法登入，身份組清單中的紀錄也已一併移除。');
+    if(indexSyncFailed){
+      alert('⚠️ 已移除白名單：' + (x.email || uid) + '（該帳號下次將無法登入）\n但同步移除「身份組清單」失敗，該員工可能仍會顯示在身份組清單中，請稍後重新整理再試一次，或改用身份組清單的「移除該員工」處理。');
+    } else {
+      alert('已移除白名單：' + (x.email || uid) + '\n該帳號下次將無法登入，身份組清單中的紀錄也已一併移除。');
+    }
     renderWhitelist();
     // 同步刷新身份組清單與統計數字
     _adminData = _adminData.filter(u=>u.uid!==uid);
@@ -11954,12 +11969,18 @@ async function removeEmployeeFromSystem(uid){
   if(!confirm('確定要移除員工「' + displayName + '」嗎？\n\n此動作會同時：\n1. 從身份組清單移除\n2. 移出白名單（該帳號下次將無法再登入系統）\n\n其客戶資料不會被刪除。若日後需重新啟用，須請對方重新註冊並再次審核。')) return;
   try{
     await window._firebaseDeleteDoc(window._firebaseIndexRef(uid));
+    let allowedSyncFailed = false;
     try{
       await window._firebaseDeleteDoc(window._firebaseAllowedRef(uid));
     }catch(e2){
+      allowedSyncFailed = true;
       console.warn('移除該員工：同步移出白名單失敗，可能需要手動於白名單管理中處理', e2);
     }
-    alert('已移除員工：' + displayName + '\n身份組清單與白名單皆已移除。');
+    if(allowedSyncFailed){
+      alert('⚠️ 已從身份組清單移除「' + displayName + '」，但同步移出白名單失敗，該帳號可能仍可登入系統！\n請改到下方「白名單管理」區塊手動移除，或重新整理後再試一次。');
+    } else {
+      alert('已移除員工：' + displayName + '\n身份組清單與白名單皆已移除。');
+    }
     _adminData = _adminData.filter(x=>x.uid!==uid);
     renderSysadminSummary();
     renderSysadminTable();
