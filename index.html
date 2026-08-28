@@ -4150,7 +4150,9 @@ function canEditWarReport(){
 // 管理「任何一筆」公司委託（編輯他人名下的委託、改派負責業務名單、刪除他人的委託、幫他人標記成交）：
 // 僅幕僚／店秘書／系統管理員，與每日戰報編輯權限一致（維持原本的既有行為，範圍不因下面新增的權限而擴大）
 function canManageAnyCompanyListing(){
-  return canEditWarReport();
+  // 主管身份組在「公司庫存」頁面的功能與幕僚相同（新增／編輯／刪除／標記成交任何一筆、代編輯他人同步的委託），
+  // 但不因此連帶取得每日戰報編輯權限（canEditWarReport() 仍只有幕僚／店秘書／系統管理員，故獨立判斷不合併進去）
+  return canEditWarReport() || window._myRole === ROLES.SUPERVISOR;
 }
 // 可「新增」一筆全新的公司委託者：幕僚／店秘書／系統管理員，或一般員工（staff，預設身份組）皆可新增。
 // 注意：這只放寬「新增」，員工新增後仍只能編輯／刪除／標記成交「自己也在其中」的委託（見 isOwner 判斷），
@@ -4908,7 +4910,7 @@ function getMotoParkingFromForm(){
   return list;
 }
 
-function openRecruitModal(id,pool){
+async function openRecruitModal(id,pool){
   editId=id; editPool=pool||'recruit';
   const isComm = editPool==='commission';
   document.getElementById('recruit-modal-title').textContent=
@@ -4923,7 +4925,7 @@ function openRecruitModal(id,pool){
   _adminEditSyncTargetUid = null;
   _adminEditSyncItem = null;
   const agentWrap = document.getElementById('ec-agent-wrap');
-  if(agentWrap) agentWrap.style.display = 'none';
+  if(agentWrap) agentWrap.style.display = isComm ? '' : 'none';
   const channelsWrap = document.getElementById('ec-channels-wrap');
   if(channelsWrap) channelsWrap.style.display = 'none';
   const photosWrap = document.getElementById('ec-photos-wrap');
@@ -4976,6 +4978,12 @@ function openRecruitModal(id,pool){
       const commextWrap = document.getElementById('commext-wrap');
       if(commextWrap) commextWrap.style.display = '';
       renderCommExtHistory(f.commExtensions || []);
+      // 一般業務自己的委託（非透過新增公司委託建立）：負責業務清單優先使用已存的 assignedAgents（含角色／比例），
+      // 沒有的話（尚未使用過這個功能的舊委託）預設為自己是開發業務 100%，不強迫使用者一定要先設定才能存檔
+      const myUid = window._currentUser && window._currentUser.uid;
+      const myName = (window._currentUser && (window._currentUser.displayName || window._currentUser.email)) || '';
+      const existingAgents = (f.assignedAgents && f.assignedAgents.length) ? f.assignedAgents : (myUid ? [{uid:myUid, name:myName, role:'dev'}] : []);
+      await setAgentPickerList('comm', existingAgents);
     }
   } else {
     addOwnerRow();
@@ -4988,6 +4996,12 @@ function openRecruitModal(id,pool){
     if(isComm){
       const sd = document.getElementById('ec2-signdate');
       if(sd) sd.value = nowDate();
+      // 一般業務自己新增委託（非透過新增公司委託）：預設自己是開發業務 100%；
+      // 若這其實是「新增公司委託」的初始呼叫，openCompanyListingModal() 隨後會呼叫
+      // setAgentPickerList('comm', []) 蓋掉這個預設值，不會互相衝突
+      const myUid = window._currentUser && window._currentUser.uid;
+      const myName = (window._currentUser && (window._currentUser.displayName || window._currentUser.email)) || '';
+      if(myUid) await setAgentPickerList('comm', [{uid:myUid, name:myName, role:'dev'}]);
     }
   }
   onPropTypeChange();
@@ -6265,6 +6279,19 @@ function saveRecruit(){
   if(_adminEditSyncTargetUid){
     _saveAdminEditSync(data);
     return;
+  }
+  // 一般業務自己新增／編輯委託（非上述兩種特殊模式）：把「負責業務（可多位，含分工角色比例）」
+  // 一併存進委託資料，供每日戰報 A/A+B/R 依角色比例分配（沒有使用這個功能的話，
+  // 負責業務欄位已預設是自己 100%，不會因為使用者沒有互動而漏存）
+  if(isComm){
+    const agents = getAgentPickerList('comm');
+    if(agents.length){
+      const roleErr = validateAgentRoles(agents);
+      if(roleErr){ alert('⚠️ ' + roleErr); return; }
+      const ratioMap = computeAgentRoleRatios(agents);
+      data.assignedAgents = agents.map(a=>({...a, ratio: ratioMap[a.uid]}));
+      data.assignedAgentUids = agents.map(a=>a.uid);
+    }
   }
   const list = isComm ? db.commission : (editPool==='track'?db.track:db.recruit);
   if(editId){
