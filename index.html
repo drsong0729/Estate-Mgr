@@ -5648,12 +5648,12 @@ async function deleteCompanyListing(item){
 // 避免覆蓋掉業務自己這段時間內對其他筆委託的異動。
 let _adminEditSyncTargetUid = null; // 目前正在編輯的委託所屬業務 uid；非此模式時為 null
 let _adminEditSyncItem = null;      // 目前正在編輯的委託原始資料（來自 db.inventory，_src==='sync'）
-function openAdminEditSyncModal(item){
-  if(!canManageAnyCompanyListing()) return; // 僅幕僚／店秘書／系統管理員可用
+async function openAdminEditSyncModal(item){
+  if(!canManageAnyCompanyListing()) return; // 僅幕僚／店秘書／主管／系統管理員可用
   if(!item || item._src !== 'sync') return;
   const targetUid = item._agentUid;
   if(!targetUid){ alert('⚠️ 找不到這筆委託的所屬業務'); return; }
-  openRecruitModal(null, 'commission'); // 沿用共用彈窗（內部會重置 _companyListingMode／_adminEditSyncTargetUid 等狀態，須在此之後才設定本次的值）
+  await openRecruitModal(null, 'commission'); // 沿用共用彈窗（內部會重置 _companyListingMode／_adminEditSyncTargetUid 等狀態，須在此之後才設定本次的值）
   _adminEditSyncTargetUid = targetUid;
   _adminEditSyncItem = item;
   const channelsWrap = document.getElementById('ec-channels-wrap');
@@ -5665,8 +5665,14 @@ function openAdminEditSyncModal(item){
   const commextWrap = document.getElementById('commext-wrap');
   if(commextWrap) commextWrap.style.display = '';
   renderCommExtHistory(item.commExtensions || []);
+  // 負責業務（可多位，含分工角色比例）：優先使用這筆委託已存的 assignedAgents，
+  // 沒有的話（該業務尚未使用過這個功能）預設為該業務本人是開發業務 100%，不強迫一定要先設定才能編輯其他欄位
   const agentWrap = document.getElementById('ec-agent-wrap');
-  if(agentWrap) agentWrap.style.display = 'none';
+  if(agentWrap) agentWrap.style.display = '';
+  const existingAgents = (item.assignedAgents && item.assignedAgents.length)
+    ? item.assignedAgents
+    : [{ uid: targetUid, name: item._agentName || '', role: 'dev' }];
+  await setAgentPickerList('comm', existingAgents);
   const titleEl = document.getElementById('recruit-modal-title');
   if(titleEl) titleEl.textContent = `✏️ 編輯「${item._agentName||'該業務'}」的委託`;
   _populateRecruitFormFrom(item, true);
@@ -6269,21 +6275,10 @@ function saveRecruit(){
       if(ec2type) data.commType = ec2type.value;
     }
   }
-  // 新增公司委託模式：不寫入自己的委託清單，改寫入獨立的 company_listings 集合，並指定負責業務
-  if(_companyListingMode){
-    _saveCompanyListing(data);
-    return;
-  }
-  // 幕僚／店秘書／系統管理員編輯「其他業務」自動同步進公司庫存的委託（非透過新增公司委託建立）：
-  // 不寫進目前登入者自己的委託清單，而是寫回該業務本人的個人資料文件
-  if(_adminEditSyncTargetUid){
-    _saveAdminEditSync(data);
-    return;
-  }
-  // 一般業務自己新增／編輯委託（非上述兩種特殊模式）：把「負責業務（可多位，含分工角色比例）」
-  // 一併存進委託資料，供每日戰報 A/A+B/R 依角色比例分配（沒有使用這個功能的話，
-  // 負責業務欄位已預設是自己 100%，不會因為使用者沒有互動而漏存）
-  if(isComm){
+  // 一般業務自己新增／編輯委託，或幕僚／店秘書／主管／系統管理員代編輯他人同步進來的委託：
+  // 把「負責業務（可多位，含分工角色比例）」一併存進委託資料，供每日戰報 A/A+B/R 依角色比例分配
+  // （「新增公司委託」模式的負責業務由 _saveCompanyListing() 自己另外處理驗證與比例計算，這裡不重複做）
+  if(isComm && !_companyListingMode){
     const agents = getAgentPickerList('comm');
     if(agents.length){
       const roleErr = validateAgentRoles(agents);
@@ -6292,6 +6287,17 @@ function saveRecruit(){
       data.assignedAgents = agents.map(a=>({...a, ratio: ratioMap[a.uid]}));
       data.assignedAgentUids = agents.map(a=>a.uid);
     }
+  }
+  // 新增公司委託模式：不寫入自己的委託清單，改寫入獨立的 company_listings 集合，並指定負責業務
+  if(_companyListingMode){
+    _saveCompanyListing(data);
+    return;
+  }
+  // 幕僚／店秘書／主管／系統管理員編輯「其他業務」自動同步進公司庫存的委託（非透過新增公司委託建立）：
+  // 不寫進目前登入者自己的委託清單，而是寫回該業務本人的個人資料文件
+  if(_adminEditSyncTargetUid){
+    _saveAdminEditSync(data);
+    return;
   }
   const list = isComm ? db.commission : (editPool==='track'?db.track:db.recruit);
   if(editId){
