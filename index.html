@@ -5630,6 +5630,7 @@ async function deleteCompanyListing(item){
       const remote = snap.data();
       const commissionArr = (remote.commission || []).filter(x=>x.id !== item.id);
       await window._firebaseSetDoc(ref, { commission: commissionArr, updatedAt: new Date().toISOString() }, {merge:true});
+      await _syncCompanyInventorySnapshot(targetUid, commissionArr, item._agentName);
     } else {
       await window._firebaseDeleteDoc(window._firebaseCompanyListingRef(item.id));
     }
@@ -5637,6 +5638,26 @@ async function deleteCompanyListing(item){
     renderInventory();
   }catch(e){
     alert('⚠️ 刪除失敗：' + e.message);
+  }
+}
+
+// ─── 幕僚／店秘書／主管／系統管理員代為異動「其他業務」自動同步進公司庫存的委託時共用 ──────
+// 這類委託的正本存在該業務本人的 users/{uid}/data/main 文件裡；但公司庫存頁面實際顯示的
+// 資料來自另一份快照 company_inventory/{uid}（該業務本人登入、自己 save() 時才會自動更新這份快照）。
+// 幕僚等身分代為編輯／標記成交／刪除時，只改了正本，這份快照不會自動跟著更新——會導致公司庫存頁面
+// 卡片沒有反映異動（例如改了負責業務，卡片沒有移到新業務名下；標記成交或刪除後，卡片還在）。
+// 所以每次代為異動正本之後，都要呼叫這個函式，比照該業務本人自動同步時的作法，手動把快照也更新過去。
+async function _syncCompanyInventorySnapshot(targetUid, commissionArr, fallbackAgentName){
+  try{
+    const invSnap = await window._firebaseGetDoc(window._firebaseInventoryRef(targetUid));
+    const agentName = (invSnap.exists() && invSnap.data().agentName) || fallbackAgentName || '未知';
+    await window._firebaseSetDoc(
+      window._firebaseInventoryRef(targetUid),
+      { uid: targetUid, agentName, updatedAt: new Date().toISOString(), items: commissionArr },
+      { merge: false }
+    );
+  }catch(e){
+    console.warn('代為異動他人委託：同步更新公司庫存快取失敗，畫面可能要等該業務本人下次登入才會更新', e);
   }
 }
 
@@ -5691,6 +5712,7 @@ async function _saveAdminEditSync(data){
     if(idx === -1){ alert('⚠️ 找不到這筆委託，可能已被本人刪除或大幅修改，請重新整理公司庫存後再試'); return; }
     commissionArr[idx] = { ...commissionArr[idx], ...data };
     await window._firebaseSetDoc(ref, { commission: commissionArr, updatedAt: new Date().toISOString() }, {merge:true});
+    await _syncCompanyInventorySnapshot(targetUid, commissionArr, originalItem._agentName);
     _adminEditSyncTargetUid = null;
     _adminEditSyncItem = null;
     closeOv('recruit');
@@ -6189,6 +6211,7 @@ async function confirmCompanyDeal(){
           const remote = snap.data();
           const commissionArr = (remote.commission || []).filter(x=>x.id !== item.id);
           await window._firebaseSetDoc(ref2, { commission: commissionArr, updatedAt: new Date().toISOString() }, {merge:true});
+          await _syncCompanyInventorySnapshot(targetUid, commissionArr, item._agentName);
         }
       }
     } else {
