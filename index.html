@@ -7494,6 +7494,7 @@ function dismissNotif(key){
   _saveDismissedNotifs();
   _renderNotifCenter();
   checkNotifs(); // 同步更新舊版紅色通知列與鈴鐺徽章數量
+  if(typeof _renderStaffBdayBar === 'function') _renderStaffBdayBar(); // 同步更新首頁生日橫幅（若剛好刪除的是生日提醒）
 }
 
 function clearAllNotifs(){
@@ -7502,6 +7503,7 @@ function clearAllNotifs(){
   _saveDismissedNotifs();
   _renderNotifCenter();
   checkNotifs();
+  if(typeof _renderStaffBdayBar === 'function') _renderStaffBdayBar();
 }
 
 function _ncItemClick(idx){
@@ -15262,15 +15264,19 @@ async function checkStaffBirthdays(){
   if(typeof checkNotifs==='function') checkNotifs();
 }
 
-// 首頁「本月同仁生日提醒」橫幅：生日已過（早於今天）的同仁不再顯示於此橫幅
-// 注意：僅過濾此處的首頁橫幅顯示，通知中心（_getAllNotifs() 的 staff_birthday）仍會列出整個月的同仁生日，
-// 讓使用者仍可在通知中心查看／刪除本月所有生日提醒的紀錄，兩處各自獨立運作。
+// 首頁「本月同仁生日提醒」橫幅：生日已過（早於今天）的同仁不再顯示於此橫幅，
+// 且跟通知中心（鈴鐺）共用同一份刪除紀錄（_dismissedNotifs）——在鈴鐺按叉叉刪除或「清除全部通知」，
+// 這裡也會一併不再顯示，兩處不再各自獨立（此為刻意的行為，非疏漏）。
 function _renderStaffBdayBar(){
   const bar = document.getElementById('stats-staff-bday-bar');
   const listEl = document.getElementById('stats-staff-bday-list');
   if(!bar || !listEl) return;
   const todayD = new Date().getDate();
-  const list = (window._staffBirthdaysThisMonth || []).filter(p => p.day >= todayD);
+  const curYearStr = String(new Date().getFullYear());
+  const dismissed = window._dismissedNotifs || new Set();
+  const list = (window._staffBirthdaysThisMonth || []).filter(p =>
+    p.day >= todayD && !dismissed.has(`staff_birthday:${p.id||p.name}:${curYearStr}`)
+  );
   if(!list.length){ bar.style.display = 'none'; return; }
   bar.style.display = 'flex';
   listEl.innerHTML = list.map(p=>{
@@ -16058,7 +16064,7 @@ function renderScheduleBody() {
             <div style="flex:1;min-width:0">
               <div style="font-size:13px;font-weight:600;color:var(--tx);${nameStyle};display:flex;align-items:center;flex-wrap:wrap;gap:4px">${escHtml(t.name)}${badge}</div>
               ${t.note ? `<div style="font-size:11px;color:var(--tx3);margin-top:1px">${escHtml(t.note)}</div>` : ''}
-              ${isUndone && t.undoneReason ? `<div style="font-size:11px;color:var(--red);margin-top:2px;padding:3px 7px;background:var(--redl);border-radius:4px">原因：${escHtml(t.undoneReason)}</div>` : ''}
+              ${isUndone && t.undoneReason ? `<div style="font-size:11px;color:var(--tx3);margin-top:1px">原因：${escHtml(t.undoneReason)}</div>` : ''}
             </div>
             <span style="font-size:18px;color:var(--acc);opacity:.4;flex-shrink:0">+</span>
           </div>`;
@@ -16070,7 +16076,7 @@ function renderScheduleBody() {
             <div style="flex:1;min-width:0">
               <div style="font-size:13px;font-weight:600;color:var(--tx);${nameStyle};display:flex;align-items:center;flex-wrap:wrap;gap:4px">${escHtml(t.name)}${badge}</div>
               ${t.note ? `<div style="font-size:11px;color:var(--tx3);margin-top:1px">${escHtml(t.note)}</div>` : ''}
-              ${isUndone && t.undoneReason ? `<div style="font-size:11px;color:var(--red);margin-top:2px;padding:3px 7px;background:var(--redl);border-radius:4px">原因：${escHtml(t.undoneReason)}</div>` : ''}
+              ${isUndone && t.undoneReason ? `<div style="font-size:11px;color:var(--tx3);margin-top:1px">原因：${escHtml(t.undoneReason)}</div>` : ''}
             </div>
           </div>`;
         }
