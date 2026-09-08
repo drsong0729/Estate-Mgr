@@ -11242,16 +11242,24 @@ function _invGetFilteredGroups(){
     }
     return true;
   });
-  // 依負責業務分組：若一筆委託有多位負責業務，會同時出現在每一位負責業務名下（庫存數各自完整計入）
+  // 依負責業務分組：一筆委託只會出現在「開發業務」名下（庫存數只計入開發業務一次），
+  // 協助業務／角色輔助不會在自己名下重複顯示這筆、也不會被算進自己的庫存數
+  // （每日戰報的 A/A+B/R 與業績仍依角色比例分配給每一位負責業務，這裡只影響公司庫存頁面的顯示歸類）。
+  // 沒有分工角色資料的舊委託（單一負責業務），行為維持不變，退回用 _agentUids 的第一位。
   const groups = {};
   filtered.forEach(r=>{
-    const uids = (r._agentUids && r._agentUids.length) ? r._agentUids : [r._agentUid || '?'];
-    const names = (r._agentNames && r._agentNames.length) ? r._agentNames : [r._agentName || ''];
-    uids.forEach((uid,i)=>{
-      const key = uid || '?';
-      if(!groups[key]) groups[key]={agentName:names[i]||names[0]||'', updatedAt:r._updatedAt, items:[]};
-      groups[key].items.push(r);
-    });
+    let uid, name;
+    if(r.assignedAgents && r.assignedAgents.length){
+      const devAgent = r.assignedAgents.find(a=>a.role==='dev') || r.assignedAgents[0];
+      uid = devAgent.uid;
+      name = devAgent.name;
+    } else {
+      uid = (r._agentUids && r._agentUids[0]) || r._agentUid || '?';
+      name = (r._agentNames && r._agentNames[0]) || r._agentName || '';
+    }
+    const key = uid || '?';
+    if(!groups[key]) groups[key]={agentName:name||'', updatedAt:r._updatedAt, items:[]};
+    groups[key].items.push(r);
   });
   // 每位負責業務名下的物件，依簽委託日由舊到新排序（由上到下）；沒有簽委託日的資料排到最後，不影響其餘排序
   Object.values(groups).forEach(g=>{
@@ -11273,8 +11281,8 @@ function renderInventory(){
   // 統計列
   const statEl = document.getElementById('inv-stats');
   if(statEl){
-    // 統計有幾位業務、幾筆物件
-    const agents = [...new Set(items.map(r=>r._agentUid))].length;
+    // 業務位數：改用跟卡片分組相同的邏輯（依開發業務歸類），確保這個數字跟畫面上實際顯示的分組數一致
+    const agents = Object.keys(groups).length;
     statEl.innerHTML = `
       <div style="background:var(--accl);color:var(--acc);border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600">
         🏢 庫存總筆數：<strong>${items.length}</strong>
